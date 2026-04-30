@@ -249,7 +249,11 @@ fn allowed_environment(context: &serde_json::Value) -> BTreeMap<String, String> 
     .into_iter()
     .flatten()
     .filter_map(serde_json::Value::as_str)
-    .filter_map(|name| std::env::var(name).ok().map(|value| (name.to_string(), value)))
+    .filter_map(|name| {
+      std::env::var(name)
+        .ok()
+        .map(|value| (name.to_string(), value))
+    })
     .collect()
 }
 
@@ -520,7 +524,9 @@ console.log(JSON.stringify({
       let context = serde_json::json!({
         "allowedEnv": ["TNMSD_ALLOWED_ENV_FOR_TEST", "TNMSD_MISSING_ENV_FOR_TEST"]
       });
-      let result = runtime.execute_ts(&script_path, &context.to_string()).unwrap();
+      let result = runtime
+        .execute_ts(&script_path, &context.to_string())
+        .unwrap();
       let parsed: serde_json::Value = serde_json::from_str(result.trim()).unwrap();
 
       assert_eq!(parsed["allowed"], "visible-value");

@@ -13,9 +13,9 @@ pub use cleanup::{
 pub use config::{ConfigLoader, MergedConfigResult, PluginsConfig, UserConfigFile};
 pub use output_context::OutputContext;
 pub use plugin_shared::{
-  AIAgentIgnoreConfigFile, SlashCommandPrompt, GlobalMemoryPrompt, IDEKind, NamingCaseKind,
-  PluginKind, Project, ProjectIDEConfigFile, PromptKind, ReadmePrompt, RelativePath, RulePrompt,
-  RuleScope, SkillPrompt, SubAgentPrompt, Workspace,
+  AIAgentIgnoreConfigFile, GlobalMemoryPrompt, IDEKind, NamingCaseKind, PluginKind, Project,
+  ProjectIDEConfigFile, PromptKind, ReadmePrompt, RelativePath, RulePrompt, RuleScope, SkillPrompt,
+  SlashCommandPrompt, SubAgentPrompt, Workspace,
 };
 
 #[cfg(test)]

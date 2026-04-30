@@ -174,7 +174,14 @@ fn main() -> Result<(), String> {
       println!("[xtask] Running fmt check...");
       run_cargo(&["fmt", "--check"])?;
       println!("[xtask] Running clippy...");
-      run_cargo(&["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])?;
+      run_cargo(&[
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+      ])?;
       println!("[xtask] Linting completed.");
     }
     Command::CheckType => {
@@ -213,7 +220,14 @@ fn main() -> Result<(), String> {
       println!("[xtask] Running full check...");
       run_cargo(&["fmt", "--check"])?;
       run_cargo(&["check", "--workspace", "--exclude", "tnmsg"])?;
-      run_cargo(&["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])?;
+      run_cargo(&[
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+      ])?;
       run_cargo(&[
         "test",
         "--workspace",

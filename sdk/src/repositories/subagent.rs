@@ -81,15 +81,9 @@ fn build_subagent_prompt(
   dir: &str,
   diagnostics: &mut Vec<crate::domain::plugin_shared::Diagnostic>,
 ) -> Result<SubAgentPrompt, crate::CliError> {
-  let compiled = entry
-    .compiled
-    .as_ref()
-    .ok_or_else(|| {
-      crate::CliError::ConfigError(format!(
-        "Missing compiled prompt: {}.mdx",
-        entry.name
-      ))
-    })?;
+  let compiled = entry.compiled.as_ref().ok_or_else(|| {
+    crate::CliError::ConfigError(format!("Missing compiled prompt: {}.mdx", entry.name))
+  })?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
   validate_subagent_metadata(&compiled.metadata, &file_path)

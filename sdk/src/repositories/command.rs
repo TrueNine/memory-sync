@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::domain::config;
 use crate::domain::plugin_shared::{
-  SlashCommandPrompt, SlashCommandYAMLFrontMatter, PromptKind, RelativePath,
+  PromptKind, RelativePath, SlashCommandPrompt, SlashCommandYAMLFrontMatter,
 };
 use crate::repositories::localized_reader::read_flat_files;
 
@@ -48,15 +48,9 @@ fn build_command_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
   dir: &str,
 ) -> Result<SlashCommandPrompt, crate::CliError> {
-  let compiled = entry
-    .compiled
-    .as_ref()
-    .ok_or_else(|| {
-      crate::CliError::ConfigError(format!(
-        "Missing compiled prompt: {}.mdx",
-        entry.name
-      ))
-    })?;
+  let compiled = entry.compiled.as_ref().ok_or_else(|| {
+    crate::CliError::ConfigError(format!("Missing compiled prompt: {}.mdx", entry.name))
+  })?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
   validate_command_metadata(&compiled.metadata, &file_path)

@@ -95,8 +95,8 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
 
   if options.dry_run.unwrap_or(false) {
     let plan_span = logger.span("cleanup.plan").enter();
-    let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
-      .map_err(CliError::ExecutionError)?;
+    let plan =
+      crate::policy::cleanup::plan_cleanup(snapshot.clone()).map_err(CliError::ExecutionError)?;
     plan_span.exit();
 
     let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();

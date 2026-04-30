@@ -119,7 +119,11 @@ mod tests {
     fs::write(dir.path().join("en/notes.md"), b"x").unwrap();
 
     let result = detect_project_name_conflicts(dir.path(), &["zh", "en"], "Prefix");
-    assert!(result.is_ok(), "files at the series root must be ignored, got {:?}", result);
+    assert!(
+      result.is_ok(),
+      "files at the series root must be ignored, got {:?}",
+      result
+    );
   }
 
   #[test]
@@ -129,6 +133,10 @@ mod tests {
     // No "en" directory at all.
 
     let result = detect_project_name_conflicts(dir.path(), &["zh", "en"], "Prefix");
-    assert!(result.is_ok(), "missing series dir is not a conflict, got {:?}", result);
+    assert!(
+      result.is_ok(),
+      "missing series dir is not a conflict, got {:?}",
+      result
+    );
   }
 }

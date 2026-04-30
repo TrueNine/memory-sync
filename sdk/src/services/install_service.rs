@@ -406,7 +406,12 @@ fn discover_install_project_roots(
         .strip_prefix(workspace)
         .ok()
         .and_then(|relative| relative.components().next())
-        .map(|component| workspace.join(component.as_os_str()).to_string_lossy().into_owned())
+        .map(|component| {
+          workspace
+            .join(component.as_os_str())
+            .to_string_lossy()
+            .into_owned()
+        })
     })
     .collect::<Vec<_>>();
   roots.sort();

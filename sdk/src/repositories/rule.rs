@@ -92,15 +92,9 @@ fn build_rule_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
   dir: &str,
 ) -> Result<RulePrompt, crate::CliError> {
-  let compiled = entry
-    .compiled
-    .as_ref()
-    .ok_or_else(|| {
-      crate::CliError::ConfigError(format!(
-        "Missing compiled prompt: {}.mdx",
-        entry.name
-      ))
-    })?;
+  let compiled = entry.compiled.as_ref().ok_or_else(|| {
+    crate::CliError::ConfigError(format!("Missing compiled prompt: {}.mdx", entry.name))
+  })?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
   validate_rule_metadata(&compiled.metadata, &file_path).map_err(crate::CliError::ConfigError)?;

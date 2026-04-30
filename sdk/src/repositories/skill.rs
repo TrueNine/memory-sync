@@ -9,7 +9,9 @@ use crate::domain::plugin_shared::{
   FilePathKind, McpServerConfig, PromptKind, RelativePath, SkillChildDoc, SkillMcpConfig,
   SkillPrompt, SkillResource, SkillResourceEncoding, SkillYAMLFrontMatter,
 };
-use crate::repositories::prompt_artifact::{assert_no_residual_module_syntax, read_prompt_artifact};
+use crate::repositories::prompt_artifact::{
+  assert_no_residual_module_syntax, read_prompt_artifact,
+};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]

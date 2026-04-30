@@ -51,14 +51,26 @@ fn local_trae_steering_idempotent() {
   first.assert_success("first tnmsc install");
   assert!(runner.trae_steering_file_exists());
 
-  let content_first =
-    fs::read_to_string(runner.cwd().join(".trae").join("steering").join("GLOBAL.md")).unwrap();
+  let content_first = fs::read_to_string(
+    runner
+      .cwd()
+      .join(".trae")
+      .join("steering")
+      .join("GLOBAL.md"),
+  )
+  .unwrap();
 
   let second = runner.install();
   second.assert_success("second tnmsc install");
 
-  let content_second =
-    fs::read_to_string(runner.cwd().join(".trae").join("steering").join("GLOBAL.md")).unwrap();
+  let content_second = fs::read_to_string(
+    runner
+      .cwd()
+      .join(".trae")
+      .join("steering")
+      .join("GLOBAL.md"),
+  )
+  .unwrap();
 
   assert_eq!(
     content_first, content_second,
@@ -100,10 +112,17 @@ fn local_trae_cn_cleaned_for_compatibility() {
   assert!(runner.trae_steering_file_exists());
 
   // Simulate old-style .trae-cn/ output (should be cleaned up)
-  let trae_cn_path = runner.cwd().join(".trae-cn").join("user_rules").join("GLOBAL.md");
+  let trae_cn_path = runner
+    .cwd()
+    .join(".trae-cn")
+    .join("user_rules")
+    .join("GLOBAL.md");
   fs::create_dir_all(trae_cn_path.parent().unwrap()).unwrap();
   fs::write(&trae_cn_path, "# legacy\n").unwrap();
-  assert!(runner.trae_cn_file_exists(), "fake .trae-cn should exist before clean");
+  assert!(
+    runner.trae_cn_file_exists(),
+    "fake .trae-cn should exist before clean"
+  );
 
   let clean = runner.clean();
   clean.assert_success("tnmsc clean removes legacy .trae-cn");

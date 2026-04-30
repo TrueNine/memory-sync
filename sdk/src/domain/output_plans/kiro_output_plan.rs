@@ -187,7 +187,10 @@ mod tests {
       .map(|d| d.path.as_str())
       .collect();
 
-    assert!(paths.contains(&"/tmp/workspace/.kiro/streening"), "expected workspace root glob");
+    assert!(
+      paths.contains(&"/tmp/workspace/.kiro/streening"),
+      "expected workspace root glob"
+    );
     assert!(
       paths.contains(&"/tmp/workspace/project-a/.kiro/specs/**/*"),
       "expected project glob"

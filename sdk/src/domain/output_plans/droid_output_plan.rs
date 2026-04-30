@@ -9,7 +9,7 @@ use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTa
 use crate::domain::config;
 use crate::domain::output_context::OutputContext;
 use crate::domain::plugin_shared::{
-  SlashCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt, Workspace,
+  Project, RelativePath, RuleScope, SkillPrompt, SlashCommandPrompt, Workspace,
 };
 
 const DROID_PLUGIN_NAME: &str = "DroidCLIOutputAdaptor";
@@ -623,9 +623,9 @@ mod tests {
 
   use super::*;
   use crate::domain::plugin_shared::{
-    SlashCommandYAMLFrontMatter, FilePathKind, GlobalMemoryPrompt, ProjectChildrenMemoryPrompt,
-    ProjectRootMemoryPrompt, PromptKind, RootPath, SkillChildDoc, SkillResource,
-    SkillResourceEncoding, SkillYAMLFrontMatter,
+    FilePathKind, GlobalMemoryPrompt, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt,
+    PromptKind, RootPath, SkillChildDoc, SkillResource, SkillResourceEncoding,
+    SkillYAMLFrontMatter, SlashCommandYAMLFrontMatter,
   };
 
   fn create_relative_path(base_path: &str, path: &str) -> RelativePath {

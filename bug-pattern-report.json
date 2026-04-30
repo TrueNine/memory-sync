@@ -1,0 +1,290 @@
+[
+  {
+    "pattern": "unwrap_in_production",
+    "file": "sdk/src/repositories/project_prompt.rs",
+    "line": 28,
+    "code": "regex_lite::Regex::new(r\"^\\s*(```|~~~)\").unwrap()",
+    "is_bug": false,
+    "note": "Static regex compilation; panics only on invalid regex which is a compile-time constant"
+  },
+  {
+    "pattern": "unwrap_in_production",
+    "file": "sdk/src/repositories/project_prompt.rs",
+    "line": 30,
+    "code": "regex_lite::Regex::new(r\"^\\s*export\\s+default\\b\").unwrap()",
+    "is_bug": false,
+    "note": "Static regex; compile-time constant, safe"
+  },
+  {
+    "pattern": "unwrap_in_production",
+    "file": "sdk/src/repositories/project_prompt.rs",
+    "line": 31,
+    "code": "regex_lite::Regex::new(r\"^\\s*export\\s+const\\b\").unwrap()",
+    "is_bug": false,
+    "note": "Static regex; compile-time constant, safe"
+  },
+  {
+    "pattern": "unwrap_in_production",
+    "file": "sdk/src/repositories/project_prompt.rs",
+    "line": 32,
+    "code": "regex_lite::Regex::new(r\"^\\s*import\\b\").unwrap()",
+    "is_bug": false,
+    "note": "Static regex; compile-time constant, safe"
+  },
+  {
+    "pattern": "unwrap_in_production",
+    "file": "sdk/src/repositories/project_prompt.rs",
+    "line": 302,
+    "code": "project.project_type.clone().unwrap()",
+    "is_bug": true,
+    "note": "PANIC RISK: Guards is_some() on line 301 but uses unwrap on clone instead of unwrap_or/expect with context. If logic changes, this panics without a meaningful message. Should use expect() or unwrap_or_default()."
+  },
+  {
+    "pattern": "unwrap_in_production",
+    "file": "sdk/src/repositories/project_prompt.rs",
+    "line": 319,
+    "code": "matching_series.unwrap()",
+    "is_bug": true,
+    "note": "PANIC RISK: Guards is_none() on line 314 with continue, but unwrap has no error message. Should use expect() for better diagnostics if the guard ever changes."
+  },
+  {
+    "pattern": "expect_in_production",
+    "file": "sdk/src/infra/logger/sink.rs",
+    "line": 113,
+    "code": ".expect(\"failed to spawn logger output worker\")",
+    "is_bug": false,
+    "note": "Thread spawn failure; acceptable - application cannot function without logger"
+  },
+  {
+    "pattern": "allow_dead_code",
+    "file": "cli/src/cli.rs",
+    "line": 105,
+    "code": "#[allow(dead_code)] pub fn as_str(self) -> &'static str",
+    "is_bug": true,
+    "note": "Dead code: as_str() on ResolvedLogLevel enum is unused in production. Could be removed or used. Signals possible incomplete feature integration."
+  },
+  {
+    "pattern": "allow_dead_code",
+    "file": "sdk/src/services/dry_run_service.rs",
+    "line": 17,
+    "code": "#[allow(dead_code)] struct PlannedOutputFile",
+    "is_bug": true,
+    "note": "Dead code: PlannedOutputFile struct fields (path, content, encoding) are never read in production. Incomplete dry-run output implementation."
+  },
+  {
+    "pattern": "allow_dead_code",
+    "file": "sdk/src/infra/script_runtime.rs",
+    "line": 220,
+    "code": "#[allow(dead_code)] worker_path: Option<String>",
+    "is_bug": true,
+    "note": "Dead code: ResolvePublicPathContext.worker_path is deserialized but never read. Unused field in production."
+  },
+  {
+    "pattern": "allow_dead_code",
+    "file": "sdk/src/infra/script_runtime.rs",
+    "line": 222,
+    "code": "#[allow(dead_code)] timeout_ms: Option<u64>",
+    "is_bug": true,
+    "note": "Dead code: ResolvePublicPathContext.timeout_ms is deserialized but never read. Unused field in production."
+  },
+  {
+    "pattern": "todo_comment",
+    "file": "gui/src-tauri/src/tray.rs",
+    "line": 60,
+    "code": "// TODO: Trigger pipeline execution via sidecar once the full IPC wiring is in place.",
+    "is_bug": true,
+    "note": "Incomplete feature: Tray 'install' action only shows/focuses window instead of triggering pipeline. Unfinished IPC wiring."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/bin/tnmsc-test-api.rs",
+    "line": 40,
+    "code": "println!(\"{output}\")",
+    "is_bug": false,
+    "note": "Test API binary, println acceptable for CLI output"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/bin/tnmsc-test-api.rs",
+    "line": 44,
+    "code": "eprintln!(\"Error: {error}\")",
+    "is_bug": false,
+    "note": "Test API binary, eprintln acceptable for error output"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/commands/help.rs",
+    "line": "4-26",
+    "code": "println!() (23 occurrences)",
+    "is_bug": false,
+    "note": "Help command output to stdout - println is appropriate for user-facing help text"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/commands/package.rs",
+    "line": 45,
+    "code": "println!(\"Hydrated {}\", path.display())",
+    "is_bug": true,
+    "note": "CLI progress output should use logger, not raw println. Inconsistent with rest of CLI."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/commands/package.rs",
+    "line": 50,
+    "code": "eprintln!(\"Error: {error}\")",
+    "is_bug": true,
+    "note": "Error output should use logger.error(), not raw eprintln. Inconsistent error handling."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/commands/pipeline.rs",
+    "line": 214,
+    "code": "println!(\"{line}\")",
+    "is_bug": false,
+    "note": "Pipeline output to stdout - intentional user-facing output"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/commands/pipeline.rs",
+    "line": 217,
+    "code": "eprintln!(\"{line}\")",
+    "is_bug": false,
+    "note": "Pipeline error output to stderr - intentional user-facing output"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "cli/src/commands/version.rs",
+    "line": 4,
+    "code": "println!(\"{}\", env!(\"CARGO_PKG_VERSION\"))",
+    "is_bug": false,
+    "note": "Version output - println appropriate for CLI version command"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "gui/src-tauri/src/lib.rs",
+    "line": 43,
+    "code": "eprintln!(\"error while running tauri application: {error}\")",
+    "is_bug": true,
+    "note": "Application startup error should use logger, not raw eprintln. Especially important for GUI where stderr may not be visible."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "mcp/src/main.rs",
+    "line": 277,
+    "code": "eprintln!(\"JSON parse error: {}\", e)",
+    "is_bug": true,
+    "note": "MCP server error output uses eprintln instead of logger. MCP communicates via stdout, so eprintln goes to stderr which may confuse users."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "mcp/src/commands/package.rs",
+    "line": 45,
+    "code": "println!(\"Hydrated {}\", path.display())",
+    "is_bug": true,
+    "note": "MCP package progress should use logger, not println. MCP uses stdout for JSON-RPC; println may corrupt protocol."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "mcp/src/commands/package.rs",
+    "line": 50,
+    "code": "eprintln!(\"Error: {error}\")",
+    "is_bug": true,
+    "note": "MCP package error should use logger, not raw eprintln."
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "xtask/src/main.rs",
+    "line": "130-237",
+    "code": "println!() (22 occurrences for task progress)",
+    "is_bug": false,
+    "note": "xtask is a dev build tool, println for progress output is acceptable and standard practice"
+  },
+  {
+    "pattern": "println_in_production",
+    "file": "sdk/build.rs",
+    "line": 2,
+    "code": "println!(\"cargo:rerun-if-changed=build.rs\")",
+    "is_bug": false,
+    "note": "Cargo build script requires println! for build directives - mandatory pattern"
+  },
+  {
+    "pattern": "hardcoded_url",
+    "file": "mcp/src/main.rs",
+    "line": "84,100,114,130",
+    "code": "\"https://json-schema.org/draft/2020-12/schema\"",
+    "is_bug": false,
+    "note": "JSON Schema standard URL reference - constant, appropriate to hardcode"
+  },
+  {
+    "pattern": "unsafe_block",
+    "file": "sdk/src/domain/output_plans/droid_output_plan.rs",
+    "line": "791-803",
+    "code": "unsafe { std::env::set_var(\"HOME\", ...) } (x3)",
+    "is_bug": false,
+    "note": "Test-only code (inside #[cfg(test)] module). Uses mutex-guarded env var mutation. Rust 2024 requires unsafe for set_var."
+  },
+  {
+    "pattern": "unsafe_block",
+    "file": "sdk/src/domain/output_plans/gemini_output_plan.rs",
+    "line": "297-309",
+    "code": "unsafe { std::env::set_var(\"HOME\", ...) } (x3)",
+    "is_bug": false,
+    "note": "Test-only code. Same pattern as droid_output_plan."
+  },
+  {
+    "pattern": "unsafe_block",
+    "file": "sdk/src/services/dry_run_service.rs",
+    "line": "255-265",
+    "code": "unsafe { std::env::set_var(...) } (x3)",
+    "is_bug": false,
+    "note": "Test-only code (inside #[cfg(test)] module)."
+  },
+  {
+    "pattern": "unsafe_block",
+    "file": "sdk/src/services/clean_service.rs",
+    "line": "637-649",
+    "code": "unsafe { std::env::set_var(\"HOME\", ...) } (x3)",
+    "is_bug": false,
+    "note": "Test-only code. Same test helper pattern."
+  },
+  {
+    "pattern": "unsafe_block",
+    "file": "sdk/src/infra/deno_runtime.rs",
+    "line": "378-398",
+    "code": "unsafe { std::env::remove_var/set_var(...) } (x4)",
+    "is_bug": false,
+    "note": "Test-only code (inside #[cfg(test)] module)."
+  },
+  {
+    "pattern": "unsafe_block",
+    "file": "sdk/src/infra/logger/mod.rs",
+    "line": 237,
+    "code": "unsafe { std::env::remove_var(\"LOG_LEVEL\") }",
+    "is_bug": false,
+    "note": "Test-only code."
+  },
+  {
+    "pattern": "clone_on_large_type",
+    "file": "sdk/src/domain/config/mod.rs",
+    "line": 924,
+    "code": "loaded.iter().map(|r| r.config.clone()).collect()",
+    "is_bug": false,
+    "note": "Clones Vec of UserConfigFile during config merging. Occurs once per pipeline run. Acceptable."
+  },
+  {
+    "pattern": "clone_on_large_type",
+    "file": "sdk/src/domain/config/mod.rs",
+    "line": 970,
+    "code": "serde_json::from_value::<UserConfigFile>(parsed.clone())",
+    "is_bug": false,
+    "note": "Clones serde_json::Value to avoid borrow. Common pattern."
+  },
+  {
+    "pattern": "box_leak_or_static_hack",
+    "file": "N/A",
+    "line": "N/A",
+    "code": "N/A",
+    "is_bug": false,
+    "note": "No Box::leak or 'static lifetime hacks found in production code. All 'static usages are legitimate (enum as_str returns, function return types, JSON schema URLs)."
+  }
+]

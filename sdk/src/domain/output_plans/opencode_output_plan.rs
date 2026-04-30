@@ -712,7 +712,10 @@ mod tests {
         length: 5,
         file_path_kind: crate::infra::path_types::FilePathKind::Relative,
         relative_path: "guide.mdx".to_string(),
-        dir: crate::infra::path_types::RelativePath::new("guide.mdx", "/workspace/aindex/skills/test"),
+        dir: crate::infra::path_types::RelativePath::new(
+          "guide.mdx",
+          "/workspace/aindex/skills/test",
+        ),
         raw_front_matter: None,
         markdown_ast: None,
         markdown_contents: None,

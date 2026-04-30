@@ -267,11 +267,7 @@ mod tests {
     };
 
     let plan = build_trae_output_plan(&context).unwrap();
-    let output_paths: Vec<&str> = plan
-      .output_files
-      .iter()
-      .map(|f| f.path.as_str())
-      .collect();
+    let output_paths: Vec<&str> = plan.output_files.iter().map(|f| f.path.as_str()).collect();
 
     assert!(
       output_paths.contains(
@@ -286,9 +282,7 @@ mod tests {
     );
 
     assert!(
-      !output_paths
-        .iter()
-        .any(|p| p.contains(".trae-cn")),
+      !output_paths.iter().any(|p| p.contains(".trae-cn")),
       "output must NOT include any .trae-cn path, got: {:?}",
       output_paths
     );
@@ -324,11 +318,7 @@ mod tests {
     };
 
     let plan = build_trae_output_plan(&context).unwrap();
-    let output_paths: Vec<&str> = plan
-      .output_files
-      .iter()
-      .map(|f| f.path.as_str())
-      .collect();
+    let output_paths: Vec<&str> = plan.output_files.iter().map(|f| f.path.as_str()).collect();
 
     assert!(
       output_paths.contains(

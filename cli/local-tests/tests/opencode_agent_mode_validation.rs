@@ -62,9 +62,7 @@ fn extract_mode_from_agent_file(content: &str) -> Option<String> {
         break;
       }
     }
-    if in_front_matter
-      && let Some(mode) = extract_mode_from_front_matter_line(line)
-    {
+    if in_front_matter && let Some(mode) = extract_mode_from_front_matter_line(line) {
       return Some(mode);
     }
   }

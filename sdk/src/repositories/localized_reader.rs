@@ -145,11 +145,7 @@ mod tests {
     fs::write(rules_dir.join("alpha.en.src.mdx"), "en source").unwrap();
     fs::write(rules_dir.join("alpha.mdx"), "compiled").unwrap();
 
-    let entries = read_flat_files(
-      temp_dir.path().join("rules").to_str().unwrap(),
-      None,
-    )
-    .unwrap();
+    let entries = read_flat_files(temp_dir.path().join("rules").to_str().unwrap(), None).unwrap();
 
     assert_eq!(entries.len(), 1);
     let entry = &entries[0];

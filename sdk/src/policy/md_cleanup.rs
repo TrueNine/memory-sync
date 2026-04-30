@@ -76,9 +76,7 @@ fn process_markdown_file(
     return;
   }
 
-  if !dry_run
-    && let Err(err) = std::fs::write(file_path, &cleaned)
-  {
+  if !dry_run && let Err(err) = std::fs::write(file_path, &cleaned) {
     errors.push((file_path.to_string_lossy().into_owned(), err.to_string()));
     return;
   }
