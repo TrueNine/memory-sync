@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::repositories::prompt_artifact::{PromptArtifact, read_prompt_artifact};
@@ -17,6 +17,10 @@ pub fn read_flat_files(
 ) -> Result<Vec<FlatFileEntry>, crate::CliError> {
   let mut entries: Vec<FlatFileEntry> = Vec::new();
   let mut seen: HashSet<String> = HashSet::new();
+  // Index of `name → entries[index]` so dedup is O(1) instead of the
+  // previous `entries.iter_mut().find(|e| e.name == full_name)` linear
+  // scan, which made the whole walk O(n²) over the entry count (#191).
+  let mut by_name: HashMap<String, usize> = HashMap::new();
 
   let dir_path = Path::new(dir);
   if dir_path.is_dir() {
@@ -24,6 +28,7 @@ pub fn read_flat_files(
       dir_path,
       dir_path,
       &mut seen,
+      &mut by_name,
       &mut entries,
       global_scope_json,
     )?;
@@ -36,6 +41,7 @@ fn scan_directory(
   root: &Path,
   current: &Path,
   seen: &mut HashSet<String>,
+  by_name: &mut HashMap<String, usize>,
   entries: &mut Vec<FlatFileEntry>,
   global_scope_json: Option<&str>,
 ) -> Result<(), crate::CliError> {
@@ -43,7 +49,7 @@ fn scan_directory(
     let entry = entry.map_err(crate::CliError::IoError)?;
     let path = entry.path();
     if path.is_dir() {
-      scan_directory(root, &path, seen, entries, global_scope_json)?;
+      scan_directory(root, &path, seen, by_name, entries, global_scope_json)?;
       continue;
     }
     let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
@@ -104,7 +110,8 @@ fn scan_directory(
     )
     .map_err(|e| crate::CliError::ConfigError(e))?;
 
-    if let Some(existing) = entries.iter_mut().find(|e| e.name == full_name) {
+    if let Some(&idx) = by_name.get(&full_name) {
+      let existing = &mut entries[idx];
       if is_zh_source {
         existing.src_zh = Some(artifact);
       } else if is_en_source {
@@ -114,6 +121,7 @@ fn scan_directory(
       }
     } else {
       seen.insert(full_name.clone());
+      by_name.insert(full_name.clone(), entries.len());
       let mut e = FlatFileEntry {
         name: full_name,
         compiled: None,
