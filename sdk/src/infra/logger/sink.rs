@@ -66,13 +66,17 @@ pub fn clear_diagnostics() {
   }
 }
 
+/// Bound the worker-drain wait so a wedged worker (deadlocked, sigstop'd,
+/// blocked on a slow stdout pipe) can't hang process shutdown indefinitely.
+const FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 pub fn flush() {
   let (ack_tx, ack_rx) = mpsc::channel();
   if OUTPUT_SINK
     .send(OutputCommand::Flush { ack: ack_tx })
     .is_ok()
   {
-    let _ = ack_rx.recv();
+    let _ = ack_rx.recv_timeout(FLUSH_TIMEOUT);
   }
 }
 
