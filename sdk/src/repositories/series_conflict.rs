@@ -1,9 +1,9 @@
 //! Shared helper for detecting project-name collisions across the series
 //! directories (`zh`, `en`, …) under a single `aindex/` root.
 //!
-//! Pre-#199 the same body was implemented in both
+//! `#255` provides the shared helper that used to be duplicated in
 //! [`aindex_resolvers`](super::aindex_resolvers) and
-//! [`readme`](super::readme); the only difference between the two
+//! [`readme`](super::readme). The only difference between the former
 //! copies was the error-message prefix (`"Aindex project …"` vs
 //! `"Readme project …"`). Centralising here makes the contract one
 //! place instead of two and lets either consumer pass its own prefix.
