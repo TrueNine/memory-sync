@@ -276,13 +276,16 @@ fn build_globset(patterns: &[String]) -> Result<Option<GlobSet>, String> {
 }
 
 fn has_glob_magic(value: &str) -> bool {
-  value.contains('*')
+  // #251 fixes over-classifying literal `!` filename segments as glob
+  // syntax. In globset, `!` only has special meaning as a leading
+  // pattern negation marker, not in the middle of a path segment.
+  value.starts_with('!')
+    || value.contains('*')
     || value.contains('?')
     || value.contains('[')
     || value.contains(']')
     || value.contains('{')
     || value.contains('}')
-    || value.contains('!')
 }
 
 fn detect_glob_scan_root(pattern: &str) -> PathBuf {
@@ -3198,5 +3201,15 @@ mod tests {
     assert_eq!(normalize_relative_glob_pattern("/foo"), "foo");
     assert_eq!(normalize_relative_glob_pattern("./foo"), "foo");
     assert_eq!(normalize_relative_glob_pattern("//foo"), "/foo");
+  }
+
+  /// Regression for #251: a literal `!` in the middle of a filename must
+  /// not classify the path as a glob pattern.
+  #[test]
+  fn regression_has_glob_magic_treats_only_leading_bang_as_magic() {
+    assert!(has_glob_magic("!foo/**"));
+    assert!(!has_glob_magic("/home/user/!important/file.txt"));
+    assert!(!has_glob_magic("name!suffix"));
+    assert!(!has_glob_magic("a!b"));
   }
 }
