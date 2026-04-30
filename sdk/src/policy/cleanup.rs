@@ -269,13 +269,19 @@ fn build_globset(patterns: &[String]) -> Result<Option<GlobSet>, String> {
 }
 
 fn has_glob_magic(value: &str) -> bool {
-  value.contains('*')
+  // `!` is only meaningful at the *start* of a glob pattern in globset
+  // (it negates the pattern). A literal `!` in the middle of a path —
+  // `/home/user/!important/file.txt`, `name!suffix`, etc. — is just a
+  // filename character and shouldn't drag the path through the
+  // glob-pattern code path (#202). Treat `*?[]{}` as glob-magic
+  // anywhere, but `!` only when it's the very first character.
+  value.starts_with('!')
+    || value.contains('*')
     || value.contains('?')
     || value.contains('[')
     || value.contains(']')
     || value.contains('{')
     || value.contains('}')
-    || value.contains('!')
 }
 
 fn detect_glob_scan_root(pattern: &str) -> PathBuf {
