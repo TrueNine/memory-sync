@@ -138,7 +138,18 @@ fn normalize_glob_pattern(pattern: &str) -> String {
 fn normalize_relative_glob_pattern(pattern: &str) -> String {
   let normalized = pattern.replace('\\', "/");
   let normalized = normalized.trim_start_matches("./");
-  normalized.trim_start_matches('/').to_string()
+  // Strip exactly one leading `/`, not all of them.
+  // `trim_start_matches('/')` previously stripped any number of leading
+  // slashes, which silently rewrote `//foo` (UNC-like / globstar-style
+  // pattern) to `foo`. The matcher consumer expected that a `/`-rooted
+  // pattern still shape-rooted, and double-leading was implementation
+  // defined (#207). Single-strip preserves intent: a relative `/foo`
+  // becomes `foo`, but `//foo` stays anchored as `/foo` so the caller
+  // (or an explicit pattern check upstream) can decide what to do.
+  match normalized.strip_prefix('/') {
+    Some(rest) => rest.to_string(),
+    None => normalized.to_string(),
+  }
 }
 
 fn normalize_workspace_relative_path(path: &Path, workspace_dir: &Path) -> Option<String> {
