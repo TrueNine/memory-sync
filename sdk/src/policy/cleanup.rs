@@ -138,7 +138,14 @@ fn normalize_glob_pattern(pattern: &str) -> String {
 fn normalize_relative_glob_pattern(pattern: &str) -> String {
   let normalized = pattern.replace('\\', "/");
   let normalized = normalized.trim_start_matches("./");
-  normalized.trim_start_matches('/').to_string()
+  // #250 fixes over-stripping of leading slashes in relative glob
+  // normalization. A relative `/foo` should become `foo`, but `//foo`
+  // must not collapse all the way to `foo` because that changes the
+  // pattern shape seen by downstream matching.
+  match normalized.strip_prefix('/') {
+    Some(rest) => rest.to_string(),
+    None => normalized.to_string(),
+  }
 }
 
 fn normalize_workspace_relative_path(path: &Path, workspace_dir: &Path) -> Option<String> {
@@ -3182,5 +3189,14 @@ mod tests {
     assert!(!result.violations.is_empty());
     // The aindex directory must still exist
     assert!(aindex_dir.exists());
+  }
+
+  /// Regression for #250: normalizing a relative glob must strip exactly
+  /// one leading slash so `//foo` does not collapse to `foo`.
+  #[test]
+  fn regression_normalize_relative_glob_pattern_preserves_double_leading_slash_shape() {
+    assert_eq!(normalize_relative_glob_pattern("/foo"), "foo");
+    assert_eq!(normalize_relative_glob_pattern("./foo"), "foo");
+    assert_eq!(normalize_relative_glob_pattern("//foo"), "/foo");
   }
 }
