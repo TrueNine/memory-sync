@@ -9,5 +9,6 @@ export default {
   'commands': '命令',
   'subagents': '子代理',
   'rules': '规则',
-  'libraries': '基础库'
+  'libraries': '基础库',
+  'testing-strategy': '测试策略与跨平台设计'
 }

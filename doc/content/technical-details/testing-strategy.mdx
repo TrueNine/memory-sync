@@ -1,0 +1,49 @@
+---
+title: 测试策略与跨平台设计
+description: 说明为什么集成测试已被移除，本地测试成为主要手段，以及 CLI/SDK 的跨平台设计约束。
+sidebarTitle: 测试策略与跨平台设计
+status: stable
+---
+
+# 测试策略与跨平台设计
+
+## 集成测试的移除
+
+仓库曾经使用基于 Docker / testcontainers 的集成测试（`cli/integrate-tests`、`mcp/integrate-tests`）来验证 CLI 和 MCP 的打包与命令契约。这些测试已被移除，原因如下：
+
+- **基础设施过于复杂**：维护 Docker 镜像、容器生命周期和跨平台二进制打包的测试基础设施成本过高，且容易因为环境差异产生不稳定的结果。
+- **测试反馈慢**：容器启动、镜像构建和清理过程显著拖慢 CI 反馈循环，不利于快速迭代。
+- **维护负担重**：testcontainers 依赖、平台特定二进制处理（Linux musl/Alpine 等）和容器内路径映射需要持续维护，与核心开发节奏脱节。
+
+## 本地测试作为经济且现实的选择
+
+当前仓库以 **本地裸机测试（local-tests）** 为主要测试手段：
+
+- **运行方式**：直接在宿主环境执行编译后的二进制文件，无需容器层。
+- **覆盖范围**：验证 `install`、`clean`、`dry-run`、各输出插件（`claude_code`、`opencode`、`codex` 等）以及日志可观测性的核心路径。
+- **经济优势**：零额外基础设施依赖，CI 和本地开发机均可秒级运行。
+- **现实约束**：本地测试默认复用开发者已有的 `~/.aindex` 配置和真实项目结构，因此测试用例设计为“可恢复”——通过临时修改全局配置并在测试结束后还原，避免破坏用户环境。
+
+运行本地测试：
+
+```bash
+cargo test -p tnmsc-local-tests
+```
+
+> 注意：`cargo test --workspace` 不会自动运行 `local-tests`，因为后者需要宿主环境具备真实配置。请在确认 `~/.aindex/.tnmsc.json` 已配置后单独执行。
+
+## CLI/SDK 的跨平台设计约束
+
+CLI 和 SDK 的设计必须保持 **跨平台中立**，不能绑定到特定操作系统：
+
+- **路径处理**：所有路径逻辑使用 Rust 标准库的 `Path`/`PathBuf`，禁止硬编码 Windows 或 Unix 风格的分隔符。WSL 路径同步由独立配置项控制，而非代码级假设。
+- **配置解析**：`~` 展开和目录解析在运行时完成，不依赖 shell 行为。
+- **输出插件**：各插件（`claude_code`、`opencode`、`codex`、`trae`）生成目标文件时，只使用相对路径或平台无关的标识，避免在产物中嵌入 OS 特定路径。
+- **CI 与发布**：构建和测试流水线在 Windows、macOS 和 Linux 上均运行，确保没有平台特有的回归。
+
+## 相关页面
+
+- [架构边界](/docs/technical-details/architecture)
+- [同步流水线](/docs/technical-details/pipeline)
+- [CLI / 安装](/docs/cli/install)
+- [SDK / 架构](/docs/sdk/architecture)
