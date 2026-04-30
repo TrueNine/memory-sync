@@ -74,7 +74,7 @@ jobs:
         run: cargo run -p xtask -- build
 
       - name: Rust unit tests
-        run: cargo test --workspace --exclude tnmsg --exclude tnmsc-integrate-tests --exclude tnmsc-local-tests --exclude tnmsm-integrate-tests --lib --bins
+        run: cargo test --workspace --exclude tnmsg --exclude tnmsc-local-tests --lib --bins
 
   packaging-smoke:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -93,10 +93,10 @@ jobs:
         run: cargo build --release -p tnmsc -p tnmsm
 
       - name: CLI packaging smoke
-        run: cargo test -p tnmsc-integrate-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
+        run: cargo test -p tnmsc-local-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
 
       - name: MCP packaging smoke
-        run: cargo test -p tnmsm-integrate-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
+        run: cargo test -p tnmsm-local-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
 
   gui-smoke:
     needs: changes

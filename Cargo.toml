@@ -21,10 +21,8 @@ members = [
   "xtask",
   "sdk",
   "cli",
-  "cli/integrate-tests",
   "cli/local-tests",
   "mcp",
-  "mcp/integrate-tests",
   "gui/src-tauri",
 ]
 
