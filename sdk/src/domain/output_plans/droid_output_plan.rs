@@ -553,6 +553,13 @@ fn transform_command_name(command: &SlashCommandPrompt) -> String {
 }
 
 fn resolve_skill_dir_name(skill: &SkillPrompt) -> String {
+  if let Some(category_name) = skill.category_name.as_deref().map(str::trim)
+    && !category_name.is_empty()
+    && !skill.skill_name.trim().is_empty()
+  {
+    return format!("{category_name}-{}", skill.skill_name);
+  }
+
   if !skill.skill_name.trim().is_empty() {
     return skill.skill_name.clone();
   }
@@ -749,6 +756,7 @@ mod tests {
       content: "Skill body".to_string(),
       length: "Skill body".len(),
       skill_name: name.to_string(),
+      category_name: None,
       dir: create_relative_path(project_root, name),
       yaml_front_matter: Some(SkillYAMLFrontMatter {
         description: Some("Skill description".to_string()),
@@ -1110,6 +1118,7 @@ mod tests {
       content: "Skill body".to_string(),
       length: "Skill body".len(),
       skill_name: "test-skill".to_string(),
+      category_name: None,
       dir: RelativePath::new("test-skill", "/workspace"),
       yaml_front_matter: Some(SkillYAMLFrontMatter {
         description: Some("Skill description".to_string()),
@@ -1182,5 +1191,57 @@ mod tests {
       "output should be SKILL.md, got: {}",
       skill_paths[0]
     );
+  }
+
+  #[test]
+  fn categorized_skill_uses_prefixed_directory_and_front_matter_name() {
+    let skill = SkillPrompt {
+      prompt_type: PromptKind::Skill,
+      content: "Skill body".to_string(),
+      length: "Skill body".len(),
+      skill_name: "test-skill".to_string(),
+      category_name: Some("tools".to_string()),
+      dir: RelativePath::new("test-skill", "/workspace"),
+      yaml_front_matter: Some(SkillYAMLFrontMatter {
+        description: Some("Skill description".to_string()),
+        ..SkillYAMLFrontMatter::default()
+      }),
+      mcp_config: None,
+      child_docs: None,
+      resources: None,
+      markdown_contents: None,
+    };
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new("/workspace"),
+        projects: vec![Project {
+          name: Some("__workspace__".to_string()),
+          is_workspace_root_project: Some(true),
+          root_memory_prompt: Some(ProjectRootMemoryPrompt {
+            prompt_type: PromptKind::ProjectRootMemory,
+            content: "root".to_string(),
+            length: 4,
+            file_path_kind: FilePathKind::Root,
+            dir: RootPath::new("/workspace"),
+            yaml_front_matter: None,
+            raw_front_matter: None,
+            markdown_ast: None,
+            markdown_contents: None,
+          }),
+          ..Project::default()
+        }],
+      }),
+      skills: Some(vec![skill]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_droid_output_plan(&context).unwrap();
+    let skill_file = plan
+      .output_files
+      .iter()
+      .find(|file| file.path.contains(".factory/skills/tools-test-skill/SKILL.md"))
+      .unwrap();
+
+    assert!(skill_file.content.starts_with("---\nname: tools-test-skill\n"));
   }
 }

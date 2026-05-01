@@ -32,6 +32,26 @@ const CODEX_AGENTS_DIR: &str = "agents";
 const CODEX_SKILLS_DIR: &str = "skills";
 const PROJECT_SCOPE: &str = "project";
 
+fn resolve_skill_dir_name(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
+  if let Some(category_name) = skill.category_name.as_deref().map(str::trim)
+    && !category_name.is_empty()
+  {
+    return format!("{category_name}-{}", skill.skill_name);
+  }
+
+  skill.skill_name.clone()
+}
+
+fn build_skill_source_identifier(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
+  if let Some(category_name) = skill.category_name.as_deref().map(str::trim)
+    && !category_name.is_empty()
+  {
+    return format!("aindex/skills/{category_name}/{}", skill.skill_name);
+  }
+
+  format!("aindex/skills/{}", skill.skill_name)
+}
+
 pub fn collect_codex_output_plan(context_json: &str) -> Result<String, CliError> {
   let context = OutputContext::from_json(context_json)?;
   let plan = build_codex_output_plan(&context)?;
@@ -133,7 +153,7 @@ fn build_output_files(
         .join(CODEX_GLOBAL_CONFIG_DIR)
         .join(CODEX_SKILLS_DIR);
       for skill in skills {
-        let skill_sub_dir = codex_skills_dir.join(&skill.skill_name);
+        let skill_sub_dir = codex_skills_dir.join(resolve_skill_dir_name(skill));
 
         output_files.push(BaseOutputFileDeclarationDto {
           path: skill_sub_dir
@@ -144,6 +164,8 @@ fn build_output_files(
           content: build_skill_content(skill),
           encoding: None,
         });
+
+        append_skill_supporting_files(&mut output_files, &skill_sub_dir, skill);
       }
     }
   }
@@ -249,7 +271,11 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
   // Add skill source identifier
   metadata.insert(
     "skill".to_string(),
-    serde_json::Value::String(format!("aindex/skills/{}", skill.skill_name)),
+    serde_json::Value::String(build_skill_source_identifier(skill)),
+  );
+  metadata.insert(
+    "name".to_string(),
+    serde_json::Value::String(resolve_skill_dir_name(skill)),
   );
 
   // Filter out empty arrays and null values
@@ -262,6 +288,62 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
   }
 
   wrap_yaml_front_matter(&metadata, &skill.content)
+}
+
+fn append_skill_supporting_files(
+  output_files: &mut Vec<BaseOutputFileDeclarationDto>,
+  skill_sub_dir: &std::path::Path,
+  skill: &crate::domain::plugin_shared::SkillPrompt,
+) {
+  if let Some(child_docs) = skill.child_docs.as_ref() {
+    for child_doc in child_docs {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: skill_sub_dir
+          .join(resolve_child_doc_output_relative_path(&child_doc.relative_path))
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: child_doc.content.clone(),
+        encoding: None,
+      });
+    }
+  }
+
+  if let Some(resources) = skill.resources.as_ref() {
+    for resource in resources {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: skill_sub_dir
+          .join(&resource.relative_path)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: resource.content.clone(),
+        encoding: match resource.encoding {
+          crate::domain::plugin_shared::SkillResourceEncoding::Base64 => {
+            Some("base64".to_string())
+          }
+          crate::domain::plugin_shared::SkillResourceEncoding::Text => None,
+        },
+      });
+    }
+  }
+
+  if let Some(mcp_config) = skill.mcp_config.as_ref() {
+    output_files.push(BaseOutputFileDeclarationDto {
+      path: skill_sub_dir.join("mcp.json").to_string_lossy().into_owned(),
+      scope: Some(PROJECT_SCOPE.to_string()),
+      content: mcp_config.raw_content.clone(),
+      encoding: None,
+    });
+  }
+}
+
+fn resolve_child_doc_output_relative_path(relative_path: &str) -> String {
+  if let Some(stripped) = relative_path.strip_suffix(".mdx") {
+    return format!("{stripped}.md");
+  }
+
+  relative_path.to_string()
 }
 
 fn wrap_yaml_front_matter(
@@ -519,6 +601,7 @@ mod tests {
       content: "body".to_string(),
       length: 4,
       skill_name: name.to_string(),
+      category_name: None,
       dir: RelativePath::new(name, "/workspace/aindex/skills"),
       yaml_front_matter: Some(SkillYAMLFrontMatter {
         description: Some("desc".to_string()),
@@ -534,6 +617,19 @@ mod tests {
         raw_front_matter: None,
         markdown_ast: None,
         markdown_contents: None,
+      }, SkillChildDoc {
+        prompt_type: PromptKind::SkillChildDoc,
+        content: "linux-wsl".to_string(),
+        length: 9,
+        file_path_kind: FilePathKind::Relative,
+        relative_path: "references/linux-wsl.mdx".to_string(),
+        dir: RelativePath::new(
+          "references/linux-wsl.mdx",
+          "/workspace/aindex/skills/test",
+        ),
+        raw_front_matter: None,
+        markdown_ast: None,
+        markdown_contents: None,
       }]),
       resources: Some(vec![SkillResource {
         prompt_type: PromptKind::SkillResource,
@@ -544,6 +640,24 @@ mod tests {
         encoding: SkillResourceEncoding::Text,
         length: 5,
         mime_type: None,
+      }, SkillResource {
+        prompt_type: PromptKind::SkillResource,
+        extension: "sh".to_string(),
+        file_name: "capture-workflow.sh".to_string(),
+        relative_path: "templates/capture-workflow.sh".to_string(),
+        content: "#!/usr/bin/env bash\necho capture\n".to_string(),
+        encoding: SkillResourceEncoding::Text,
+        length: 32,
+        mime_type: None,
+      }, SkillResource {
+        prompt_type: PromptKind::SkillResource,
+        extension: "bin".to_string(),
+        file_name: "blob.bin".to_string(),
+        relative_path: "assets/blob.bin".to_string(),
+        content: "AAEC".to_string(),
+        encoding: SkillResourceEncoding::Base64,
+        length: 3,
+        mime_type: Some("application/octet-stream".to_string()),
       }]),
       mcp_config: Some(SkillMcpConfig {
         prompt_type: PromptKind::SkillMcpConfig,
@@ -555,7 +669,7 @@ mod tests {
   }
 
   #[test]
-  fn skill_output_only_contains_skill_md() {
+  fn skill_output_includes_child_docs_resources_and_mcp_config() {
     let skill = make_test_skill("test-skill");
     let context = OutputContext {
       workspace: Some(Workspace {
@@ -591,14 +705,68 @@ mod tests {
 
     assert_eq!(
       skill_paths.len(),
-      1,
-      "should only have SKILL.md, got: {:?}",
+      7,
+      "skill output should include main doc, child docs, resources, and mcp config, got: {:?}",
       skill_paths
     );
+    assert!(skill_paths.iter().any(|path| path.ends_with("SKILL.md")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("guide.md")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("references/linux-wsl.md")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("assets/notes.txt")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("templates/capture-workflow.sh")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("assets/blob.bin")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("mcp.json")));
+
+    let binary_resource = plan
+      .output_files
+      .iter()
+      .find(|file| file.path.ends_with("assets/blob.bin"))
+      .unwrap();
+    assert_eq!(binary_resource.encoding.as_deref(), Some("base64"));
+  }
+
+  #[test]
+  fn categorized_skill_uses_prefixed_directory_and_source_identifier() {
+    let mut skill = make_test_skill("reverse-engineering");
+    skill.category_name = Some("dev-tools".to_string());
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new("/workspace"),
+        projects: vec![Project {
+          name: Some("__workspace__".to_string()),
+          is_workspace_root_project: Some(true),
+          root_memory_prompt: Some(ProjectRootMemoryPrompt {
+            prompt_type: PromptKind::ProjectRootMemory,
+            content: "root".to_string(),
+            length: 4,
+            file_path_kind: FilePathKind::Root,
+            dir: RootPath::new("/workspace"),
+            yaml_front_matter: None,
+            raw_front_matter: None,
+            markdown_ast: None,
+            markdown_contents: None,
+          }),
+          ..Project::default()
+        }],
+      }),
+      skills: Some(vec![skill]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_codex_output_plan(&context).unwrap();
+    let skill_file = plan
+      .output_files
+      .iter()
+      .find(|file| {
+        file
+          .path
+          .contains(".codex/skills/dev-tools-reverse-engineering/SKILL.md")
+      })
+      .unwrap();
+
+    assert!(skill_file.content.contains("name: dev-tools-reverse-engineering"));
     assert!(
-      skill_paths[0].ends_with("SKILL.md"),
-      "output should be SKILL.md, got: {}",
-      skill_paths[0]
+      skill_file.content.contains("skill: aindex/skills/dev-tools/reverse-engineering")
     );
   }
 }

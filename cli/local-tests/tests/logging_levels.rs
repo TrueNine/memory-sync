@@ -2,6 +2,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that `--trace` log level outputs fine-grained collector span events
+/// like `collect.aindex_resolvers` and `config.load`.
 #[test]
 fn trace_level_outputs_span_events() {
   let runner = LocalTestRunner::new();
@@ -29,6 +31,8 @@ fn trace_level_outputs_span_events() {
   );
 }
 
+/// Verify that the default (info) log level outputs top-level events like
+/// "Install started" and "Install completed".
 #[test]
 fn info_level_outputs_top_level_events() {
   let runner = LocalTestRunner::new();
@@ -53,6 +57,8 @@ fn info_level_outputs_top_level_events() {
   );
 }
 
+/// Verify that `--error` log level suppresses info events but still outputs
+/// error diagnostics when config is missing.
 #[test]
 fn error_level_only_outputs_errors() {
   let runner = LocalTestRunner::new();
@@ -83,6 +89,8 @@ fn error_level_only_outputs_errors() {
   );
 }
 
+/// Verify that `--debug` log level outputs intermediate events like
+/// "Context collected" and "Output files built".
 #[test]
 fn debug_level_outputs_debug_events() {
   let runner = LocalTestRunner::new();

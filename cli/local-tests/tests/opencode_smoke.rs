@@ -4,6 +4,9 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Comprehensive verification of the .opencode/ directory after install: AGENTS.md
+/// exists, and agents/, skills/, commands/, rules/ subdirectories all contain correctly
+/// formatted files with YAML front matter and expected source identifiers.
 #[test]
 fn local_opencode_install_generates_project_agents_md() {
   let runner = LocalTestRunner::new();
@@ -207,6 +210,7 @@ fn local_opencode_install_generates_project_agents_md() {
   }
 }
 
+/// Verify that the global ~/.config/opencode/AGENTS.md is generated with non-empty content.
 #[test]
 fn local_opencode_install_generates_global_agents_md() {
   let runner = LocalTestRunner::new();
@@ -232,6 +236,7 @@ fn local_opencode_install_generates_global_agents_md() {
   );
 }
 
+/// Verify that two consecutive installs produce identical .opencode/AGENTS.md content.
 #[test]
 fn local_opencode_install_idempotent() {
   let runner = LocalTestRunner::new();
@@ -264,6 +269,7 @@ fn local_opencode_install_idempotent() {
   );
 }
 
+/// Verify that `tnmsc clean` removes the generated .opencode/ directory.
 #[test]
 fn local_opencode_clean_removes_files() {
   let runner = LocalTestRunner::new();
@@ -285,6 +291,7 @@ fn local_opencode_clean_removes_files() {
   );
 }
 
+/// Verify that `tnmsc dry-run` does NOT create .opencode/AGENTS.md.
 #[test]
 fn local_opencode_dry_run_does_not_write() {
   let runner = LocalTestRunner::new();
@@ -307,6 +314,8 @@ fn local_opencode_dry_run_does_not_write() {
   );
 }
 
+/// Verify that `{profile.username}` template interpolation works in the global opencode
+/// AGENTS.md — both inline text and URLs are correctly evaluated.
 #[test]
 fn local_opencode_global_md_url_interpolation() {
   let runner = LocalTestRunner::new();
@@ -343,6 +352,8 @@ fn local_opencode_global_md_url_interpolation() {
   );
 }
 
+/// Verify that the project-level .opencode/AGENTS.md includes global memory content
+/// (is at least as long as the global file and contains workspace-level data like 'TrueNine').
 #[test]
 fn local_opencode_project_content_includes_workspace_memory() {
   let runner = LocalTestRunner::new();
@@ -373,10 +384,9 @@ fn local_opencode_project_content_includes_workspace_memory() {
   );
 }
 
-/// 断言生成的 .opencode/agents/*.md 中不包含 `model` 字段。
-///
-/// NOTE: `model` 是未来功能（per-agent model override），当前不实现，
-/// 因此生成时必须将其剥离。此测试在功能落地前充当回归保护。
+/// Regression guard: generated agent .md files must NOT contain a `model:` field.
+/// Per-agent model override is a future feature — premature inclusion would break
+/// opencode schema validation.
 #[test]
 fn local_opencode_agent_md_should_not_contain_model_field() {
   let runner = LocalTestRunner::new();
@@ -410,6 +420,8 @@ fn local_opencode_agent_md_should_not_contain_model_field() {
   }
 }
 
+/// Verify that every generated agent file contains `mode: subagent` (or `mode: "subagent"`)
+/// in its YAML front matter. Subagent mode is the expected default for memory-sync agents.
 #[test]
 fn local_opencode_agent_md_must_include_subagent_mode() {
   let runner = LocalTestRunner::new();
@@ -443,11 +455,9 @@ fn local_opencode_agent_md_must_include_subagent_mode() {
   }
 }
 
-/// 回归测试：opencode agent 的 `color` 字段必须匹配 hex 格式 `^#[0-9a-fA-F]{6}$`。
-///
-/// opencode 配置 schema 要求 color 为 6 位 hex 值（如 `#FF5733`），
-/// 不接受 CSS 命名颜色（如 `blue`、`red`）。
-/// 参见: https://github.com/opencode-ai/opencode 配置 schema 中 color 字段的 pattern 约束。
+/// Regression guard: the `color` field in agent files must be a 6-digit hex value (#RRGGBB).
+/// opencode's config schema rejects CSS named colors like `blue` or `red`.
+/// See: https://github.com/opencode-ai/opencode config schema pattern constraint.
 #[test]
 fn local_opencode_agent_md_color_must_be_hex_format() {
   fn is_valid_hex_color(s: &str) -> bool {
@@ -508,13 +518,9 @@ fn local_opencode_agent_md_color_must_be_hex_format() {
   }
 }
 
-/// 回归测试：opencode 不应在任何子目录下生成嵌套的 .opencode/AGENTS.md。
-///
-/// opencode 只支持两个位置的 AGENTS.md：
-///   1. 全局 ~/.config/opencode/AGENTS.md
-///   2. 项目根目录 <project>/.opencode/AGENTS.md
-///
-/// 子目录（如 cli/.opencode/AGENTS.md）属于严重错误，会导致 opencode 行为异常。
+/// Regression guard: opencode only supports AGENTS.md at the project root .opencode/ —
+/// no nested subdirectory .opencode/AGENTS.md files should be generated.
+/// Nested files cause opencode to behave incorrectly.
 #[test]
 fn local_opencode_no_nested_agents_md() {
   let runner = LocalTestRunner::new();
@@ -572,5 +578,152 @@ fn local_opencode_no_nested_agents_md() {
       .map(|p| format!("  - {}", p.display()))
       .collect::<Vec<_>>()
       .join("\n")
+  );
+}
+
+/// Isolated regression test for categorized skills with nested child docs.
+/// Verifies that:
+/// 1. `name` in SKILL.md matches the generated directory name
+/// 2. child docs are compiled and emitted as `.md`, not `.mdx`
+/// 3. clean removes the generated project tree
+#[test]
+fn regression_isolated_opencode_skill_name_and_child_doc_extensions() {
+  let runner = LocalTestRunner::new();
+
+  let temp_root = std::env::temp_dir().join(format!(
+    "tnmsc-local-opencode-reverse-{}-{}",
+    std::process::id(),
+    std::time::SystemTime::now()
+      .duration_since(std::time::UNIX_EPOCH)
+      .unwrap_or_default()
+      .as_nanos()
+  ));
+  let temp_home = temp_root.join("home");
+  let workspace_dir = temp_root.join("workspace");
+  let aindex_dir = workspace_dir.join("aindex");
+  let skill_dir = aindex_dir
+    .join("skills")
+    .join("dev-tools")
+    .join("reverse-engineering");
+
+  std::fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+  std::fs::create_dir_all(&aindex_dir).unwrap();
+  std::fs::create_dir_all(&skill_dir).unwrap();
+
+  std::fs::write(
+    temp_home.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": false,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false,
+        "codex": false,
+        "claudeCode": false,
+        "opencode": true
+      }
+    })
+    .to_string(),
+  )
+  .unwrap();
+
+  std::fs::write(
+    aindex_dir.join("workspace.mdx"),
+    "---\ndescription: workspace\n---\nWorkspace prompt\n",
+  )
+  .unwrap();
+  std::fs::write(
+    aindex_dir.join("workspace.src.mdx"),
+    "---\ndescription: workspace\n---\nWorkspace prompt\n",
+  )
+  .unwrap();
+
+  std::fs::write(
+    skill_dir.join("skill.src.mdx"),
+    "export default { name: 'reverse-engineering', description: 'Reverse engineering skill' }\n\n# Reverse\n",
+  )
+  .unwrap();
+  std::fs::write(
+    skill_dir.join("skill.mdx"),
+    "export default { name: 'reverse-engineering', description: 'Reverse engineering skill' }\n\n# Reverse\n",
+  )
+  .unwrap();
+
+  for name in ["packet-capture", "reverse-tools"] {
+    std::fs::write(
+      skill_dir.join(format!("{name}.src.mdx")),
+      format!("---\ndescription: {name}\n---\n# {name}\n"),
+    )
+    .unwrap();
+    std::fs::write(
+      skill_dir.join(format!("{name}.mdx")),
+      format!("---\ndescription: {name}\n---\n# {name}\n"),
+    )
+    .unwrap();
+  }
+
+  let temp_home_str = temp_home.to_string_lossy().into_owned();
+
+  let install = runner.run_at_with_env(
+    &workspace_dir,
+    &["install"],
+    &[("HOME", &temp_home_str)],
+  );
+  install.assert_success("isolated tnmsc install for opencode");
+
+  let generated_skill_dir = workspace_dir
+    .join(".opencode")
+    .join("skills")
+    .join("dev-tools-reverse-engineering");
+  assert!(
+    generated_skill_dir.join("SKILL.md").is_file(),
+    "opencode should generate SKILL.md for dev-tools-reverse-engineering"
+  );
+  assert!(
+    generated_skill_dir.join("packet-capture.md").is_file(),
+    "opencode should emit packet-capture child doc as .md"
+  );
+  assert!(
+    generated_skill_dir.join("reverse-tools.md").is_file(),
+    "opencode should emit reverse-tools child doc as .md"
+  );
+  assert!(
+    !generated_skill_dir.join("packet-capture.mdx").exists(),
+    "opencode must not emit packet-capture child doc as .mdx"
+  );
+  assert!(
+    !generated_skill_dir.join("reverse-tools.mdx").exists(),
+    "opencode must not emit reverse-tools child doc as .mdx"
+  );
+
+  let skill_content = std::fs::read_to_string(generated_skill_dir.join("SKILL.md")).unwrap();
+  assert!(
+    skill_content.contains("name: dev-tools-reverse-engineering"),
+    "opencode SKILL.md name field must match generated directory name"
+  );
+  assert!(
+    skill_content.contains("skill: aindex/skills/dev-tools/reverse-engineering"),
+    "opencode SKILL.md should keep the categorized source identifier"
+  );
+
+  let clean = runner.run_at_with_env(&workspace_dir, &["clean"], &[("HOME", &temp_home_str)]);
+  clean.assert_success("isolated tnmsc clean for opencode");
+
+  assert!(
+    !workspace_dir.join(".opencode").exists(),
+    "clean should remove the generated .opencode tree"
   );
 }

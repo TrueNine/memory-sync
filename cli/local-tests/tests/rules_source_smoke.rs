@@ -116,6 +116,9 @@ fn collect_src_mdx_files(dir: &Path) -> Vec<std::path::PathBuf> {
   files
 }
 
+/// Verify that all aindex rule source files (.src.mdx) use the `globs` field
+/// (not `paths`) in their export default. The SDK is responsible for converting
+/// globs → paths during output; source files must use globs.
 #[test]
 fn local_rules_src_mdx_uses_globs_not_paths() {
   let runner = LocalTestRunner::new();
@@ -192,6 +195,9 @@ fn local_rules_src_mdx_uses_globs_not_paths() {
   );
 }
 
+/// Verify that the generated rule output files (e.g. .claude/rules/*.md) use `paths:`
+/// in their YAML front matter, not `globs:`. This confirms the SDK's globs→paths
+/// conversion is working correctly.
 #[test]
 fn local_rules_globs_converted_to_paths_in_output() {
   let runner = LocalTestRunner::new();

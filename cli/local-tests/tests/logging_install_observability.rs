@@ -2,6 +2,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that `--trace` install outputs all major spans: config.load, context.collect,
+/// output.build, files.write, plus collector sub-spans.
 #[test]
 fn install_outputs_key_spans_and_events() {
   let runner = LocalTestRunner::new();
@@ -62,6 +64,7 @@ fn install_outputs_key_spans_and_events() {
   );
 }
 
+/// Verify that `--info` install outputs plugin resolution information ("Plugins resolved").
 #[test]
 fn install_outputs_plugin_resolution() {
   let runner = LocalTestRunner::new();
@@ -81,6 +84,7 @@ fn install_outputs_plugin_resolution() {
   );
 }
 
+/// Verify that `--debug` install outputs individual file write/skip events.
 #[test]
 fn install_outputs_file_write_events() {
   let runner = LocalTestRunner::new();

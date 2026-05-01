@@ -17,6 +17,7 @@ fn workspace_paths() -> (PathBuf, PathBuf, PathBuf, PathBuf) {
   )
 }
 
+/// Verify the basic clean lifecycle: install creates CLAUDE.md, clean removes it.
 #[test]
 fn local_clean_removes_project_claude_md() {
   let runner = LocalTestRunner::new();
@@ -44,6 +45,7 @@ fn local_clean_removes_project_claude_md() {
   );
 }
 
+/// Verify that `tnmsc clean --dry-run` does NOT delete files — it only previews what would be cleaned.
 #[test]
 fn local_clean_dry_run_does_not_remove_files() {
   let runner = LocalTestRunner::new();
@@ -68,6 +70,8 @@ fn local_clean_dry_run_does_not_remove_files() {
   );
 }
 
+/// Verify that running `tnmsc clean` inside ~/workspace/memory-sync/ only cleans
+/// that project, not sibling projects like aindex or knowladge.
 #[test]
 fn local_clean_from_memory_sync_does_not_clean_other_projects() {
   let (home, memory_sync, aindex, knowladge) = workspace_paths();
@@ -124,6 +128,8 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
   );
 }
 
+/// Verify the reverse: running clean inside ~/workspace/aindex/ does not affect
+/// memory-sync's generated files.
 #[test]
 fn local_clean_from_aindex_does_not_clean_memory_sync() {
   let (home, memory_sync, aindex, knowladge) = workspace_paths();
@@ -180,6 +186,8 @@ fn local_clean_from_aindex_does_not_clean_memory_sync() {
   );
 }
 
+/// Verify that running clean from ~/ (which is above all workspace projects) cleans
+/// all projects under the workspace directory.
 #[test]
 fn local_clean_from_home_cleans_all_projects() {
   let (home, memory_sync, aindex, knowladge) = workspace_paths();

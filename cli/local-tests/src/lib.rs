@@ -1,16 +1,28 @@
+//! Black-box test infrastructure for the tnmsc CLI.
+//!
+//! Provides `LocalTestRunner` — a test harness that invokes the real compiled
+//! `tnmsc` binary against the actual project directory (`~/workspace/memory-sync/`).
+//! Uses cross-process file locking and in-process mutex to serialise access to
+//! the shared project, ensuring test isolation.
+//!
+//! All tests follow the pattern: clean → install → verify → clean.
+//! The binary is auto-built from source if not found or stale.
+
 #![allow(dead_code)]
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 static BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static PROJECT_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
+/// The set of subcommands every tnmsc binary must support (help contract).
 pub const EXPECTED_SUBCOMMANDS: &[&str] = &["install", "dry-run", "clean", "version", "help"];
 
+/// Result of a tnmsc CLI invocation: exit code + captured stdout/stderr.
 pub struct CommandResult {
   pub status: i32,
   pub stdout: String,
@@ -18,6 +30,7 @@ pub struct CommandResult {
 }
 
 impl CommandResult {
+  /// Assert the command exited with status 0, panicking with diagnostics if not.
   pub fn assert_success(&self, context: &str) {
     assert_eq!(
       self.status, 0,
@@ -26,6 +39,7 @@ impl CommandResult {
     );
   }
 
+  /// Assert the command exited with a non-zero status, panicking if it succeeded.
   pub fn assert_failure(&self, context: &str) {
     assert_ne!(
       self.status, 0,
@@ -35,6 +49,9 @@ impl CommandResult {
   }
 }
 
+/// Test harness for invoking tnmsc against the real project.
+/// Acquires both in-process and cross-process locks on construction,
+/// so only one test can mutate the project at a time.
 pub struct LocalTestRunner {
   binary: PathBuf,
   cwd: PathBuf,
@@ -68,6 +85,7 @@ impl LocalTestRunner {
     }
   }
 
+  /// Create a runner targeting a specific directory instead of the default project.
   pub fn with_cwd(cwd: impl AsRef<Path>) -> Self {
     ensure_binary();
     let file_lock = acquire_cross_process_lock();
@@ -89,6 +107,7 @@ impl LocalTestRunner {
     }
   }
 
+  /// The project directory this runner operates on.
   pub fn cwd(&self) -> &Path {
     &self.cwd
   }
@@ -120,6 +139,7 @@ impl LocalTestRunner {
       .unwrap_or_else(|| self.cwd.clone())
   }
 
+  /// Run `tnmsc <args>` in the project directory and capture output.
   pub fn run(&self, args: &[&str]) -> CommandResult {
     let mut cmd = Command::new(&self.binary);
     cmd.args(args).current_dir(&self.cwd);
@@ -148,12 +168,14 @@ impl LocalTestRunner {
     command_output(&mut cmd, &format!("tnmsc {}", args.join(" ")))
   }
 
+  /// Run `tnmsc <args>` and assert it exits 0, returning the result.
   pub fn run_success(&self, args: &[&str]) -> CommandResult {
     let result = self.run(args);
     result.assert_success(&format!("tnmsc {}", args.join(" ")));
     result
   }
 
+  /// Assert that a `.tnmsc.json` config file exists in cwd or ~/.aindex/.
   pub fn assert_config_exists(&self) {
     let config_candidates = [
       self.cwd.join(".tnmsc.json"),
@@ -171,6 +193,7 @@ impl LocalTestRunner {
     );
   }
 
+  /// Assert that an `aindex/` directory exists in cwd or ~/.aindex/.
   pub fn assert_aindex_exists(&self) {
     let aindex_candidates = [self.cwd.join("aindex"), home_dir().join(".aindex")];
     let found = aindex_candidates.iter().any(|p| p.is_dir());
@@ -185,6 +208,7 @@ impl LocalTestRunner {
     );
   }
 
+  /// Assert both config and aindex exist — the project is ready for testing.
   pub fn assert_project_ready(&self) {
     self.assert_config_exists();
     self.assert_aindex_exists();
@@ -394,6 +418,9 @@ impl Default for LocalTestRunner {
 // other when running local tests on the shared project directory.
 // ---------------------------------------------------------------------------
 
+/// A cross-process file lock that prevents concurrent test binaries from
+/// mutating the shared project directory simultaneously.
+/// Released automatically on drop.
 pub struct CrossProcessLock(Option<PathBuf>);
 
 impl Drop for CrossProcessLock {
@@ -428,10 +455,12 @@ fn acquire_cross_process_lock() -> CrossProcessLock {
   }
 }
 
+/// Ensure the compiled tnmsc binary exists, building it from source if necessary.
+/// Tracks source file modification times to avoid unnecessary rebuilds.
 pub fn ensure_binary() {
   let binary = binary_path();
 
-  if binary.is_file() {
+  if binary.is_file() && !binary_needs_rebuild(&binary) {
     eprintln!(
       "[tnmsc-local-tests] using existing binary: {}",
       binary.display()
@@ -460,6 +489,55 @@ pub fn ensure_binary() {
   assert!(binary.is_file(), "missing binary at {}", binary.display());
 }
 
+fn binary_needs_rebuild(binary: &Path) -> bool {
+  let Some(binary_modified) = file_modified_time(binary) else {
+    return true;
+  };
+
+  tracked_cli_input_paths()
+    .into_iter()
+    .filter_map(|path| newest_modified_time(&path))
+    .any(|input_modified| input_modified > binary_modified)
+}
+
+fn tracked_cli_input_paths() -> Vec<PathBuf> {
+  let root = workspace_root();
+  vec![
+    root.join("Cargo.toml"),
+    root.join("Cargo.lock"),
+    root.join("cli").join("Cargo.toml"),
+    root.join("cli").join("src"),
+    root.join("sdk").join("Cargo.toml"),
+    root.join("sdk").join("src"),
+  ]
+}
+
+fn newest_modified_time(path: &Path) -> Option<SystemTime> {
+  if path.is_file() {
+    return file_modified_time(path);
+  }
+  if !path.is_dir() {
+    return None;
+  }
+
+  let mut newest = file_modified_time(path);
+  let entries = fs::read_dir(path).ok()?;
+  for entry in entries.flatten() {
+    if let Some(child_modified) = newest_modified_time(&entry.path()) {
+      newest = Some(match newest {
+        Some(current) if current >= child_modified => current,
+        _ => child_modified,
+      });
+    }
+  }
+  newest
+}
+
+fn file_modified_time(path: &Path) -> Option<SystemTime> {
+  fs::metadata(path).ok()?.modified().ok()
+}
+
+/// Resolve the expected path to the compiled tnmsc debug binary.
 pub fn binary_path() -> PathBuf {
   let binary_name = if cfg!(windows) { "tnmsc.exe" } else { "tnmsc" };
   workspace_root()
@@ -468,6 +546,7 @@ pub fn binary_path() -> PathBuf {
     .join(binary_name)
 }
 
+/// Resolve the workspace root (the memory-sync Cargo workspace directory).
 pub fn workspace_root() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     .parent()
@@ -477,10 +556,12 @@ pub fn workspace_root() -> PathBuf {
     .to_path_buf()
 }
 
+/// Resolve the user's home directory, panicking if unavailable.
 pub fn home_dir() -> PathBuf {
   dirs::home_dir().expect("should have home directory")
 }
 
+/// Return the workspace package version string from Cargo.toml.
 pub fn current_package_version() -> &'static str {
   env!("CARGO_PKG_VERSION")
 }
@@ -534,5 +615,110 @@ fn decode_output(output: Output) -> CommandResult {
     status: output.status.code().unwrap_or(1),
     stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
     stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{binary_needs_rebuild, newest_modified_time};
+  use std::fs;
+  use std::path::{Path, PathBuf};
+  use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+  #[test]
+  fn binary_requires_rebuild_when_missing() {
+    let root = make_temp_dir("missing-binary");
+    let binary = root.join("tnmsc");
+
+    assert!(binary_needs_rebuild(&binary));
+  }
+
+  #[test]
+  fn binary_requires_rebuild_when_source_is_newer() {
+    let root = make_temp_dir("stale-binary");
+    let binary = root.join("target").join("debug").join("tnmsc");
+    let source = root.join("sdk").join("src").join("lib.rs");
+
+    write_file(&source, "old source");
+    sleep_for_mtime_tick();
+    write_file(&binary, "older binary snapshot");
+    sleep_for_mtime_tick();
+    write_file(&source, "new source");
+
+    assert!(is_binary_stale_for_paths(&binary, &[source]));
+  }
+
+  #[test]
+  fn binary_stays_fresh_when_binary_is_newer_than_inputs() {
+    let root = make_temp_dir("fresh-binary");
+    let binary = root.join("target").join("debug").join("tnmsc");
+    let source = root.join("sdk").join("src").join("lib.rs");
+
+    write_file(&source, "old source");
+    sleep_for_mtime_tick();
+    write_file(&binary, "new binary");
+
+    assert!(!is_binary_stale_for_paths(&binary, &[source]));
+  }
+
+  #[test]
+  fn newest_modified_time_walks_nested_directories() {
+    let root = make_temp_dir("recursive-mtime");
+    let early = root.join("sdk").join("src").join("early.rs");
+    let late = root.join("sdk").join("src").join("nested").join("late.rs");
+
+    write_file(&early, "first");
+    sleep_for_mtime_tick();
+    write_file(&late, "second");
+
+    let root_modified = newest_modified_time(&root.join("sdk")).unwrap();
+    let late_modified = fs::metadata(&late).unwrap().modified().unwrap();
+
+    assert_eq!(system_time_key(root_modified), system_time_key(late_modified));
+  }
+
+  fn is_binary_stale_for_paths(binary: &Path, inputs: &[PathBuf]) -> bool {
+    let Some(binary_modified) = fs::metadata(binary).ok().and_then(|meta| meta.modified().ok())
+    else {
+      return true;
+    };
+
+    inputs
+      .iter()
+      .filter_map(|path| newest_modified_time(path))
+      .any(|input_modified| input_modified > binary_modified)
+  }
+
+  fn make_temp_dir(label: &str) -> PathBuf {
+    let unique = format!(
+      "tnmsc-local-tests-{}-{}-{}",
+      label,
+      std::process::id(),
+      SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    );
+    let path = std::env::temp_dir().join(unique);
+    fs::create_dir_all(&path).unwrap();
+    path
+  }
+
+  fn write_file(path: &Path, content: &str) {
+    if let Some(parent) = path.parent() {
+      fs::create_dir_all(parent).unwrap();
+    }
+    fs::write(path, content).unwrap();
+  }
+
+  fn sleep_for_mtime_tick() {
+    std::thread::sleep(Duration::from_millis(25));
+  }
+
+  fn system_time_key(time: SystemTime) -> u128 {
+    time
+      .duration_since(UNIX_EPOCH)
+      .unwrap_or_default()
+      .as_nanos()
   }
 }

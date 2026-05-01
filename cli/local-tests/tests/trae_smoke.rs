@@ -5,6 +5,8 @@ use std::fs;
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Guard test: ensure the compiled tnmsc binary exists. Provides a clear
+/// build instruction error if missing.
 #[test]
 fn binary_exists_before_tests() {
   let binary = tnmsc_local_tests::binary_path();
@@ -15,6 +17,8 @@ fn binary_exists_before_tests() {
   );
 }
 
+/// Verify that install generates .trae/steering/GLOBAL.md and does NOT generate
+/// the deprecated .trae-cn/ path.
 #[test]
 fn local_trae_steering_generated_after_install() {
   let runner = LocalTestRunner::new();
@@ -39,6 +43,7 @@ fn local_trae_steering_generated_after_install() {
   );
 }
 
+/// Verify that two consecutive installs produce identical .trae/steering/GLOBAL.md content.
 #[test]
 fn local_trae_steering_idempotent() {
   let runner = LocalTestRunner::new();
@@ -78,6 +83,7 @@ fn local_trae_steering_idempotent() {
   );
 }
 
+/// Verify that `tnmsc clean` removes the generated .trae/steering/GLOBAL.md.
 #[test]
 fn local_trae_steering_removed_after_clean() {
   let runner = LocalTestRunner::new();
@@ -99,6 +105,9 @@ fn local_trae_steering_removed_after_clean() {
   );
 }
 
+/// Verify backward-compatible cleanup: even if a legacy .trae-cn/ directory exists,
+/// `tnmsc clean` removes it along with .trae/. This ensures old installations
+/// are properly migrated.
 #[test]
 fn local_trae_cn_cleaned_for_compatibility() {
   let runner = LocalTestRunner::new();

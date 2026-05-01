@@ -69,6 +69,9 @@ fn extract_mode_from_agent_file(content: &str) -> Option<String> {
   None
 }
 
+/// Verify that every generated agent file has a `mode` field whose value is one of
+/// the three valid options: "subagent", "primary", or "all".
+/// Invalid values cause opencode startup errors.
 #[test]
 fn local_opencode_agent_mode_must_be_valid() {
   let runner = LocalTestRunner::new();

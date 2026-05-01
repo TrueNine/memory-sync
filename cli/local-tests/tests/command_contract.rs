@@ -4,6 +4,8 @@
 
 use tnmsc_local_tests::{EXPECTED_SUBCOMMANDS, LocalTestRunner, current_package_version};
 
+/// Verify that `tnmsc help` lists all expected subcommands (install, dry-run, clean, version, help).
+/// This ensures the CLI contract with end-users is not accidentally broken.
 #[test]
 fn local_cli_help_shows_expected_subcommands() {
   let runner = LocalTestRunner::new();
@@ -18,6 +20,8 @@ fn local_cli_help_shows_expected_subcommands() {
   }
 }
 
+/// Verify that `tnmsc version` outputs the same version string as Cargo.toml.
+/// Prevents version drift between the binary and the package metadata.
 #[test]
 fn local_cli_version_matches_package_version() {
   let runner = LocalTestRunner::new();

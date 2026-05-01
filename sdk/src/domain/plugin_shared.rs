@@ -357,6 +357,8 @@ pub struct SkillPrompt {
   pub content: String,
   pub length: usize,
   pub skill_name: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub category_name: Option<String>,
   pub dir: RelativePath,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub yaml_front_matter: Option<SkillYAMLFrontMatter>,

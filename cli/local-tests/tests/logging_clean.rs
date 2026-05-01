@@ -2,6 +2,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that `--trace` clean outputs all major spans:
+/// cleanup.discover and cleanup.execute.
 #[test]
 fn clean_outputs_key_spans_and_events() {
   let runner = LocalTestRunner::new();
@@ -34,6 +36,7 @@ fn clean_outputs_key_spans_and_events() {
   );
 }
 
+/// Verify that `--info` clean outputs a deletion summary (what files were removed).
 #[test]
 fn clean_outputs_deletion_summary() {
   let runner = LocalTestRunner::new();

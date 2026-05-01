@@ -65,6 +65,8 @@ impl Drop for GlobalConfigGuard {
   }
 }
 
+/// Verify that install generates both the project-root AGENTS.md and a child
+/// .github/AGENTS.md with non-empty content.
 #[test]
 fn local_agents_md_install_generates_project_agents_md() {
   let runner = LocalTestRunner::new();
@@ -100,6 +102,8 @@ fn local_agents_md_install_generates_project_agents_md() {
   );
 }
 
+/// Verify that the generated AGENTS.md content exactly matches the aindex
+/// source `app/memory-sync/agt.mdx`.
 #[test]
 fn local_agents_md_content_matches_aindex_source() {
   let runner = LocalTestRunner::new();
@@ -126,6 +130,8 @@ fn local_agents_md_content_matches_aindex_source() {
   );
 }
 
+/// Verify that the generated .github/AGENTS.md content exactly matches the aindex
+/// source `app/memory-sync/.github/agt.mdx`.
 #[test]
 fn local_agents_md_child_content_matches_aindex_source() {
   let runner = LocalTestRunner::new();
@@ -152,6 +158,8 @@ fn local_agents_md_child_content_matches_aindex_source() {
   );
 }
 
+/// Verify that `tnmsc clean` removes both the project-root AGENTS.md and the child
+/// .github/AGENTS.md.
 #[test]
 fn local_agents_md_clean_removes_files() {
   let runner = LocalTestRunner::new();
@@ -182,6 +190,8 @@ fn local_agents_md_clean_removes_files() {
   );
 }
 
+/// Verify that when `plugins.agentsMd` is set to `false`, install does NOT generate
+/// AGENTS.md files.
 #[test]
 fn local_agents_md_disabled_by_config() {
   let runner = LocalTestRunner::new();
@@ -234,11 +244,10 @@ fn local_agents_md_disabled_by_config() {
   );
 }
 
-/// 回归测试：clean 必须始终清理所有插件生成的文件，即使该插件当前已被禁用。
-///
-/// 设计原因：用户可能在禁用某个插件之前已经运行过 install，导致该插件生成的文件
-/// 仍然残留在项目中。如果 clean 也跟随插件开关，则这些残留文件将永远无法被自动
-/// 清理。因此 clean 行为不受插件开关控制，install 行为才受插件开关控制。
+/// Regression guard: `tnmsc clean` must remove AGENTS.md files even when the agentsMd
+/// plugin is currently disabled. Design rationale: if a user disabled the plugin after
+/// previous installs, stale files must still be cleaned. Clean behavior is independent
+/// of plugin switches; only install respects the plugin toggle.
 #[test]
 fn local_agents_md_clean_always_removes_files_even_when_disabled() {
   let runner = LocalTestRunner::new();

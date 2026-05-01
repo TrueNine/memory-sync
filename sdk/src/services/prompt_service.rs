@@ -187,6 +187,7 @@ struct PromptIdDescriptor {
   series_name: Option<String>,
   project_name: Option<String>,
   relative_name: Option<String>,
+  skill_category_name: Option<String>,
   skill_name: Option<String>,
 }
 
@@ -197,6 +198,7 @@ impl Default for PromptIdDescriptor {
       series_name: None,
       project_name: None,
       relative_name: None,
+      skill_category_name: None,
       skill_name: None,
     }
   }
@@ -239,6 +241,35 @@ fn normalize_relative_identifier(value: &str, field_name: &str) -> Result<String
 
 fn is_single_segment_identifier(value: &str) -> bool {
   !normalize_slash_path(value).contains('/')
+}
+
+fn parse_skill_identifier(
+  value: &str,
+  field_name: &str,
+) -> Result<(Option<String>, String, String), String> {
+  let normalized = normalize_relative_identifier(value, field_name)?;
+  let segments: Vec<&str> = normalized.split('/').collect();
+  match segments.as_slice() {
+    [skill_name] => Ok((None, (*skill_name).to_string(), normalized)),
+    [category_name, skill_name] => Ok((
+      Some((*category_name).to_string()),
+      (*skill_name).to_string(),
+      normalized,
+    )),
+    _ => Err(format!(
+      "{} must include one skill name or <category>/<skill>",
+      field_name
+    )),
+  }
+}
+
+fn build_skill_identifier(category_name: Option<&str>, skill_name: &str) -> String {
+  match category_name {
+    Some(category_name) if !category_name.is_empty() => {
+      format!("{category_name}/{skill_name}")
+    }
+    _ => skill_name.to_string(),
+  }
 }
 
 fn is_aindex_project_series_name(name: &str) -> bool {
@@ -419,10 +450,7 @@ fn build_skill_definition(
   env: &ResolvedPromptEnvironment,
   skill_name: &str,
 ) -> Result<PromptDefinition, String> {
-  let normalized = normalize_relative_identifier(skill_name, "skillName")?;
-  if !is_single_segment_identifier(&normalized) {
-    return Err("skillName must be a single path segment".to_string());
-  }
+  let (_, _, normalized) = parse_skill_identifier(skill_name, "skillName")?;
   let dir_name = DEFAULT_SKILLS_DIR;
   let source_dir = env.aindex_dir.join(dir_name).join(&normalized);
   Ok(PromptDefinition {
@@ -451,11 +479,8 @@ fn build_skill_child_doc_definition(
   skill_name: &str,
   relative_name: &str,
 ) -> Result<PromptDefinition, String> {
-  let normalized_skill = normalize_relative_identifier(skill_name, "skillName")?;
+  let (_, _, normalized_skill) = parse_skill_identifier(skill_name, "skillName")?;
   let normalized_relative = normalize_relative_identifier(relative_name, "relativeName")?;
-  if !is_single_segment_identifier(&normalized_skill) {
-    return Err("skillName must be a single path segment".to_string());
-  }
   let source_dir = env
     .aindex_dir
     .join(DEFAULT_SKILLS_DIR)
@@ -556,24 +581,34 @@ fn parse_prompt_id(prompt_id: &str) -> Result<PromptIdDescriptor, String> {
       parse_project_prompt_descriptor(ManagedPromptKind::ProjectChildMemory, &normalized_value)
     }
     "skill" => {
-      if !is_single_segment_identifier(&normalized_value) {
-        return Err("skill promptId must include a single skill name".to_string());
-      }
+      let (skill_category_name, skill_name, _) =
+        parse_skill_identifier(&normalized_value, "promptId")?;
       Ok(PromptIdDescriptor {
         kind: ManagedPromptKind::Skill,
-        skill_name: Some(normalized_value),
+        skill_category_name,
+        skill_name: Some(skill_name),
         ..Default::default()
       })
     }
     "skill-child-doc" => {
-      let parts: Vec<&str> = normalized_value.splitn(2, '/').collect();
-      if parts.len() != 2 {
+      let parts: Vec<&str> = normalized_value.split('/').collect();
+      if parts.len() < 2 {
         return Err("skill-child-doc promptId must include skill and child path".to_string());
       }
+      let (skill_category_name, skill_name, relative_name) = if parts.len() == 2 {
+        (None, parts[0].to_string(), parts[1].to_string())
+      } else {
+        (
+          Some(parts[0].to_string()),
+          parts[1].to_string(),
+          parts[2..].join("/"),
+        )
+      };
       Ok(PromptIdDescriptor {
         kind: ManagedPromptKind::SkillChildDoc,
-        skill_name: Some(parts[0].to_string()),
-        relative_name: Some(parts[1].to_string()),
+        skill_category_name,
+        skill_name: Some(skill_name),
+        relative_name: Some(relative_name),
         ..Default::default()
       })
     }
@@ -684,22 +719,52 @@ fn collect_flat_prompt_ids(
 
 fn collect_skill_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String> {
   let root = env.aindex_dir.join(DEFAULT_SKILLS_DIR);
+  let mut prompt_ids = Vec::new();
+  if !root.is_dir() {
+    return prompt_ids;
+  }
+
   let mut skill_names = BTreeSet::new();
-  if root.is_dir() {
-    for e in fs::read_dir(&root).into_iter().flatten().flatten() {
-      if e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-        skill_names.insert(e.file_name().to_string_lossy().to_string());
+  for entry in fs::read_dir(&root).into_iter().flatten().flatten() {
+    if !entry.file_type().map(|file_type| file_type.is_dir()).unwrap_or(false) {
+      continue;
+    }
+
+    let first_level_dir = entry.path();
+    let first_level_name = entry.file_name().to_string_lossy().to_string();
+    let has_root_skill = first_level_dir.join("skill.mdx").is_file()
+      || first_level_dir.join("skill.src.mdx").is_file();
+
+    if has_root_skill {
+      skill_names.insert(first_level_name);
+      continue;
+    }
+
+    for nested_entry in fs::read_dir(&first_level_dir).into_iter().flatten().flatten() {
+      let nested_path = nested_entry.path();
+      if !nested_entry
+        .file_type()
+        .map(|file_type| file_type.is_dir())
+        .unwrap_or(false)
+      {
+        continue;
       }
+      if !nested_path.join("skill.mdx").is_file() && !nested_path.join("skill.src.mdx").is_file() {
+        continue;
+      }
+
+      let nested_name = nested_entry.file_name().to_string_lossy().to_string();
+      skill_names.insert(format!("{}/{}", first_level_name, nested_name));
     }
   }
-  let mut prompt_ids = Vec::new();
+
   for skill_name in skill_names {
     prompt_ids.push(format!("skill:{}", skill_name));
     let skill_dir = root.join(&skill_name);
     let mut child_names = BTreeSet::new();
     for file in list_files(&skill_dir, &[SOURCE_PROMPT_EXTENSION, MDX_EXTENSION]) {
       let stripped = strip_prompt_extension(&file);
-      if stripped == SKILL_ENTRY_FILE_NAME {
+      if stripped == SKILL_ENTRY_FILE_NAME || stripped == "desc" {
         continue;
       }
       child_names.insert(stripped);
@@ -1031,18 +1096,24 @@ fn build_prompt_definition_from_id(
     ManagedPromptKind::Skill => {
       let skill_name = descriptor
         .skill_name
+        .as_deref()
         .ok_or("skill promptId must include a skill name")?;
-      build_skill_definition(env, &skill_name)
+      let skill_identifier =
+        build_skill_identifier(descriptor.skill_category_name.as_deref(), skill_name);
+      build_skill_definition(env, &skill_identifier)
     }
     ManagedPromptKind::SkillChildDoc => {
       let skill_name = descriptor
         .skill_name
+        .as_deref()
         .ok_or("skill-child-doc promptId must include skill and child path")?;
+      let skill_identifier =
+        build_skill_identifier(descriptor.skill_category_name.as_deref(), skill_name);
       let relative_name = descriptor
         .relative_name
         .as_deref()
         .ok_or("skill-child-doc promptId must include skill and child path")?;
-      build_skill_child_doc_definition(env, &skill_name, relative_name)
+      build_skill_child_doc_definition(env, &skill_identifier, relative_name)
     }
     ManagedPromptKind::Command | ManagedPromptKind::Subagent | ManagedPromptKind::Rule => {
       let relative_name = descriptor.relative_name.as_deref().ok_or_else(|| {
@@ -1141,4 +1212,89 @@ pub fn write_prompt_artifacts(input: &WritePromptArtifactsInput) -> Result<Promp
 
   logger.info(format!("Wrote prompt artifacts: {}", input.prompt_id), None);
   Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::fs;
+  use tempfile::TempDir;
+
+  fn make_env(tmp: &TempDir) -> ResolvedPromptEnvironment {
+    ResolvedPromptEnvironment {
+      _workspace_dir: tmp.path().to_string_lossy().to_string(),
+      aindex_dir: tmp.path().join("aindex"),
+    }
+  }
+
+  #[test]
+  fn parse_prompt_id_accepts_categorized_skill_ids() {
+    let skill = parse_prompt_id("skill:tools/demo").unwrap();
+    assert_eq!(skill.kind, ManagedPromptKind::Skill);
+    assert_eq!(skill.skill_category_name.as_deref(), Some("tools"));
+    assert_eq!(skill.skill_name.as_deref(), Some("demo"));
+
+    let child = parse_prompt_id("skill-child-doc:tools/demo/guides/setup").unwrap();
+    assert_eq!(child.kind, ManagedPromptKind::SkillChildDoc);
+    assert_eq!(child.skill_category_name.as_deref(), Some("tools"));
+    assert_eq!(child.skill_name.as_deref(), Some("demo"));
+    assert_eq!(child.relative_name.as_deref(), Some("guides/setup"));
+  }
+
+  #[test]
+  fn build_prompt_definition_from_id_supports_categorized_skills() {
+    let tmp = TempDir::new().unwrap();
+    let env = make_env(&tmp);
+
+    let skill = build_prompt_definition_from_id("skill:tools/demo", &env).unwrap();
+    assert_eq!(skill.prompt_id, "skill:tools/demo");
+    assert!(skill.paths.zh.ends_with("aindex/skills/tools/demo/skill.src.mdx"));
+    assert!(skill.paths.en.ends_with("aindex/skills/tools/demo/skill.mdx"));
+
+    let child =
+      build_prompt_definition_from_id("skill-child-doc:tools/demo/guides/setup", &env).unwrap();
+    assert_eq!(child.prompt_id, "skill-child-doc:tools/demo/guides/setup");
+    assert!(
+      child
+        .paths
+        .zh
+        .ends_with("aindex/skills/tools/demo/guides/setup.src.mdx")
+    );
+    assert!(
+      child
+        .paths
+        .en
+        .ends_with("aindex/skills/tools/demo/guides/setup.mdx")
+    );
+  }
+
+  #[test]
+  fn collect_skill_prompt_ids_discovers_legacy_and_categorized_skills() {
+    let tmp = TempDir::new().unwrap();
+    let env = make_env(&tmp);
+    let legacy_dir = env.aindex_dir.join("skills").join("legacy");
+    let categorized_dir = env.aindex_dir.join("skills").join("tools").join("demo");
+    fs::create_dir_all(&legacy_dir).unwrap();
+    fs::create_dir_all(categorized_dir.join("guides")).unwrap();
+
+    fs::write(legacy_dir.join("skill.mdx"), "Legacy").unwrap();
+    fs::write(legacy_dir.join("guide.mdx"), "Legacy guide").unwrap();
+    fs::write(env.aindex_dir.join("skills").join("tools").join("desc.mdx"), "Tools").unwrap();
+    fs::write(categorized_dir.join("skill.mdx"), "Categorized").unwrap();
+    fs::write(categorized_dir.join("guides").join("setup.mdx"), "Setup").unwrap();
+
+    let prompt_ids = collect_skill_prompt_ids(&env);
+
+    assert!(prompt_ids.contains(&"skill:legacy".to_string()));
+    assert!(prompt_ids.contains(&"skill-child-doc:legacy/guide".to_string()));
+    assert!(prompt_ids.contains(&"skill:tools/demo".to_string()));
+    assert!(prompt_ids.contains(&"skill-child-doc:tools/demo/guides/setup".to_string()));
+    assert!(
+      !prompt_ids
+        .iter()
+        .any(|prompt_id| prompt_id.contains("desc")),
+      "desc files must not produce prompt ids: {:?}",
+      prompt_ids
+    );
+  }
 }

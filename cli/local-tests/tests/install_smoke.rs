@@ -7,6 +7,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that `tnmsc install` generates both project-level CLAUDE.md and global
+/// ~/.claude/CLAUDE.md with non-empty content.
 #[test]
 fn local_install_generates_project_claude_md() {
   let runner = LocalTestRunner::new();
@@ -46,6 +48,8 @@ fn local_install_generates_project_claude_md() {
   );
 }
 
+/// Verify that running `tnmsc install` twice in a row produces identical output.
+/// Install must be safely repeatable without side effects.
 #[test]
 fn local_install_idempotent() {
   let runner = LocalTestRunner::new();
@@ -82,6 +86,9 @@ fn local_install_idempotent() {
   );
 }
 
+/// Verify the full .claude/ directory structure after install: agents/, skills/,
+/// commands/, rules/ subdirectories, all with correctly formatted files
+/// (YAML front matter, expected fields like agent:/command:/skill:/rule:).
 #[test]
 fn local_install_generates_claude_directory_structure() {
   let runner = LocalTestRunner::new();
@@ -265,6 +272,8 @@ fn local_install_generates_claude_directory_structure() {
   }
 }
 
+/// Verify that template interpolation in the global CLAUDE.md works correctly:
+/// `{profile.username}` is replaced with `TrueNine` in both inline text and URLs.
 #[test]
 fn local_install_claude_global_md_url_interpolation() {
   let runner = LocalTestRunner::new();
@@ -312,6 +321,8 @@ fn local_install_claude_global_md_url_interpolation() {
   );
 }
 
+/// Guard test: ensure the compiled tnmsc binary exists before running other tests.
+/// Provides a clear error message with build instructions if missing.
 #[test]
 fn binary_exists_before_tests() {
   let binary = tnmsc_local_tests::binary_path();

@@ -9,6 +9,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that install generates both the project-root CLAUDE.md and a child
+/// .github/CLAUDE.md, both with non-empty content.
 #[test]
 fn local_claude_install_generates_project_claude_md() {
   let runner = LocalTestRunner::new();
@@ -44,6 +46,8 @@ fn local_claude_install_generates_project_claude_md() {
   );
 }
 
+/// Verify that the generated project CLAUDE.md content exactly matches the aindex
+/// source file `app/memory-sync/agt.mdx`. Ensures no content drift.
 #[test]
 fn local_claude_project_content_matches_aindex_source() {
   let runner = LocalTestRunner::new();
@@ -70,6 +74,8 @@ fn local_claude_project_content_matches_aindex_source() {
   );
 }
 
+/// Verify that the generated .github/CLAUDE.md content exactly matches the aindex
+/// source `app/memory-sync/.github/agt.mdx`.
 #[test]
 fn local_claude_child_content_matches_aindex_source() {
   let runner = LocalTestRunner::new();
@@ -96,6 +102,8 @@ fn local_claude_child_content_matches_aindex_source() {
   );
 }
 
+/// Verify that `tnmsc clean` removes ALL CLAUDE.md files recursively throughout
+/// the project tree, not just the root one.
 #[test]
 fn local_claude_clean_removes_all_project_files() {
   let runner = LocalTestRunner::new();
@@ -163,6 +171,8 @@ fn local_claude_clean_removes_all_project_files() {
   );
 }
 
+/// Verify that the global ~/.claude/CLAUDE.md is generated (it persists independently
+/// of project-level clean).
 #[test]
 fn local_claude_global_file_still_generated() {
   let runner = LocalTestRunner::new();
@@ -183,4 +193,157 @@ fn local_claude_global_file_still_generated() {
     .read_claude_global_file()
     .expect("global CLAUDE.md should be readable");
   assert!(!content.is_empty(), "global CLAUDE.md should not be empty");
+}
+
+/// Isolated regression test for categorized skills in Claude output.
+/// Verifies that:
+/// 1. `name` in SKILL.md matches the generated directory name
+/// 2. child docs are compiled and emitted as `.md`, not `.mdx`
+/// 3. clean removes the generated project tree
+#[test]
+fn regression_isolated_claude_skill_name_and_child_doc_extensions() {
+  let runner = LocalTestRunner::new();
+
+  let temp_root = std::env::temp_dir().join(format!(
+    "tnmsc-local-claude-reverse-{}-{}",
+    std::process::id(),
+    std::time::SystemTime::now()
+      .duration_since(std::time::UNIX_EPOCH)
+      .unwrap_or_default()
+      .as_nanos()
+  ));
+  let temp_home = temp_root.join("home");
+  let workspace_dir = temp_root.join("workspace");
+  let aindex_dir = workspace_dir.join("aindex");
+  let skill_dir = aindex_dir
+    .join("skills")
+    .join("dev-tools")
+    .join("reverse-engineering");
+
+  std::fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+  std::fs::create_dir_all(&aindex_dir).unwrap();
+  std::fs::create_dir_all(&skill_dir).unwrap();
+
+  std::fs::write(
+    temp_home.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": false,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false,
+        "codex": false,
+        "claudeCode": true,
+        "opencode": false
+      }
+    })
+    .to_string(),
+  )
+  .unwrap();
+
+  std::fs::write(
+    aindex_dir.join("workspace.mdx"),
+    "---\ndescription: workspace\n---\nWorkspace prompt\n",
+  )
+  .unwrap();
+  std::fs::write(
+    aindex_dir.join("workspace.src.mdx"),
+    "---\ndescription: workspace\n---\nWorkspace prompt\n",
+  )
+  .unwrap();
+
+  std::fs::write(
+    skill_dir.join("skill.src.mdx"),
+    "export default { name: 'reverse-engineering', description: 'Reverse engineering skill' }\n\n# Reverse\n",
+  )
+  .unwrap();
+  std::fs::write(
+    skill_dir.join("skill.mdx"),
+    "export default { name: 'reverse-engineering', description: 'Reverse engineering skill' }\n\n# Reverse\n",
+  )
+  .unwrap();
+
+  for name in ["packet-capture", "reverse-tools"] {
+    std::fs::write(
+      skill_dir.join(format!("{name}.src.mdx")),
+      format!("---\ndescription: {name}\n---\n# {name}\n"),
+    )
+    .unwrap();
+    std::fs::write(
+      skill_dir.join(format!("{name}.mdx")),
+      format!("---\ndescription: {name}\n---\n# {name}\n"),
+    )
+    .unwrap();
+  }
+
+  let temp_home_str = temp_home.to_string_lossy().into_owned();
+
+  let install = runner.run_at_with_env(
+    &workspace_dir,
+    &["install"],
+    &[("HOME", &temp_home_str)],
+  );
+  install.assert_failure("isolated tnmsc install for claude should be blocked by protected root CLAUDE.md");
+  assert!(
+    install.stderr.contains("Refusing to write protected path.")
+      || install.stderr.contains("CLAUDE.md: Refusing to write protected path."),
+    "expected protected-path failure for root CLAUDE.md, got stderr:\n{}",
+    install.stderr
+  );
+
+  let generated_skill_dir = workspace_dir
+    .join(".claude")
+    .join("skills")
+    .join("dev-tools-reverse-engineering");
+  assert!(
+    generated_skill_dir.join("SKILL.md").is_file(),
+    "claude should generate SKILL.md for dev-tools-reverse-engineering"
+  );
+  assert!(
+    generated_skill_dir.join("packet-capture.md").is_file(),
+    "claude should emit packet-capture child doc as .md"
+  );
+  assert!(
+    generated_skill_dir.join("reverse-tools.md").is_file(),
+    "claude should emit reverse-tools child doc as .md"
+  );
+  assert!(
+    !generated_skill_dir.join("packet-capture.mdx").exists(),
+    "claude must not emit packet-capture child doc as .mdx"
+  );
+  assert!(
+    !generated_skill_dir.join("reverse-tools.mdx").exists(),
+    "claude must not emit reverse-tools child doc as .mdx"
+  );
+
+  let skill_content = std::fs::read_to_string(generated_skill_dir.join("SKILL.md")).unwrap();
+  assert!(
+    skill_content.contains("name: dev-tools-reverse-engineering"),
+    "claude SKILL.md name field must match generated directory name"
+  );
+  assert!(
+    skill_content.contains("skill: aindex/skills/dev-tools/reverse-engineering"),
+    "claude SKILL.md should keep the categorized source identifier"
+  );
+
+  let clean = runner.run_at_with_env(&workspace_dir, &["clean"], &[("HOME", &temp_home_str)]);
+  clean.assert_success("isolated tnmsc clean for claude");
+
+  assert!(
+    !workspace_dir.join(".claude").exists(),
+    "clean should remove the generated .claude tree"
+  );
 }
