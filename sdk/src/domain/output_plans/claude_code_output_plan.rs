@@ -5,8 +5,8 @@ use serde_json::Value;
 use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
-use crate::domain::config;
 use crate::domain::output_context::OutputContext;
+use crate::domain::output_plans::shared::resolve_effective_home_dir;
 use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const CLAUDE_CODE_PLUGIN_NAME: &str = "ClaudeCodeCLIOutputAdaptor";
@@ -774,14 +774,6 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
     delete,
     ..CleanupDeclarationsDto::default()
   }
-}
-
-fn resolve_effective_home_dir() -> PathBuf {
-  let runtime_environment = config::resolve_runtime_environment();
-  runtime_environment
-    .effective_home_dir
-    .or(runtime_environment.native_home_dir)
-    .unwrap_or_else(|| PathBuf::from("/"))
 }
 
 fn get_concrete_projects(workspace: &Workspace) -> impl Iterator<Item = &Project> {

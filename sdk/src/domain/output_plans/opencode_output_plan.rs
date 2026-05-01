@@ -5,8 +5,8 @@ use serde_json::Value;
 use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
-use crate::domain::config;
 use crate::domain::output_context::OutputContext;
+use crate::domain::output_plans::shared::resolve_effective_home_dir;
 use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const OPENCODE_PLUGIN_NAME: &str = "OpencodeCLIOutputAdaptor";
@@ -568,14 +568,6 @@ fn is_valid_hex_color(s: &str) -> bool {
     return false;
   }
   bytes[1..].iter().all(|&b| b.is_ascii_hexdigit())
-}
-
-fn resolve_effective_home_dir() -> PathBuf {
-  let runtime_environment = config::resolve_runtime_environment();
-  runtime_environment
-    .effective_home_dir
-    .or(runtime_environment.native_home_dir)
-    .unwrap_or_else(|| PathBuf::from("/"))
 }
 
 fn get_concrete_projects(workspace: &Workspace) -> impl Iterator<Item = &Project> {
