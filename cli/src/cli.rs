@@ -18,24 +18,45 @@ pub struct Cli {
   #[command(subcommand)]
   pub command: Option<CliCommand>,
 
+  // 修复 #375：这些日志级别 flag 必须互斥，避免同时传入时出现不透明的覆盖行为。
   /// Set log level to trace (most verbose)
-  #[arg(long = "trace", global = true)]
+  #[arg(
+    long = "trace",
+    global = true,
+    conflicts_with_all = ["debug", "info", "warn", "error"]
+  )]
   pub trace: bool,
 
   /// Set log level to debug
-  #[arg(long = "debug", global = true)]
+  #[arg(
+    long = "debug",
+    global = true,
+    conflicts_with_all = ["trace", "info", "warn", "error"]
+  )]
   pub debug: bool,
 
   /// Set log level to info
-  #[arg(long = "info", global = true)]
+  #[arg(
+    long = "info",
+    global = true,
+    conflicts_with_all = ["trace", "debug", "warn", "error"]
+  )]
   pub info: bool,
 
   /// Set log level to warn
-  #[arg(long = "warn", global = true)]
+  #[arg(
+    long = "warn",
+    global = true,
+    conflicts_with_all = ["trace", "debug", "info", "error"]
+  )]
   pub warn: bool,
 
   /// Set log level to error
-  #[arg(long = "error", global = true)]
+  #[arg(
+    long = "error",
+    global = true,
+    conflicts_with_all = ["trace", "debug", "info", "warn"]
+  )]
   pub error: bool,
 }
 
@@ -81,7 +102,6 @@ pub struct AssembleNpmArgs {
 }
 
 /// Resolved log level from CLI flags.
-/// When multiple flags are provided, the most verbose wins.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolvedLogLevel {
   Trace,
@@ -115,7 +135,6 @@ impl ResolvedLogLevel {
 }
 
 /// Resolve log level from CLI flags.
-/// When multiple flags are set, the most verbose (lowest priority number) wins.
 pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
   let mut levels = Vec::new();
   if cli.trace {
@@ -176,6 +195,7 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use clap::error::ErrorKind;
   use clap::Parser;
 
   #[test]
@@ -194,5 +214,13 @@ mod tests {
   fn resolve_command_parses_clean_dry_run() {
     let cli = Cli::parse_from(["tnmsc", "clean", "--dry-run"]);
     assert_eq!(resolve_command(&cli), ResolvedCommand::DryRunClean);
+  }
+
+  #[test]
+  fn log_level_flags_reject_multiple_values() {
+    // 修复 #375 的回归测试：同时传入多个日志级别 flag 时应当直接报错。
+    let result = Cli::try_parse_from(["tnmsc", "--trace", "--debug"]);
+    let error = result.expect_err("expected clap to reject conflicting log level flags");
+    assert_eq!(error.kind(), ErrorKind::ArgumentConflict);
   }
 }
