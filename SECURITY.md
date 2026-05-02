@@ -24,7 +24,7 @@ Maintainers are people, not a security team — no SLA. We'll confirm as soon as
 CLI / SDK / MCP / GUI toolchain. Security boundaries:
 
 - **Read**: user `.src.mdx` source files, project config, global config (`~/.aindex/.tnmsc.json`), repo metadata required for sync
-- **Write**: target tool config directories, managed prompt artifacts (`dist/`), generated outputs
+- **Write**: target tool config directories, managed prompt artifacts paired beside their source files, generated outputs
 - **Cleanup**: erase managed outputs and residuals during sync or cleanup
 
 Out of scope: vulnerabilities in target AI tools themselves, user prompt content compliance, hardening third-party dependencies outside this repo.

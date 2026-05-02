@@ -7,14 +7,13 @@ A rat carries even its own memories when moving. `memory-sync` is that kind of t
 ## What It Does
 
 - Treat `.mdx` / `.src.mdx` as the single source of truth; generate native configs and managed artifacts for each tool from one source
-- Unified input asset model: Memory, Skills, Commands, Sub-agents, Rules, README, etc.
+- Unified input asset model: Memory, Skills, Skill categories, Commands, Sub-agents, Rules, README, etc.
 - Auto-write configs for each tool: AGENTS.md, Claude Code, Codex CLI, Cursor, Windsurf, Qoder, Trae, Warp, JetBrains AI, etc.
-- Manage derived artifacts: prompt outputs, skills exports, README-class outputs
+- Manage derived artifacts: prompt outputs, skills exports organized as `skills/<skill-category>/<skill>/`, README-class outputs
 - Multiple entry points: `tnmsc` CLI, private SDK, MCP stdio server, Tauri GUI
 - Fine-grained write-scope control (`outputScopes`, `cleanupProtection`)
 - Source and derivations are auditable — no silent source mutations, no hidden residuals
 - Memories follow the person, not the project — no leakage
-
 ## Install
 
 ```sh
@@ -30,10 +29,10 @@ npm install -g @truenine/memory-sync-mcp
 ## Supported Tools
 
 | Type | Tools |
-|------|-------|
+| --- | --- |
 | IDE / Editor | Cursor, Windsurf, Qoder, Trae, Trae CN, JetBrains AI, Zed, VS Code |
 | CLI | Claude Code, Codex CLI, Gemini CLI, Droid CLI, Opencode, Warp |
-| Other outputs | AGENTS.md, Skills, README, `.editorconfig`, `.git/info/exclude` |
+| Other outputs | AGENTS.md, categorized Skills, README, `.editorconfig`, `.git/info/exclude` |
 
 ## Architecture
 
@@ -41,7 +40,6 @@ npm install -g @truenine/memory-sync-mcp
 - **CLI** (`tnmsc` / `@truenine/memory-sync-cli`): public command entry
 - **MCP** (`tnmsm` / `@truenine/memory-sync-mcp`): stdio server
 - **GUI** (Tauri): desktop entry
-
 ## FAQ
 
 **If AI tools adopt a unified standard, is this project still needed?** Then it has fulfilled its historical mission.
@@ -62,14 +60,12 @@ If you're scraping by in a world of profoundly unequal resources — free tiers,
 - Entitlement seekers who want everything handed to them
 - Those who glorify overwork as virtue
 - Malicious competitors stepping on others to climb
-
 **This is not a tool for capital to optimise costs — it's a rat's small act of defiance in a world of resource injustice.**
 
 ## Created by
 
 - [TrueNine](https://github.com/TrueNine)
 - [zjarlin](https://github.com/zjarlin)
-
 ## License
 
 [AGPL-3.0](LICENSE)
