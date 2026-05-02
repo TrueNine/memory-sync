@@ -674,11 +674,16 @@ mod tests {
     let root_modified = newest_modified_time(&root.join("sdk")).unwrap();
     let late_modified = fs::metadata(&late).unwrap().modified().unwrap();
 
-    assert_eq!(system_time_key(root_modified), system_time_key(late_modified));
+    assert_eq!(
+      system_time_key(root_modified),
+      system_time_key(late_modified)
+    );
   }
 
   fn is_binary_stale_for_paths(binary: &Path, inputs: &[PathBuf]) -> bool {
-    let Some(binary_modified) = fs::metadata(binary).ok().and_then(|meta| meta.modified().ok())
+    let Some(binary_modified) = fs::metadata(binary)
+      .ok()
+      .and_then(|meta| meta.modified().ok())
     else {
       return true;
     };
