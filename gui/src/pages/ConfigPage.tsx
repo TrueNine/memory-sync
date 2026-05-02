@@ -9,6 +9,7 @@ import JsonEditor from '@/components/JsonEditor'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { validateConfig } from '@/utils/configValidation'
+import { clearSavedTimer } from './config-page-timers'
 
 type EditorTab = 'form' | 'json'
 
@@ -151,6 +152,11 @@ const ConfigPage: FC = () => {
 
   useEffect(() => { loadFile() }, [loadFile])
 
+  useEffect(() => () => {
+    // Fixes #372: clear the delayed "saved" reset when ConfigPage unmounts.
+    clearSavedTimer(savedTimerRef)
+  }, [])
+
   useEffect(() => {
     try {
       const parsed: unknown = JSON.parse(content)
@@ -161,7 +167,8 @@ const ConfigPage: FC = () => {
   }, [content])
 
   const handleSave = useCallback(async () => {
-    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    // Fixes #372: replace any older timeout before scheduling a fresh saved-state reset.
+    clearSavedTimer(savedTimerRef)
     setSaveStatus({ kind: 'saving' })
     try {
       JSON.parse(content)
