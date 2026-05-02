@@ -1,75 +1,64 @@
-//! 本地裸机 opencode 测试：验证 tnmsc install 生成的 opencode 文件。
+//! Isolated opencode smoke tests for OpencodeCLIOutputAdaptor.
 //!
-//! **前提**：项目已配置，opencode 插件已启用。
+//! These tests use a temporary HOME/workspace fixture so opencode output
+//! checks do not depend on the caller's real `~/.aindex/.tnmsc.json`,
+//! `~/.config/opencode`, or host workspace prompts.
 
-use tnmsc_local_tests::LocalTestRunner;
+#[path = "support/opencode.rs"]
+mod opencode_support;
 
-/// Comprehensive verification of the .opencode/ directory after install: AGENTS.md
-/// exists, and agents/, skills/, commands/, rules/ subdirectories all contain correctly
-/// formatted files with YAML front matter and expected source identifiers.
+use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
+
+use opencode_support::{
+  IsolatedOpencodeFixture, collect_file_names, expected_installed_skill_names,
+};
+
 #[test]
 fn local_opencode_install_generates_project_agents_md() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode");
 
   assert!(
-    runner.opencode_project_file_exists(),
-    "~/workspace/memory-sync/.opencode/AGENTS.md should be generated after install"
+    fixture.project_agents_path().is_file(),
+    "project .opencode/AGENTS.md should be generated after install"
   );
 
-  let content = runner
-    .read_file(".opencode/AGENTS.md")
-    .expect(".opencode/AGENTS.md should be readable");
+  let content = fs::read_to_string(fixture.project_agents_path()).unwrap();
   assert!(
     !content.is_empty(),
     ".opencode/AGENTS.md should not be empty"
   );
 
-  // 验证子目录存在
   for subdir in ["agents", "skills", "commands", "rules"] {
     assert!(
-      runner.dir_exists(format!(".opencode/{}", subdir)),
-      "~/workspace/memory-sync/.opencode/{} should exist after install",
-      subdir
+      fixture.project_opencode_dir().join(subdir).is_dir(),
+      "project .opencode/{subdir} should exist after install"
     );
   }
 
-  // 验证 agents 目录非空且所有文件有 YAML front matter
-  let agents_dir = runner.cwd().join(".opencode").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agent_files: Vec<_> = fs::read_dir(fixture.project_agents_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
   assert!(
     !agent_files.is_empty(),
-    "~/workspace/memory-sync/.opencode/agents should contain at least one file"
+    "project .opencode/agents should contain at least one file"
   );
   for file in &agent_files {
-    let file_name = file.file_name();
-    let name = file_name.to_string_lossy();
-    assert!(
-      name.ends_with(".md"),
-      "every file in .opencode/agents must be .md, got: {}",
-      name
-    );
-    let content = std::fs::read_to_string(file.path()).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "agent file {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("agent:"),
-      "agent file {} should contain 'agent:' source identifier",
-      name
-    );
+    let name = file.file_name().to_string_lossy().to_string();
+    let content = fs::read_to_string(file.path()).unwrap();
+    assert!(name.ends_with(".md"));
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("agent:"));
     assert!(
       content.contains("mode: subagent") || content.contains("mode: \"subagent\""),
       "agent file {} should contain mode: \"subagent\" in front matter",
@@ -77,376 +66,304 @@ fn local_opencode_install_generates_project_agents_md() {
     );
   }
 
-  // 验证 commands 目录非空且所有文件有 YAML front matter
-  let commands_dir = runner.cwd().join(".opencode").join("commands");
-  let command_files: Vec<_> = std::fs::read_dir(&commands_dir)
+  let command_files: Vec<_> = fs::read_dir(fixture.project_commands_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
   assert!(
     !command_files.is_empty(),
-    "~/workspace/memory-sync/.opencode/commands should contain at least one file"
+    "project .opencode/commands should contain at least one file"
   );
   for file in &command_files {
-    let file_name = file.file_name();
-    let name = file_name.to_string_lossy();
-    assert!(
-      name.ends_with(".md"),
-      "every file in .opencode/commands must be .md, got: {}",
-      name
-    );
-    let content = std::fs::read_to_string(file.path()).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "command file {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("command:"),
-      "command file {} should contain 'command:' source identifier",
-      name
-    );
+    let name = file.file_name().to_string_lossy().to_string();
+    let content = fs::read_to_string(file.path()).unwrap();
+    assert!(name.ends_with(".md"));
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("command:"));
   }
 
-  // 验证 skills 目录：每个 skill 是子目录，包含 SKILL.md
-  let skills_dir = runner.cwd().join(".opencode").join("skills");
-  let skill_entries: Vec<_> = std::fs::read_dir(&skills_dir)
+  let skill_dirs: Vec<_> = fs::read_dir(fixture.project_skills_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
     .collect();
   assert!(
-    !skill_entries.is_empty(),
-    "~/workspace/memory-sync/.opencode/skills should contain at least one subdirectory"
+    !skill_dirs.is_empty(),
+    "project .opencode/skills should contain at least one subdirectory"
   );
-  for entry in &skill_entries {
-    let skill_name = entry.file_name();
-    let name = skill_name.to_string_lossy();
+  for entry in &skill_dirs {
+    let name = entry.file_name().to_string_lossy().to_string();
     let skill_md_path = entry.path().join("SKILL.md");
     assert!(
       skill_md_path.is_file(),
       "skill directory {} should contain SKILL.md",
       name
     );
-    let content = std::fs::read_to_string(&skill_md_path).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "SKILL.md in {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("skill:"),
-      "SKILL.md in {} should contain 'skill:' source identifier",
-      name
-    );
+    let content = fs::read_to_string(skill_md_path).unwrap();
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("skill:"));
   }
 
-  // 验证规则文件：递归遍历，所有文件必须以 rule- 前缀开头且符合命名规范
-  let rules_dir = runner.cwd().join(".opencode").join("rules");
-
-  fn collect_rule_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
-    let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
-      for entry in entries.flatten() {
-        let path = entry.path();
-        if let Ok(ft) = entry.file_type() {
-          if ft.is_file() {
-            files.push(path);
-          } else if ft.is_dir() {
-            files.extend(collect_rule_files(&path));
-          }
-        }
-      }
-    }
-    files
-  }
-
-  let all_files = collect_rule_files(&rules_dir);
+  let all_rule_files = collect_rule_files(&fixture.project_rules_dir());
   assert!(
-    !all_files.is_empty(),
-    "~/workspace/memory-sync/.opencode/rules should contain at least one file"
+    !all_rule_files.is_empty(),
+    "project .opencode/rules should contain at least one file"
   );
+  for file_path in &all_rule_files {
+    let name = file_path.file_name().unwrap().to_string_lossy().to_string();
+    let stem = &name[5..name.len() - 3];
+    let content = fs::read_to_string(file_path).unwrap();
 
-  for file_path in &all_files {
-    let file_name = file_path.file_name().unwrap_or_default();
-    let name = file_name.to_string_lossy();
     assert!(
       name.starts_with("rule-") && name.ends_with(".md"),
-      "every file in .opencode/rules must match 'rule-*.md' pattern, got: {}",
+      "every file in .opencode/rules must match 'rule-*.md', got: {}",
       name
     );
-
-    let stem = &name[5..name.len() - 3];
     assert!(
       !stem.is_empty() && !stem.contains('.'),
-      "rule file name stem must not be empty and must not contain dots, got: {}",
+      "rule file stem must be non-empty and dot-free, got: {}",
       name
     );
-
-    let content = std::fs::read_to_string(file_path).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "rule file {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("rule:"),
-      "rule file {} should contain 'rule:' source identifier",
-      name
-    );
-
-    // 验证 front matter 使用 paths 而不是 globs
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("rule:"));
     assert!(
       !content.contains("\nglobs:\n"),
-      "rule file {} must NOT contain 'globs:' field; use 'paths:' instead",
+      "rule file {} must not contain 'globs:'",
       name
     );
     assert!(
       content.contains("\npaths:\n"),
-      "rule file {} must contain 'paths:' field",
+      "rule file {} must contain 'paths:'",
       name
     );
   }
 }
 
-/// Verify that the global ~/.config/opencode/AGENTS.md is generated with non-empty content.
 #[test]
 fn local_opencode_install_generates_global_agents_md() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode");
 
   assert!(
-    runner.opencode_global_file_exists(),
+    fixture.global_agents_path().is_file(),
     "~/.config/opencode/AGENTS.md should be generated after install"
   );
-
-  let content = runner
-    .read_opencode_global_file()
-    .expect("~/.config/opencode/AGENTS.md should be readable after install");
   assert!(
-    !content.is_empty(),
+    !fs::read_to_string(fixture.global_agents_path())
+      .unwrap()
+      .trim()
+      .is_empty(),
     "~/.config/opencode/AGENTS.md should not be empty"
   );
 }
 
-/// Verify that two consecutive installs produce identical .opencode/AGENTS.md content.
 #[test]
 fn local_opencode_install_idempotent() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
 
-  let first = runner.install();
-  first.assert_success("first tnmsc install");
+  let first = fixture.install();
+  first.assert_success("first isolated tnmsc install for opencode");
   assert!(
-    runner.opencode_project_file_exists(),
+    fixture.project_agents_path().is_file(),
     ".opencode/AGENTS.md should exist after first install"
   );
+  let content_first = fs::read_to_string(fixture.project_agents_path()).unwrap();
 
-  let content_first = runner.read_file(".opencode/AGENTS.md").unwrap();
+  let second = fixture.install();
+  second.assert_success("second isolated tnmsc install for opencode");
+  let content_second = fs::read_to_string(fixture.project_agents_path()).unwrap();
 
-  let second = runner.install();
-  second.assert_success("second tnmsc install");
-
-  let content_second = runner.read_file(".opencode/AGENTS.md").unwrap();
   assert_eq!(
     content_first, content_second,
     "consecutive installs should produce identical .opencode/AGENTS.md"
   );
-
   assert!(
-    runner.opencode_global_file_exists(),
+    fixture.global_agents_path().is_file(),
     "~/.config/opencode/AGENTS.md should exist after install"
   );
 }
 
-/// Verify that `tnmsc clean` removes the generated .opencode/ directory.
 #[test]
 fn local_opencode_clean_removes_files() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let install = runner.install();
-  install.assert_success("tnmsc install before clean");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install before opencode clean");
   assert!(
-    runner.opencode_project_file_exists(),
+    fixture.project_agents_path().is_file(),
     ".opencode/AGENTS.md should exist after install"
   );
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean for opencode");
 
   assert!(
-    !runner.opencode_project_file_exists(),
+    !fixture.project_agents_path().exists(),
     ".opencode/AGENTS.md should be removed after clean"
   );
+  assert!(
+    !fixture.child_agents_path().exists(),
+    "nested child .opencode/AGENTS.md should be removed after clean"
+  );
 }
 
-/// Verify that `tnmsc dry-run` does NOT create .opencode/AGENTS.md.
 #[test]
 fn local_opencode_dry_run_does_not_write() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before dry-run");
-
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode dry-run");
   assert!(
-    !runner.opencode_project_file_exists(),
+    !fixture.project_agents_path().exists(),
     ".opencode/AGENTS.md should not exist before dry-run"
   );
+  assert!(
+    !fixture.global_agents_path().exists(),
+    "~/.config/opencode/AGENTS.md should not exist before dry-run"
+  );
 
-  let dry = runner.dry_run();
-  dry.assert_success("tnmsc dry-run");
+  fixture
+    .dry_run()
+    .assert_success("isolated tnmsc dry-run for opencode");
 
   assert!(
-    !runner.opencode_project_file_exists(),
+    !fixture.project_agents_path().exists(),
     ".opencode/AGENTS.md should not be created by dry-run"
   );
+  assert!(
+    !fixture.global_agents_path().exists(),
+    "~/.config/opencode/AGENTS.md should not be created by dry-run"
+  );
 }
 
-/// Verify that `{profile.username}` template interpolation works in the global opencode
-/// AGENTS.md — both inline text and URLs are correctly evaluated.
 #[test]
 fn local_opencode_global_md_url_interpolation() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode interpolation");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let content = runner
-    .read_opencode_global_file()
-    .expect("~/.config/opencode/AGENTS.md should be readable after install");
-
+  let content = fs::read_to_string(fixture.global_agents_path()).unwrap();
   assert!(
     content.contains("TrueNine"),
-    "inline expression should be evaluated to 'TrueNine'\ngot:\n{content}",
+    "inline expression should be evaluated to TrueNine\ngot:\n{content}"
   );
-
   assert!(
     content.contains("[TrueNineGithub]"),
-    "link text interpolation should be evaluated\ngot:\n{content}",
+    "link text interpolation should be evaluated\ngot:\n{content}"
   );
-
   assert!(
     content.contains("https://github.com/TrueNine"),
-    "URL interpolation should be evaluated\ngot:\n{content}",
+    "URL interpolation should be evaluated\ngot:\n{content}"
   );
-
   assert!(
     !content.contains("github.com/{profile"),
-    "unreplaced URL interpolation found\ngot:\n{content}",
+    "unreplaced URL interpolation found\ngot:\n{content}"
   );
 }
 
-/// Verify that the project-level .opencode/AGENTS.md includes global memory content
-/// (is at least as long as the global file and contains workspace-level data like 'TrueNine').
 #[test]
 fn local_opencode_project_content_includes_workspace_memory() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode content checks");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let project_content = runner
-    .read_file(".opencode/AGENTS.md")
-    .expect(".opencode/AGENTS.md should be readable");
-
-  let global_content = runner
-    .read_opencode_global_file()
-    .expect("~/.config/opencode/AGENTS.md should be readable");
+  let project_content = fs::read_to_string(fixture.project_agents_path()).unwrap();
+  let global_content = fs::read_to_string(fixture.global_agents_path()).unwrap();
 
   assert!(
     project_content.len() >= global_content.len(),
     "project .opencode/AGENTS.md should be at least as long as global content"
   );
-
   assert!(
     project_content.contains("TrueNine"),
     "project .opencode/AGENTS.md should contain global memory content"
   );
+  assert!(
+    project_content.contains("Project root instructions"),
+    "project .opencode/AGENTS.md should contain project memory content"
+  );
 }
 
-/// Regression guard: generated agent .md files must NOT contain a `model:` field.
-/// Per-agent model override is a future feature — premature inclusion would break
-/// opencode schema validation.
 #[test]
 fn local_opencode_agent_md_should_not_contain_model_field() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode agent checks");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let agents_dir = runner.cwd().join(".opencode").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agent_files: Vec<_> = fs::read_dir(fixture.project_agents_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
-
   assert!(
     !agent_files.is_empty(),
     ".opencode/agents should contain at least one file"
   );
 
   for file in &agent_files {
-    let content = std::fs::read_to_string(file.path()).unwrap();
+    // issue #382: opencode generated agents must strip the future-only `model`
+    // field so current schema validation keeps passing.
+    let content = fs::read_to_string(file.path()).unwrap();
     assert!(
       !content.contains("\nmodel:"),
-      "agent file {} must NOT contain 'model:' field (future feature, not yet implemented)",
+      "agent file {} must not contain 'model:' field",
       file.file_name().to_string_lossy()
     );
   }
 }
 
-/// Verify that every generated agent file contains `mode: subagent` (or `mode: "subagent"`)
-/// in its YAML front matter. Subagent mode is the expected default for memory-sync agents.
 #[test]
 fn local_opencode_agent_md_must_include_subagent_mode() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode agent mode checks");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let agents_dir = runner.cwd().join(".opencode").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agent_files: Vec<_> = fs::read_dir(fixture.project_agents_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
-
   assert!(
     !agent_files.is_empty(),
     ".opencode/agents should contain at least one file"
   );
 
   for file in &agent_files {
-    let content = std::fs::read_to_string(file.path()).unwrap();
+    let content = fs::read_to_string(file.path()).unwrap();
     assert!(
       content.contains("mode: subagent") || content.contains("mode: \"subagent\""),
       "agent file {} must include mode: \"subagent\" in YAML front matter",
@@ -455,9 +372,6 @@ fn local_opencode_agent_md_must_include_subagent_mode() {
   }
 }
 
-/// Regression guard: the `color` field in agent files must be a 6-digit hex value (#RRGGBB).
-/// opencode's config schema rejects CSS named colors like `blue` or `red`.
-/// See: https://github.com/opencode-ai/opencode config schema pattern constraint.
 #[test]
 fn local_opencode_agent_md_color_must_be_hex_format() {
   fn is_valid_hex_color(s: &str) -> bool {
@@ -468,48 +382,39 @@ fn local_opencode_agent_md_color_must_be_hex_format() {
     if bytes[0] != b'#' {
       return false;
     }
-    bytes[1..].iter().all(|&b| b.is_ascii_hexdigit())
+    bytes[1..].iter().all(|byte| byte.is_ascii_hexdigit())
   }
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode color checks");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let agents_dir = runner.cwd().join(".opencode").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agent_files: Vec<_> = fs::read_dir(fixture.project_agents_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
-
   assert!(
     !agent_files.is_empty(),
     ".opencode/agents should contain at least one file"
   );
 
   for file in &agent_files {
-    let content = std::fs::read_to_string(file.path()).unwrap();
+    let content = fs::read_to_string(file.path()).unwrap();
     let file_name = file.file_name().to_string_lossy().to_string();
 
     for line in content.lines() {
       let trimmed = line.trim();
       if let Some(color_value) = trimmed.strip_prefix("color:") {
-        if !color_value.is_empty()
-          && !color_value.starts_with(' ')
-          && !color_value.starts_with('\t')
-        {
-          continue;
-        }
         let color_value = color_value.trim().trim_matches('"').trim_matches('\'');
         assert!(
           is_valid_hex_color(color_value),
-          "agent file {} has invalid color '{}': must match hex pattern #RRGGBB (e.g. #0000FF), \
-           CSS named colors (e.g. blue, red) are not accepted by opencode schema",
+          "agent file {} has invalid color '{}': must match #RRGGBB",
           file_name,
           color_value
         );
@@ -518,175 +423,41 @@ fn local_opencode_agent_md_color_must_be_hex_format() {
   }
 }
 
-/// Regression guard: opencode only supports AGENTS.md at the project root .opencode/ —
-/// no nested subdirectory .opencode/AGENTS.md files should be generated.
-/// Nested files cause opencode to behave incorrectly.
 #[test]
-fn local_opencode_no_nested_agents_md() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+fn local_opencode_child_memory_generates_nested_agents_md() {
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode child-memory install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode child-memory checks");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  // 收集 cwd 下所有 .opencode/AGENTS.md 文件路径
-  let mut nested_agents = Vec::new();
-  fn collect_opencode_agents(dir: &std::path::Path, nested: &mut Vec<std::path::PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-      return;
-    };
-    for entry in entries.flatten() {
-      let path = entry.path();
-      let Ok(ft) = entry.file_type() else { continue };
-      if ft.is_dir() {
-        // 跳过 .git、node_modules、target 等
-        if let Some(name) = path.file_name() {
-          let name = name.to_string_lossy();
-          if name.starts_with('.') && name != ".opencode"
-            || name == "node_modules"
-            || name == "target"
-            || name == "dist"
-            || name == "out"
-          {
-            continue;
-          }
-        }
-        if path.join(".opencode").join("AGENTS.md").is_file() {
-          nested.push(path.join(".opencode").join("AGENTS.md"));
-        }
-        collect_opencode_agents(&path, nested);
-      }
-    }
-  }
-
-  collect_opencode_agents(runner.cwd(), &mut nested_agents);
-
-  let root_agents = runner.cwd().join(".opencode").join("AGENTS.md");
-  let unexpected: Vec<_> = nested_agents
-    .into_iter()
-    .filter(|p| *p != root_agents)
-    .collect();
-
+  // issue #380: opencode child prompts must materialize nested
+  // `.opencode/AGENTS.md` files so per-directory memory remains reachable.
   assert!(
-    unexpected.is_empty(),
-    "opencode must NOT generate nested .opencode/AGENTS.md files.\nunexpected paths:\n{}",
-    unexpected
-      .iter()
-      .map(|p| format!("  - {}", p.display()))
-      .collect::<Vec<_>>()
-      .join("\n")
+    fixture.child_agents_path().is_file(),
+    "child .github/.opencode/AGENTS.md should be generated from child prompt"
+  );
+
+  let child_content = fs::read_to_string(fixture.child_agents_path()).unwrap();
+  assert!(
+    child_content.contains("Child instructions"),
+    "nested child .opencode/AGENTS.md should contain child prompt content"
   );
 }
 
-/// Isolated regression test for categorized skills with nested child docs.
-/// Verifies that:
-/// 1. `name` in SKILL.md matches the generated directory name
-/// 2. child docs are compiled and emitted as `.md`, not `.mdx`
-/// 3. clean removes the generated project tree
 #[test]
 fn regression_isolated_opencode_skill_name_and_child_doc_extensions() {
-  let runner = LocalTestRunner::new();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let temp_root = std::env::temp_dir().join(format!(
-    "tnmsc-local-opencode-reverse-{}-{}",
-    std::process::id(),
-    std::time::SystemTime::now()
-      .duration_since(std::time::UNIX_EPOCH)
-      .unwrap_or_default()
-      .as_nanos()
-  ));
-  let temp_home = temp_root.join("home");
-  let workspace_dir = temp_root.join("workspace");
-  let aindex_dir = workspace_dir.join("aindex");
-  let skill_dir = aindex_dir
-    .join("skills")
-    .join("dev-tools")
-    .join("reverse-engineering");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode categorized skill regression");
 
-  std::fs::create_dir_all(temp_home.join(".aindex")).unwrap();
-  std::fs::create_dir_all(&aindex_dir).unwrap();
-  std::fs::create_dir_all(&skill_dir).unwrap();
-
-  std::fs::write(
-    temp_home.join(".aindex").join(".tnmsc.json"),
-    serde_json::json!({
-      "workspaceDir": workspace_dir.to_string_lossy(),
-      "plugins": {
-        "agentsMd": false,
-        "git": false,
-        "readme": false,
-        "vscode": false,
-        "zed": false,
-        "jetbrains": false,
-        "jetbrainsCodeStyle": false,
-        "cursor": false,
-        "droid": false,
-        "gemini": false,
-        "kiro": false,
-        "qoder": false,
-        "trae": false,
-        "traeCn": false,
-        "warp": false,
-        "windsurf": false,
-        "codex": false,
-        "claudeCode": false,
-        "opencode": true
-      }
-    })
-    .to_string(),
-  )
-  .unwrap();
-
-  std::fs::write(
-    aindex_dir.join("workspace.mdx"),
-    "---\ndescription: workspace\n---\nWorkspace prompt\n",
-  )
-  .unwrap();
-  std::fs::write(
-    aindex_dir.join("workspace.src.mdx"),
-    "---\ndescription: workspace\n---\nWorkspace prompt\n",
-  )
-  .unwrap();
-
-  std::fs::write(
-    skill_dir.join("skill.src.mdx"),
-    "export default { name: 'reverse-engineering', description: 'Reverse engineering skill' }\n\n# Reverse\n",
-  )
-  .unwrap();
-  std::fs::write(
-    skill_dir.join("skill.mdx"),
-    "export default { name: 'reverse-engineering', description: 'Reverse engineering skill' }\n\n# Reverse\n",
-  )
-  .unwrap();
-
-  for name in ["packet-capture", "reverse-tools"] {
-    std::fs::write(
-      skill_dir.join(format!("{name}.src.mdx")),
-      format!("---\ndescription: {name}\n---\n# {name}\n"),
-    )
-    .unwrap();
-    std::fs::write(
-      skill_dir.join(format!("{name}.mdx")),
-      format!("---\ndescription: {name}\n---\n# {name}\n"),
-    )
-    .unwrap();
-  }
-
-  let temp_home_str = temp_home.to_string_lossy().into_owned();
-
-  let install = runner.run_at_with_env(
-    &workspace_dir,
-    &["install"],
-    &[("HOME", &temp_home_str)],
-  );
-  install.assert_success("isolated tnmsc install for opencode");
-
-  let generated_skill_dir = workspace_dir
-    .join(".opencode")
-    .join("skills")
+  let generated_skill_dir = fixture
+    .project_skills_dir()
     .join("dev-tools-reverse-engineering");
   assert!(
     generated_skill_dir.join("SKILL.md").is_file(),
@@ -709,7 +480,7 @@ fn regression_isolated_opencode_skill_name_and_child_doc_extensions() {
     "opencode must not emit reverse-tools child doc as .mdx"
   );
 
-  let skill_content = std::fs::read_to_string(generated_skill_dir.join("SKILL.md")).unwrap();
+  let skill_content = fs::read_to_string(generated_skill_dir.join("SKILL.md")).unwrap();
   assert!(
     skill_content.contains("name: dev-tools-reverse-engineering"),
     "opencode SKILL.md name field must match generated directory name"
@@ -719,11 +490,75 @@ fn regression_isolated_opencode_skill_name_and_child_doc_extensions() {
     "opencode SKILL.md should keep the categorized source identifier"
   );
 
-  let clean = runner.run_at_with_env(&workspace_dir, &["clean"], &[("HOME", &temp_home_str)]);
-  clean.assert_success("isolated tnmsc clean for opencode");
-
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean for opencode categorized skill regression");
   assert!(
-    !workspace_dir.join(".opencode").exists(),
+    !fixture.project_opencode_dir().exists(),
     "clean should remove the generated .opencode tree"
   );
+}
+
+#[test]
+fn local_opencode_project_skills_match_aindex_skills() {
+  let fixture = IsolatedOpencodeFixture::new();
+
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode skill checks");
+
+  let expected_names = expected_installed_skill_names(&fixture.aindex_dir.join("skills"));
+  let project_names: HashSet<String> = fs::read_dir(fixture.project_skills_dir())
+    .unwrap()
+    .flatten()
+    .filter(|entry| entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+    .map(|entry| entry.file_name().to_string_lossy().to_string())
+    .collect();
+
+  assert_eq!(
+    project_names, expected_names,
+    "project .opencode/skills should mirror installable aindex skill names"
+  );
+}
+
+#[test]
+fn local_opencode_commands_match_aindex_commands() {
+  let fixture = IsolatedOpencodeFixture::new();
+
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode command checks");
+
+  let command_names = collect_file_names(&fixture.project_commands_dir(), ".md");
+  assert!(
+    command_names.contains("demo.md"),
+    "opencode commands should include demo.md"
+  );
+  assert!(
+    command_names.contains("qa-boot.md"),
+    "opencode commands should include qa-boot.md"
+  );
+}
+
+fn collect_rule_files(dir: &Path) -> Vec<std::path::PathBuf> {
+  let mut files = Vec::new();
+  if let Ok(entries) = fs::read_dir(dir) {
+    for entry in entries.flatten() {
+      let path = entry.path();
+      if let Ok(file_type) = entry.file_type() {
+        if file_type.is_file() {
+          files.push(path);
+        } else if file_type.is_dir() {
+          files.extend(collect_rule_files(&path));
+        }
+      }
+    }
+  }
+  files
 }

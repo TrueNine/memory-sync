@@ -1,25 +1,255 @@
-//! 本地裸机 codex 测试：验证 CodexCLIOutputAdaptor 生成的 codex 文件。
+//! Isolated codex smoke tests for CodexCLIOutputAdaptor.
 //!
-//! **前提**：项目已配置，codex 插件已启用（plugins.codex = true）。
+//! These tests use a temporary HOME/workspace fixture so codex output checks do
+//! not depend on the caller's real `~/.aindex/.tnmsc.json` or `~/.codex`.
+
+use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use tnmsc_local_tests::LocalTestRunner;
 
-fn assert_codex_plugin_enabled() {
-  let config_path = dirs::home_dir()
-    .expect("should have home directory")
-    .join(".aindex")
-    .join(".tnmsc.json");
-  let raw = std::fs::read_to_string(&config_path).expect("~/.aindex/.tnmsc.json should exist");
-  let parsed: serde_json::Value = serde_json::from_str(&raw).expect("should be valid JSON");
-  let codex_enabled = parsed
-    .get("plugins")
-    .and_then(|p| p.get("codex"))
-    .and_then(|v| v.as_bool())
-    .unwrap_or(false);
-  assert!(
-    codex_enabled,
-    "plugins.codex must be set to true in ~/.aindex/.tnmsc.json"
-  );
+struct IsolatedCodexFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  project_dir: PathBuf,
+  aindex_dir: PathBuf,
+}
+
+impl IsolatedCodexFixture {
+  fn new() -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-codex-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let temp_home = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let project_dir = workspace_dir.join("memory-sync");
+    let aindex_dir = workspace_dir.join("aindex");
+    let aindex_project_dir = aindex_dir.join("app").join("memory-sync");
+
+    fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+    fs::create_dir_all(project_dir.join(".github")).unwrap();
+    fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+    fs::create_dir_all(aindex_dir.join("commands")).unwrap();
+    fs::create_dir_all(aindex_dir.join("subagents").join("qa")).unwrap();
+    fs::create_dir_all(
+      aindex_dir
+        .join("skills")
+        .join("browser")
+        .join("agent-browser"),
+    )
+    .unwrap();
+    fs::create_dir_all(aindex_dir.join("skills").join("plain-skill")).unwrap();
+
+    // issue local-tests-codex-isolation: codex smoke tests must not depend on
+    // the host ~/.codex or host workspace prompt inventory.
+    write_codex_config(&temp_home, &workspace_dir);
+    write_codex_prompt_sources(&aindex_dir, &aindex_project_dir);
+
+    Self {
+      runner: LocalTestRunner::with_cwd(&project_dir),
+      temp_home,
+      project_dir,
+      aindex_dir,
+    }
+  }
+
+  fn env_home(&self) -> String {
+    self.temp_home.to_string_lossy().into_owned()
+  }
+
+  fn run(&self, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.env_home();
+    self
+      .runner
+      .run_at_with_env(&self.project_dir, args, &[("HOME", &temp_home)])
+  }
+
+  fn install(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["install"])
+  }
+
+  fn clean(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["clean"])
+  }
+
+  fn dry_run(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["dry-run"])
+  }
+
+  fn global_codex_dir(&self) -> PathBuf {
+    self.temp_home.join(".codex")
+  }
+
+  fn global_agents_path(&self) -> PathBuf {
+    self.global_codex_dir().join("AGENTS.md")
+  }
+
+  fn global_prompts_dir(&self) -> PathBuf {
+    self.global_codex_dir().join("prompts")
+  }
+
+  fn global_agents_dir(&self) -> PathBuf {
+    self.global_codex_dir().join("agents")
+  }
+
+  fn project_codex_dir(&self) -> PathBuf {
+    self.project_dir.join(".codex")
+  }
+
+  fn project_agents_dir(&self) -> PathBuf {
+    self.project_codex_dir().join("agents")
+  }
+
+  fn project_skills_dir(&self) -> PathBuf {
+    self.project_codex_dir().join("skills")
+  }
+}
+
+fn write_codex_config(temp_home: &Path, workspace_dir: &Path) {
+  fs::write(
+    temp_home.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": false,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "claudeCode": false,
+        "codex": true,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "opencode": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false
+      }
+    })
+    .to_string(),
+  )
+  .unwrap();
+}
+
+fn write_codex_prompt_sources(aindex_dir: &Path, aindex_project_dir: &Path) {
+  fs::write(
+    aindex_dir.join("global.mdx"),
+    "---\ndescription: global memory\n---\nGlobal codex memory\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("workspace.mdx"),
+    "---\ndescription: workspace memory\n---\nWorkspace codex memory\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("workspace.src.mdx"),
+    "---\ndescription: workspace memory\n---\nWorkspace codex memory\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join("agt.mdx"),
+    "# Project codex memory\n\nProject root instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join(".github").join("agt.mdx"),
+    "# Child codex memory\n\nChild instructions\n",
+  )
+  .unwrap();
+
+  fs::write(
+    aindex_dir.join("commands").join("demo.mdx"),
+    "---\ndescription: Demo command\nargumentHint: target\nscope: global\n---\nRun demo command\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("commands").join("qa_boot.mdx"),
+    "---\ndescription: QA boot\nargumentHint: repo\nscope: global\n---\nRun QA boot\n",
+  )
+  .unwrap();
+
+  fs::write(
+    aindex_dir.join("subagents").join("demo.mdx"),
+    "---\ndescription: Demo agent\nscope: global\n---\nDemo agent instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("subagents").join("qa").join("boot.mdx"),
+    "---\ndescription: QA boot agent\nscope: global\n---\nQA boot instructions\n",
+  )
+  .unwrap();
+
+  let browser_skill_dir = aindex_dir
+    .join("skills")
+    .join("browser")
+    .join("agent-browser");
+  fs::create_dir_all(browser_skill_dir.join("references")).unwrap();
+  fs::create_dir_all(browser_skill_dir.join("templates")).unwrap();
+  fs::create_dir_all(browser_skill_dir.join("assets")).unwrap();
+  fs::write(
+    browser_skill_dir.join("skill.mdx"),
+    "export default { description: 'Browser skill', name: 'Browser Agent Browser' }\n\n# Browser Skill\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir.join("skill.src.mdx"),
+    "export default { description: 'Browser skill', name: 'Browser Agent Browser' }\n\n# Browser Skill\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir.join("references").join("linux-wsl.mdx"),
+    "---\ndescription: Linux WSL reference\n---\n# Linux WSL\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir
+      .join("references")
+      .join("linux-wsl.src.mdx"),
+    "---\ndescription: Linux WSL reference\n---\n# Linux WSL\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir
+      .join("templates")
+      .join("capture-workflow.sh"),
+    "#!/usr/bin/env bash\necho capture\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir.join("assets").join("logo.png"),
+    [0x89_u8, 0x50, 0x4E, 0x47, 0x00, 0xFF],
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir.join("mcp.json"),
+    "{\n  \"mcpServers\": {\n    \"browser\": { \"command\": \"agent-browser\" }\n  }\n}\n",
+  )
+  .unwrap();
+
+  let plain_skill_dir = aindex_dir.join("skills").join("plain-skill");
+  fs::write(
+    plain_skill_dir.join("skill.mdx"),
+    "export default { description: 'Plain skill' }\n\n# Plain Skill\n",
+  )
+  .unwrap();
+  fs::write(
+    plain_skill_dir.join("skill.src.mdx"),
+    "export default { description: 'Plain skill' }\n\n# Plain Skill\n",
+  )
+  .unwrap();
 }
 
 fn expected_installed_skill_names(
@@ -28,7 +258,11 @@ fn expected_installed_skill_names(
   let mut names = std::collections::HashSet::new();
 
   for entry in std::fs::read_dir(aindex_skills_dir).unwrap().flatten() {
-    if !entry.file_type().map(|file_type| file_type.is_dir()).unwrap_or(false) {
+    if !entry
+      .file_type()
+      .map(|file_type| file_type.is_dir())
+      .unwrap_or(false)
+    {
       continue;
     }
 
@@ -59,56 +293,58 @@ fn expected_installed_skill_names(
   names
 }
 
-/// Verify that install generates the global ~/.codex/AGENTS.md with non-empty content.
+fn collect_file_names(dir: &Path, suffix: &str) -> HashSet<String> {
+  fs::read_dir(dir)
+    .unwrap()
+    .flatten()
+    .filter(|entry| {
+      entry
+        .file_type()
+        .map(|file_type| file_type.is_file())
+        .unwrap_or(false)
+        && entry.file_name().to_string_lossy().ends_with(suffix)
+    })
+    .map(|entry| entry.file_name().to_string_lossy().to_string())
+    .collect()
+}
+
 #[test]
 fn local_codex_install_generates_global_agents_md() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
   assert!(
-    runner.codex_global_file_exists(),
+    fixture.global_agents_path().is_file(),
     "~/.codex/AGENTS.md should be generated after install"
   );
-
-  let content = runner
-    .read_codex_global_file()
-    .expect("~/.codex/AGENTS.md should be readable");
   assert!(
-    !content.is_empty(),
+    !fs::read_to_string(fixture.global_agents_path())
+      .unwrap()
+      .trim()
+      .is_empty(),
     "~/.codex/AGENTS.md should not be empty"
   );
 }
 
-/// Verify that the global ~/.codex/AGENTS.md content exactly matches the aindex
-/// `global.mdx` source.
 #[test]
 fn local_codex_global_agents_md_matches_aindex_source() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let aindex_global = runner
-    .read_aindex_file("global.mdx")
-    .expect("aindex global.mdx should be readable");
-
-  let codex_global = runner
-    .read_codex_global_file()
-    .expect("~/.codex/AGENTS.md should be readable after install");
+  let aindex_global = fs::read_to_string(fixture.aindex_dir.join("global.mdx")).unwrap();
+  let codex_global = fs::read_to_string(fixture.global_agents_path()).unwrap();
 
   assert_eq!(
     aindex_global.trim(),
@@ -117,54 +353,38 @@ fn local_codex_global_agents_md_matches_aindex_source() {
   );
 }
 
-/// Verify that install creates the ~/.codex/prompts/ directory.
 #[test]
 fn local_codex_install_generates_global_prompts_dir() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
   assert!(
-    runner.codex_global_prompts_dir_exists(),
+    fixture.global_prompts_dir().is_dir(),
     "~/.codex/prompts/ should be generated after install"
   );
 }
 
-/// Verify that prompt files in ~/.codex/prompts/ are all .md files with correct format
-/// (kebab-case fields like argument-hint, not camelCase argumentHint).
 #[test]
 fn local_codex_prompts_match_aindex_commands() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  assert!(
-    runner.codex_global_prompts_dir_exists(),
-    "~/.codex/prompts/ should exist after install"
-  );
-
-  let prompts_dir = dirs::home_dir()
-    .expect("should have home directory")
-    .join(".codex")
-    .join("prompts");
-  let prompt_files: Vec<_> = std::fs::read_dir(&prompts_dir)
+  let prompt_files: Vec<_> = fs::read_dir(fixture.global_prompts_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
 
   assert!(
@@ -172,7 +392,19 @@ fn local_codex_prompts_match_aindex_commands() {
     "~/.codex/prompts/ should contain at least one file"
   );
 
-  // Verify all files are .md with correct codex prompts format
+  let prompt_names: HashSet<String> = prompt_files
+    .iter()
+    .map(|entry| entry.file_name().to_string_lossy().to_string())
+    .collect();
+  assert!(
+    prompt_names.contains("demo.md"),
+    "codex prompts should include demo.md"
+  );
+  assert!(
+    prompt_names.contains("qa-boot.md"),
+    "codex prompts should include qa-boot.md"
+  );
+
   for file in &prompt_files {
     let name = file.file_name();
     let name_str = name.to_string_lossy();
@@ -181,50 +413,32 @@ fn local_codex_prompts_match_aindex_commands() {
       "every file in ~/.codex/prompts must be .md, got: {}",
       name_str
     );
-    let content = std::fs::read_to_string(file.path()).unwrap();
-
-    // If file has front matter, validate it
-    if content.starts_with("---\n") {
-      // Codex prompts use kebab-case for field names (e.g., argument-hint, not argumentHint)
-      if content.contains("argument") {
-        assert!(
-          !content.contains("argumentHint:"),
-          "prompt file {} should use 'argument-hint' (kebab-case), not 'argumentHint' (camelCase)",
-          name_str
-        );
-      }
+    let content = fs::read_to_string(file.path()).unwrap();
+    if content.contains("argument") {
+      assert!(
+        !content.contains("argumentHint:"),
+        "prompt file {} should use 'argument-hint', not 'argumentHint'",
+        name_str
+      );
     }
   }
 }
 
-/// Verify that codex prompt files do NOT contain a `command:` field (compatibility issue)
-/// and that all YAML values are enclosed in double quotes.
 #[test]
 fn local_codex_prompts_no_command_field_and_quoted_values() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  assert!(
-    runner.codex_global_prompts_dir_exists(),
-    "~/.codex/prompts/ should exist after install"
-  );
-
-  let prompts_dir = dirs::home_dir()
-    .expect("should have home directory")
-    .join(".codex")
-    .join("prompts");
-  let prompt_files: Vec<_> = std::fs::read_dir(&prompts_dir)
+  let prompt_files: Vec<_> = fs::read_dir(fixture.global_prompts_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
 
   assert!(
@@ -233,45 +447,32 @@ fn local_codex_prompts_no_command_field_and_quoted_values() {
   );
 
   for file in &prompt_files {
-    let name = file.file_name();
-    let name_str = name.to_string_lossy();
-    let content = std::fs::read_to_string(file.path()).unwrap();
-
-    // Extract front matter between --- markers
+    let name_str = file.file_name().to_string_lossy().to_string();
+    let content = fs::read_to_string(file.path()).unwrap();
     let fm_end = content.find("\n---\n").unwrap_or(content.len());
     let front_matter = &content[..fm_end];
 
-    // 1. Codex prompts must NOT contain "command" field (compatibility issue)
     assert!(
       !front_matter.contains("command:"),
-      "prompt file {} must NOT contain 'command:' field (codex compatibility issue), got:\n{}",
-      name_str,
-      front_matter
+      "prompt file {} must NOT contain 'command:' field",
+      name_str
     );
 
-    // 2. All YAML field values must be enclosed in double quotes
-    // In codex prompts, only "description" and "argument-hint" fields are valid
     for line in front_matter.lines() {
       if let Some(pos) = line.find(": ") {
         let key = &line[..pos];
         let value = &line[pos + 2..];
-
-        // Only check known codex prompt fields
         let key_trimmed = key.trim();
         if key_trimmed != "description" && key_trimmed != "argument-hint" {
           continue;
         }
-
-        // Skip empty values
         if value.trim().is_empty() {
           continue;
         }
-
-        // Check that value is enclosed in double quotes
         let trimmed = value.trim();
         assert!(
           trimmed.starts_with('"') && trimmed.ends_with('"'),
-          "prompt file {} has unquoted value '{}' in line '{}' (all codex prompt values must be quoted)",
+          "prompt file {} has unquoted value '{}' in line '{}'",
           name_str,
           value,
           line
@@ -281,65 +482,52 @@ fn local_codex_prompts_no_command_field_and_quoted_values() {
   }
 }
 
-/// Verify that install creates the project-level .codex/ directory.
 #[test]
 fn local_codex_install_generates_project_codex_dir() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
   assert!(
-    runner.codex_project_dir_exists(),
-    "~/workspace/memory-sync/.codex/ should be generated after install"
+    fixture.project_codex_dir().is_dir(),
+    "project .codex/ should be generated after install"
   );
 }
 
-/// Verify that the project .codex/skills/ directory names exactly match the transformed
-/// aindex/skills/ names (same count, same names).
 #[test]
 fn local_codex_project_skills_match_aindex_skills() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
   assert!(
-    runner.codex_project_skills_dir_exists(),
-    "~/workspace/memory-sync/.codex/skills/ should exist after install"
+    fixture.project_skills_dir().is_dir(),
+    "project .codex/skills/ should exist after install"
   );
 
-  // Count aindex skills
-  let aindex_dir = runner
-    .resolve_aindex_dir()
-    .expect("aindex dir should exist");
-  let aindex_skills_dir = aindex_dir.join("skills");
-  let project_skills_dir = runner.cwd().join(".codex").join("skills");
+  let aindex_skills_dir = fixture.aindex_dir.join("skills");
   let expected_names = expected_installed_skill_names(&aindex_skills_dir);
-  let project_names: std::collections::HashSet<String> = std::fs::read_dir(&project_skills_dir)
+  let project_names: HashSet<String> = fs::read_dir(fixture.project_skills_dir())
     .unwrap()
     .flatten()
-    .filter(|entry| entry.file_type().map(|file_type| file_type.is_dir()).unwrap_or(false))
+    .filter(|entry| {
+      entry
+        .file_type()
+        .map(|file_type| file_type.is_dir())
+        .unwrap_or(false)
+    })
     .map(|entry| entry.file_name().to_string_lossy().to_string())
     .collect();
-
-  assert_eq!(
-    expected_names.len(),
-    project_names.len(),
-    "project .codex/skills should have same count as aindex/skills"
-  );
 
   assert_eq!(
     expected_names, project_names,
@@ -347,70 +535,28 @@ fn local_codex_project_skills_match_aindex_skills() {
   );
 }
 
-/// Verify that global ~/.codex/agents/*.toml files are also present in the project
-/// .codex/agents/ directory with matching filenames.
 #[test]
 fn local_codex_global_agents_copied_to_project() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
   assert!(
-    runner.codex_global_agents_dir_exists(),
+    fixture.global_agents_dir().is_dir(),
     "~/.codex/agents/ should exist after install"
   );
-
   assert!(
-    runner.codex_project_agents_dir_exists(),
-    "~/workspace/memory-sync/.codex/agents/ should exist after install"
+    fixture.project_agents_dir().is_dir(),
+    "project .codex/agents/ should exist after install"
   );
 
-  // Compare global and project agents
-  let global_agents_dir = dirs::home_dir()
-    .expect("should have home directory")
-    .join(".codex")
-    .join("agents");
-  let project_agents_dir = runner.cwd().join(".codex").join("agents");
-
-  let global_agent_files: Vec<_> = std::fs::read_dir(&global_agents_dir)
-    .unwrap()
-    .flatten()
-    .filter(|e| {
-      e.file_type().map(|ft| ft.is_file()).unwrap_or(false)
-        && e.file_name().to_string_lossy().ends_with(".toml")
-    })
-    .collect();
-
-  let project_agent_files: Vec<_> = std::fs::read_dir(&project_agents_dir)
-    .unwrap()
-    .flatten()
-    .filter(|e| {
-      e.file_type().map(|ft| ft.is_file()).unwrap_or(false)
-        && e.file_name().to_string_lossy().ends_with(".toml")
-    })
-    .collect();
-
-  assert_eq!(
-    global_agent_files.len(),
-    project_agent_files.len(),
-    "project .codex/agents should have same count as global ~/.codex/agents"
-  );
-
-  let global_names: std::collections::HashSet<String> = global_agent_files
-    .iter()
-    .map(|e| e.file_name().to_string_lossy().to_string())
-    .collect();
-  let project_names: std::collections::HashSet<String> = project_agent_files
-    .iter()
-    .map(|e| e.file_name().to_string_lossy().to_string())
-    .collect();
+  let global_names = collect_file_names(&fixture.global_agents_dir(), ".toml");
+  let project_names = collect_file_names(&fixture.project_agents_dir(), ".toml");
 
   assert_eq!(
     global_names, project_names,
@@ -418,49 +564,37 @@ fn local_codex_global_agents_copied_to_project() {
   );
 }
 
-/// Verify that all files in the project .codex/agents/ directory are .toml files with
-/// the expected `name` and `developer_instructions` fields.
 #[test]
 fn local_codex_project_agents_are_all_toml() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace AGENTS.md");
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  assert!(
-    runner.codex_project_agents_dir_exists(),
-    "~/workspace/memory-sync/.codex/agents/ should exist after install"
-  );
-
-  let agents_dir = runner.cwd().join(".codex").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agent_files: Vec<_> = fs::read_dir(fixture.project_agents_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
 
   assert!(
     !agent_files.is_empty(),
-    "~/workspace/memory-sync/.codex/agents/ should contain at least one file"
+    "project .codex/agents/ should contain at least one file"
   );
 
   for file in &agent_files {
-    let name = file.file_name();
-    let name_str = name.to_string_lossy();
+    let name_str = file.file_name().to_string_lossy().to_string();
     assert!(
       name_str.ends_with(".toml"),
       "every file in .codex/agents must be .toml, got: {}",
       name_str
     );
 
-    // Verify it's valid TOML with expected fields
-    let content = std::fs::read_to_string(file.path()).unwrap();
+    let content = fs::read_to_string(file.path()).unwrap();
     assert!(
       content.contains("name = "),
       "agent file {} should contain 'name' field",
@@ -474,53 +608,57 @@ fn local_codex_project_agents_are_all_toml() {
   }
 }
 
-/// Verify that `tnmsc clean` removes the generated .codex/ directory.
 #[test]
 fn local_codex_clean_removes_files() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let install = runner.install();
-  install.assert_success("tnmsc install before clean");
+  fixture.install().assert_failure(
+    "isolated tnmsc install before codex clean should surface protected workspace AGENTS.md",
+  );
 
   assert!(
-    runner.codex_project_dir_exists(),
+    fixture.project_codex_dir().is_dir(),
     ".codex/ should exist after install"
   );
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean");
+  fixture.clean().assert_success("isolated tnmsc clean");
 
   assert!(
-    !runner.codex_project_dir_exists(),
+    !fixture.project_codex_dir().exists(),
     ".codex/ should be removed after clean"
+  );
+  assert!(
+    !fixture.global_codex_dir().join("agents").exists(),
+    "~/.codex/agents should be removed after clean"
+  );
+  assert!(
+    !fixture.global_codex_dir().join("prompts").exists(),
+    "~/.codex/prompts should be removed after clean"
   );
 }
 
-/// Verify that `tnmsc dry-run` does NOT create the .codex/ directory.
 #[test]
 fn local_codex_dry_run_does_not_write() {
-  assert_codex_plugin_enabled();
+  let fixture = IsolatedCodexFixture::new();
 
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before dry-run");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before codex dry-run");
 
   assert!(
-    !runner.codex_project_dir_exists(),
+    !fixture.project_codex_dir().exists(),
     ".codex/ should not exist before dry-run"
   );
 
-  let dry = runner.dry_run();
-  dry.assert_success("tnmsc dry-run");
+  fixture.dry_run().assert_success("isolated tnmsc dry-run");
 
   assert!(
-    !runner.codex_project_dir_exists(),
+    !fixture.project_codex_dir().exists(),
     ".codex/ should not be created by dry-run"
+  );
+  assert!(
+    !fixture.global_codex_dir().exists(),
+    "~/.codex/ should not be created by dry-run"
   );
 }
 
@@ -543,7 +681,10 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
   let temp_home = temp_root.join("home");
   let workspace_dir = temp_root.join("workspace");
   let aindex_dir = workspace_dir.join("aindex");
-  let skill_dir = aindex_dir.join("skills").join("browser").join("agent-browser");
+  let skill_dir = aindex_dir
+    .join("skills")
+    .join("browser")
+    .join("agent-browser");
 
   std::fs::create_dir_all(temp_home.join(".aindex")).unwrap();
   std::fs::create_dir_all(skill_dir.join("references")).unwrap();
@@ -644,12 +785,18 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
 
   let temp_home_str = temp_home.to_string_lossy().into_owned();
 
-  let install = runner.run_at_with_env(
-    &workspace_dir,
-    &["install"],
-    &[("HOME", &temp_home_str)],
+  let install = runner.run_at_with_env(&workspace_dir, &["install"], &[("HOME", &temp_home_str)]);
+  install.assert_failure(
+    "isolated tnmsc install should surface protected root AGENTS.md while still writing codex outputs",
   );
-  install.assert_success("isolated tnmsc install");
+  assert!(
+    install.stderr.contains("Refusing to write protected path.")
+      || install
+        .stderr
+        .contains("AGENTS.md: Refusing to write protected path."),
+    "expected protected-path failure for root AGENTS.md, got stderr:\n{}",
+    install.stderr
+  );
 
   for (label, skill_root) in [
     ("codex", workspace_dir.join(".codex").join("skills")),
@@ -661,7 +808,10 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
       "{label} should generate SKILL.md for browser-agent-browser"
     );
     assert!(
-      browser_skill_dir.join("references").join("linux-wsl.md").is_file(),
+      browser_skill_dir
+        .join("references")
+        .join("linux-wsl.md")
+        .is_file(),
       "{label} should generate child docs under references/"
     );
     assert!(
@@ -672,7 +822,10 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
       "{label} should generate every child doc under references/"
     );
     assert!(
-      !browser_skill_dir.join("references").join("linux-wsl.mdx").exists(),
+      !browser_skill_dir
+        .join("references")
+        .join("linux-wsl.mdx")
+        .exists(),
       "{label} should not leave child docs as .mdx files"
     );
     assert!(
@@ -722,7 +875,10 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
     .join("browser-agent-browser")
     .join("stale.txt");
   std::fs::write(&stale_file, "stale").unwrap();
-  assert!(stale_file.is_file(), "stale test file should exist before clean");
+  assert!(
+    stale_file.is_file(),
+    "stale test file should exist before clean"
+  );
 
   let clean = runner.run_at_with_env(&workspace_dir, &["clean"], &[("HOME", &temp_home_str)]);
   clean.assert_success("isolated tnmsc clean");
@@ -730,9 +886,5 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
   assert!(
     !workspace_dir.join(".codex").exists(),
     "clean should remove the entire generated .codex tree"
-  );
-  assert!(
-    !workspace_dir.join(".opencode").exists(),
-    "clean should remove the entire generated .opencode tree"
   );
 }

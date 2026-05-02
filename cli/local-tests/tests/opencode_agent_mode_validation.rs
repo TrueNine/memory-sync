@@ -1,15 +1,12 @@
 //! 回归测试：验证 opencode agent 的 `mode` 字段值在合法集合内。
 //!
-//! opencode CLI 要求 agent 的 `mode` 必须是 `"subagent"`、`"primary"` 或 `"all"`。
-//! 如果生成的值不匹配这三个之一，opencode 启动时会报错：
-//!   Configuration is invalid at ~/project/.opencode/agents/<name>.md
-//!   Invalid option: expected one of "subagent"|"primary"|"all" mode
-//!
-//! 本测试通过解析生成文件的 YAML front matter 来预防此类回归。
-//!
-//! **前提**：项目已配置，opencode 插件已启用。
+//! 这些检查运行在隔离的临时 HOME/workspace 夹具中，避免受到宿主机
+//! `~/.aindex/.tnmsc.json` 或真实项目提示词库存的影响。
 
-use tnmsc_local_tests::LocalTestRunner;
+#[path = "support/opencode.rs"]
+mod opencode_support;
+
+use opencode_support::IsolatedOpencodeFixture;
 
 /// opencode 接受的合法 `mode` 值集合。
 const VALID_MODES: &[&str] = &["subagent", "primary", "all"];
@@ -23,7 +20,7 @@ fn extract_mode_from_front_matter_line(line: &str) -> Option<String> {
   if !trimmed.starts_with("mode") {
     return None;
   }
-  // 跳过 "mode" 和 ':' 及空白
+
   let after_key = trimmed
     .strip_prefix("mode")
     .and_then(|s| s.strip_prefix(':'))
@@ -32,7 +29,7 @@ fn extract_mode_from_front_matter_line(line: &str) -> Option<String> {
   if after_key.is_empty() {
     return None;
   }
-  // 去除引号
+
   let value = if after_key.len() >= 2
     && ((after_key.starts_with('"') && after_key.ends_with('"'))
       || (after_key.starts_with('\'') && after_key.ends_with('\'')))
@@ -41,15 +38,15 @@ fn extract_mode_from_front_matter_line(line: &str) -> Option<String> {
   } else {
     after_key
   };
+
   Some(value.to_string())
 }
 
 /// 从 agent 文件的 YAML front matter 中提取 `mode` 值。
-///
-/// YAML front matter 以 `---` 起止。
 fn extract_mode_from_agent_file(content: &str) -> Option<String> {
   let mut in_front_matter = false;
   let mut found_start = false;
+
   for line in content.lines() {
     let trimmed = line.trim();
     if trimmed == "---" {
@@ -57,37 +54,35 @@ fn extract_mode_from_agent_file(content: &str) -> Option<String> {
         found_start = true;
         in_front_matter = true;
         continue;
-      } else {
-        // closing ---, end of front matter
-        break;
       }
+      break;
     }
+
+    // issue #381: opencode agent mode validation should run against an isolated
+    // fixture so protected host paths do not mask schema regressions.
     if in_front_matter && let Some(mode) = extract_mode_from_front_matter_line(line) {
       return Some(mode);
     }
   }
+
   None
 }
 
-/// Verify that every generated agent file has a `mode` field whose value is one of
-/// the three valid options: "subagent", "primary", or "all".
-/// Invalid values cause opencode startup errors.
 #[test]
 fn local_opencode_agent_mode_must_be_valid() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedOpencodeFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before opencode mode validation");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install for opencode mode validation");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let agents_dir = runner.cwd().join(".opencode").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agent_files: Vec<_> = std::fs::read_dir(fixture.project_agents_dir())
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
 
   assert!(

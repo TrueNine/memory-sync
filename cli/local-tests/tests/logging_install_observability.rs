@@ -1,21 +1,115 @@
-//! Install 可观测性测试：验证 install 命令输出足够的可观测信息。
+//! Install observability tests for isolated local fixtures.
+
+use std::fs;
+use std::path::PathBuf;
 
 use tnmsc_local_tests::LocalTestRunner;
 
-/// Verify that `--trace` install outputs all major spans: config.load, context.collect,
-/// output.build, files.write, plus collector sub-spans.
+struct IsolatedLoggingInstallFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  project_dir: PathBuf,
+}
+
+impl IsolatedLoggingInstallFixture {
+  fn new() -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-logging-install-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let temp_home = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let project_dir = workspace_dir.join("memory-sync");
+    let aindex_project_dir = workspace_dir.join("aindex").join("app").join("memory-sync");
+
+    fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+    fs::create_dir_all(project_dir.join(".github")).unwrap();
+    fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+
+    // issue local-tests-logging-install-isolation: install observability should
+    // validate spans/events without depending on host workspace protections.
+    fs::write(
+      temp_home.join(".aindex").join(".tnmsc.json"),
+      serde_json::json!({
+        "workspaceDir": workspace_dir.to_string_lossy(),
+        "plugins": {
+          "agentsMd": false,
+          "git": false,
+          "readme": false,
+          "vscode": false,
+          "zed": false,
+          "jetbrains": false,
+          "jetbrainsCodeStyle": false,
+          "claudeCode": true,
+          "codex": false,
+          "cursor": false,
+          "droid": false,
+          "gemini": false,
+          "kiro": false,
+          "opencode": false,
+          "qoder": false,
+          "trae": false,
+          "traeCn": false,
+          "warp": false,
+          "windsurf": false
+        }
+      })
+      .to_string(),
+    )
+    .unwrap();
+    fs::write(
+      workspace_dir.join("aindex").join("global.mdx"),
+      "# Global memory\n\nGlobal instructions\n",
+    )
+    .unwrap();
+    fs::write(
+      workspace_dir.join("aindex").join("workspace.mdx"),
+      "# Workspace memory\n\nWorkspace instructions\n",
+    )
+    .unwrap();
+    fs::write(
+      workspace_dir.join("aindex").join("workspace.src.mdx"),
+      "# Workspace memory\n\nWorkspace instructions\n",
+    )
+    .unwrap();
+    fs::write(
+      aindex_project_dir.join("agt.mdx"),
+      "# Claude project root\n\nProject root instructions\n",
+    )
+    .unwrap();
+    fs::write(
+      aindex_project_dir.join(".github").join("agt.mdx"),
+      "# Claude child\n\nChild instructions\n",
+    )
+    .unwrap();
+
+    Self {
+      runner: LocalTestRunner::with_cwd(&project_dir),
+      temp_home,
+      project_dir,
+    }
+  }
+
+  fn run(&self, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.temp_home.to_string_lossy().into_owned();
+    self
+      .runner
+      .run_at_with_env(&self.project_dir, args, &[("HOME", &temp_home)])
+  }
+}
+
+/// Verify that `--trace` install outputs all major spans.
 #[test]
 fn install_outputs_key_spans_and_events() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedLoggingInstallFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  let result = fixture.run(&["--trace", "install"]);
+  result.assert_failure("isolated tnmsc --trace install should hit protected root CLAUDE.md");
 
-  let result = runner.run(&["--trace", "install"]);
-  result.assert_success("tnmsc --trace install");
-
-  // 验证顶层事件
   assert!(
     result.stdout.contains("### Install started"),
     "install should output 'Install started'. stdout:\n{}",
@@ -26,8 +120,6 @@ fn install_outputs_key_spans_and_events() {
     "install should output 'Install completed'. stdout:\n{}",
     result.stdout
   );
-
-  // 验证主要 Span
   assert!(
     result.stdout.contains("### config.load started"),
     "install should output 'config.load' span. stdout:\n{}",
@@ -48,8 +140,6 @@ fn install_outputs_key_spans_and_events() {
     "install should output 'files.write' span. stdout:\n{}",
     result.stdout
   );
-
-  // 验证 collector span
   assert!(
     result
       .stdout
@@ -64,19 +154,14 @@ fn install_outputs_key_spans_and_events() {
   );
 }
 
-/// Verify that `--info` install outputs plugin resolution information ("Plugins resolved").
+/// Verify that `--info` install outputs plugin resolution information.
 #[test]
 fn install_outputs_plugin_resolution() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedLoggingInstallFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean");
+  let result = fixture.run(&["--info", "install"]);
+  result.assert_failure("isolated tnmsc --info install should hit protected root CLAUDE.md");
 
-  let result = runner.run(&["--info", "install"]);
-  result.assert_success("tnmsc --info install");
-
-  // 验证插件解析信息
   assert!(
     result.stdout.contains("Plugins resolved"),
     "install should output plugin resolution. stdout:\n{}",
@@ -87,16 +172,11 @@ fn install_outputs_plugin_resolution() {
 /// Verify that `--debug` install outputs individual file write/skip events.
 #[test]
 fn install_outputs_file_write_events() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedLoggingInstallFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean");
+  let result = fixture.run(&["--debug", "install"]);
+  result.assert_failure("isolated tnmsc --debug install should hit protected root CLAUDE.md");
 
-  let result = runner.run(&["--debug", "install"]);
-  result.assert_success("tnmsc --debug install");
-
-  // 验证文件写入事件（应该有文件被写入）
   assert!(
     result.stdout.contains("file.written") || result.stdout.contains("file.skipped"),
     "install should output file write events. stdout:\n{}",
