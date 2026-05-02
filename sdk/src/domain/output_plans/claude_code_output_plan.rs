@@ -35,7 +35,7 @@ pub fn build_claude_code_output_plan(
   Ok(BaseOutputPluginPlanDto {
     plugin_name: CLAUDE_CODE_PLUGIN_NAME.to_string(),
     output_files: build_output_files(workspace, context),
-    cleanup: build_cleanup(workspace),
+    cleanup: build_cleanup(workspace, context),
   })
 }
 
@@ -758,8 +758,9 @@ mod tests {
   }
 }
 
-fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
+fn build_cleanup(workspace: &Workspace, _context: &OutputContext) -> CleanupDeclarationsDto {
   let mut delete = Vec::new();
+  let prompt_projects = get_project_prompt_output_projects(workspace);
 
   for project in get_project_output_projects(workspace) {
     let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
@@ -777,6 +778,28 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       scope: Some(PROJECT_SCOPE.to_string()),
       label: Some("delete.project".to_string()),
     });
+
+    // #385: clean must keep deleting generated child CLAUDE.md files even when
+    // claudeCode is later disabled, so cleanup needs explicit child targets too.
+    if let Some(prompt_project) = prompt_projects.iter().copied().find(|candidate| {
+      resolve_project_root_dir(workspace, candidate)
+        .as_ref()
+        .is_some_and(|candidate_root_dir| candidate_root_dir == &project_root_dir)
+    }) && let Some(child_prompts) = prompt_project.child_memory_prompts.as_ref() {
+      for child_prompt in child_prompts {
+        delete.push(CleanupTargetDto {
+          path: resolve_relative_path(&child_prompt.dir)
+            .join(CLAUDE_CODE_MEMORY_FILE)
+            .to_string_lossy()
+            .into_owned(),
+          kind: CleanupTargetKindDto::File,
+          exclude_basenames: Vec::new(),
+          protection_mode: None,
+          scope: Some(PROJECT_SCOPE.to_string()),
+          label: Some("delete.project.child".to_string()),
+        });
+      }
+    }
 
     let settings_dir = project_root_dir.join(".claude");
     delete.push(CleanupTargetDto {
