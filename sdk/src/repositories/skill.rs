@@ -177,8 +177,10 @@ fn strip_leading_front_matter(content: &str) -> &str {
 fn strip_leading_export_statements(content: &str) -> String {
   let export_default_regex =
     regex_lite::Regex::new(r"(?s)^\s*export\s+default\s*\{[\s\S]*?\}\s*;?\s*").ok();
-  let named_export_regex =
-    regex_lite::Regex::new(r#"(?m)^\s*export\s+(?:const|let)\s+description\s*=\s*['"`][^'"`]+['"`]\s*;?\s*$\n?"#).ok();
+  let named_export_regex = regex_lite::Regex::new(
+    r#"(?m)^\s*export\s+(?:const|let)\s+description\s*=\s*['"`][^'"`]+['"`]\s*;?\s*$\n?"#,
+  )
+  .ok();
 
   let without_default = if let Some(re) = export_default_regex {
     re.replace(content, "").into_owned()
@@ -495,8 +497,7 @@ fn collect_expected_child_doc_paths(
     if !file_name.ends_with(".src.mdx") {
       continue;
     }
-    if current_dir == skill_src_dir
-      && (file_name == "skill.src.mdx" || file_name == "desc.src.mdx")
+    if current_dir == skill_src_dir && (file_name == "skill.src.mdx" || file_name == "desc.src.mdx")
     {
       continue;
     }
@@ -746,7 +747,11 @@ fn collect_skill_directories(skills_dir: &Path) -> Result<Vec<CollectedSkillDir>
   };
 
   for entry in entries.flatten() {
-    if !entry.file_type().map(|file_type| file_type.is_dir()).unwrap_or(false) {
+    if !entry
+      .file_type()
+      .map(|file_type| file_type.is_dir())
+      .unwrap_or(false)
+    {
       continue;
     }
 
@@ -1368,7 +1373,11 @@ mod tests {
       "#!/usr/bin/env bash\necho auth\n",
     )
     .unwrap();
-    fs::write(skill_dir.join("assets").join("logo.png"), [0x89_u8, 0x50, 0x4E, 0x47]).unwrap();
+    fs::write(
+      skill_dir.join("assets").join("logo.png"),
+      [0x89_u8, 0x50, 0x4E, 0x47],
+    )
+    .unwrap();
     fs::write(
       skill_dir.join("mcp.json"),
       r#"{"mcpServers":{"browser":{"command":"agent-browser"}}}"#,
@@ -1422,7 +1431,10 @@ mod tests {
       .find(|resource| resource["relativePath"] == "assets/logo.png")
       .unwrap();
     assert_eq!(logo["encoding"], "base64");
-    assert_eq!(skill["mcpConfig"]["mcpServers"]["browser"]["command"], "agent-browser");
+    assert_eq!(
+      skill["mcpConfig"]["mcpServers"]["browser"]["command"],
+      "agent-browser"
+    );
   }
 
   #[test]

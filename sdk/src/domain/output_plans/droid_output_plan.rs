@@ -17,6 +17,7 @@ const DROID_MEMORY_FILE: &str = "AGENTS.md";
 const DROID_GLOBAL_CONFIG_DIR: &str = ".factory";
 const DROID_COMMANDS_SUBDIR: &str = "commands";
 const DROID_SKILLS_SUBDIR: &str = "skills";
+const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 const GLOBAL_SCOPE: &str = "global";
 
@@ -72,27 +73,50 @@ fn build_output_files(
   context: &OutputContext,
 ) -> Result<Vec<DroidOutputFileDeclarationDto>, CliError> {
   let mut output_files = Vec::new();
+  let agents_registered = context
+    .registered_output_plugins
+    .as_ref()
+    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
+    .unwrap_or(false);
 
-  for project in get_project_prompt_output_projects(workspace) {
-    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-      continue;
-    };
-
-    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-      output_files.push(create_text_output_file(
-        project_root_dir.join(DROID_MEMORY_FILE),
-        Some(PROJECT_SCOPE),
-        root_prompt.content.clone(),
-      ));
-    }
-
-    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-      for child_prompt in child_prompts {
+  if agents_registered {
+    // Fixes #379: Droid project AGENTS files should switch to the
+    // dedicated global-only payload while AgentsOutputAdaptor is active.
+    if let Some(global_memory) = context.global_memory.as_ref() {
+      for project in get_project_prompt_output_projects(workspace) {
+        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+          continue;
+        };
         output_files.push(create_text_output_file(
-          resolve_relative_path(&child_prompt.dir).join(DROID_MEMORY_FILE),
+          project_root_dir.join(DROID_MEMORY_FILE),
           Some(PROJECT_SCOPE),
-          child_prompt.content.clone(),
+          global_memory.content.clone(),
         ));
+      }
+    }
+  } else {
+    for project in get_project_prompt_output_projects(workspace) {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+
+      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+        output_files.push(create_text_output_file(
+          project_root_dir.join(DROID_MEMORY_FILE),
+          Some(PROJECT_SCOPE),
+          root_prompt.content.clone(),
+        ));
+      }
+
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        for child_prompt in child_prompts {
+          output_files.push(create_text_output_file(
+            // Fixes #380: Droid must emit nested AGENTS.md files for child prompts.
+            resolve_relative_path(&child_prompt.dir).join(DROID_MEMORY_FILE),
+            Some(PROJECT_SCOPE),
+            child_prompt.content.clone(),
+          ));
+        }
       }
     }
   }
@@ -1231,9 +1255,17 @@ mod tests {
     let skill_file = plan
       .output_files
       .iter()
-      .find(|file| file.path.contains(".factory/skills/tools-test-skill/SKILL.md"))
+      .find(|file| {
+        file
+          .path
+          .contains(".factory/skills/tools-test-skill/SKILL.md")
+      })
       .unwrap();
 
-    assert!(skill_file.content.starts_with("---\nname: tools-test-skill\n"));
+    assert!(
+      skill_file
+        .content
+        .starts_with("---\nname: tools-test-skill\n")
+    );
   }
 }

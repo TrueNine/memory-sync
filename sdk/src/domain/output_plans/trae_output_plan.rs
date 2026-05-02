@@ -78,6 +78,24 @@ fn build_output_files(
         content,
         encoding: None,
       });
+
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        // Fixes #380: Trae must emit nested steering files for child memory prompts.
+        for child_prompt in child_prompts {
+          let child_steering_dir = resolve_relative_path(&child_prompt.dir)
+            .join(".trae")
+            .join("steering");
+          output_files.push(BaseOutputFileDeclarationDto {
+            path: child_steering_dir
+              .join(TRAE_STEERING_FILE)
+              .to_string_lossy()
+              .into_owned(),
+            scope: Some(PROJECT_SCOPE.to_string()),
+            content: child_prompt.content.clone(),
+            encoding: None,
+          });
+        }
+      }
     }
   }
 

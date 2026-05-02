@@ -14,6 +14,7 @@ const CLAUDE_CODE_MEMORY_FILE: &str = "CLAUDE.md";
 const CLAUDE_CODE_SETTINGS_FILE: &str = "settings.json";
 const CLAUDE_CODE_SETTINGS_LOCAL_FILE: &str = "settings.local.json";
 const CLAUDE_CODE_GLOBAL_CONFIG_DIR: &str = ".claude";
+const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 pub fn collect_claude_code_output_plan(context_json: &str) -> Result<String, CliError> {
@@ -44,50 +45,76 @@ fn build_output_files(
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
+  let agents_registered = context
+    .registered_output_plugins
+    .as_ref()
+    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
+    .unwrap_or(false);
 
-  // 项目级 CLAUDE.md（根目录 + 子目录）
-  // 工作区根 CLAUDE.md 需要同时携带全局 memory 和工作区 prompt，
-  // 这样打包 CLI 在裸容器里安装后也能直接看到完整的 Claude 上下文。
-  for project in &prompt_projects {
-    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-      continue;
-    };
-
-    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-      let content = if project.is_workspace_root_project == Some(true) {
-        merge_workspace_root_memory(
-          context
-            .global_memory
-            .as_ref()
-            .map(|prompt| prompt.content.as_str()),
-          &root_prompt.content,
-        )
-      } else {
-        root_prompt.content.clone()
-      };
-
-      output_files.push(BaseOutputFileDeclarationDto {
-        path: project_root_dir
-          .join(CLAUDE_CODE_MEMORY_FILE)
-          .to_string_lossy()
-          .into_owned(),
-        scope: Some(PROJECT_SCOPE.to_string()),
-        content,
-        encoding: None,
-      });
-    }
-
-    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-      for child_prompt in child_prompts {
+  if agents_registered {
+    // Fixes #379: Claude's project files should switch to the global-only memory
+    // payload while AgentsOutputAdaptor is registered.
+    if let Some(global_memory) = context.global_memory.as_ref() {
+      for project in &prompt_projects {
+        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+          continue;
+        };
         output_files.push(BaseOutputFileDeclarationDto {
-          path: resolve_relative_path(&child_prompt.dir)
+          path: project_root_dir
             .join(CLAUDE_CODE_MEMORY_FILE)
             .to_string_lossy()
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
-          content: child_prompt.content.clone(),
+          content: global_memory.content.clone(),
           encoding: None,
         });
+      }
+    }
+  } else {
+    // 项目级 CLAUDE.md（根目录 + 子目录）
+    // 工作区根 CLAUDE.md 需要同时携带全局 memory 和工作区 prompt，
+    // 这样打包 CLI 在裸容器里安装后也能直接看到完整的 Claude 上下文。
+    for project in &prompt_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+
+      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+        let content = if project.is_workspace_root_project == Some(true) {
+          merge_workspace_root_memory(
+            context
+              .global_memory
+              .as_ref()
+              .map(|prompt| prompt.content.as_str()),
+            &root_prompt.content,
+          )
+        } else {
+          root_prompt.content.clone()
+        };
+
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: project_root_dir
+            .join(CLAUDE_CODE_MEMORY_FILE)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content,
+          encoding: None,
+        });
+      }
+
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        for child_prompt in child_prompts {
+          output_files.push(BaseOutputFileDeclarationDto {
+            path: resolve_relative_path(&child_prompt.dir)
+              .join(CLAUDE_CODE_MEMORY_FILE)
+              .to_string_lossy()
+              .into_owned(),
+            scope: Some(PROJECT_SCOPE.to_string()),
+            content: child_prompt.content.clone(),
+            encoding: None,
+          });
+        }
       }
     }
   }
@@ -367,7 +394,9 @@ fn append_skill_supporting_files(
     for child_doc in child_docs {
       output_files.push(BaseOutputFileDeclarationDto {
         path: skill_sub_dir
-          .join(resolve_child_doc_output_relative_path(&child_doc.relative_path))
+          .join(resolve_child_doc_output_relative_path(
+            &child_doc.relative_path,
+          ))
           .to_string_lossy()
           .into_owned(),
         scope: Some(PROJECT_SCOPE.to_string()),
@@ -387,9 +416,7 @@ fn append_skill_supporting_files(
         scope: Some(PROJECT_SCOPE.to_string()),
         content: resource.content.clone(),
         encoding: match resource.encoding {
-          crate::domain::plugin_shared::SkillResourceEncoding::Base64 => {
-            Some("base64".to_string())
-          }
+          crate::domain::plugin_shared::SkillResourceEncoding::Base64 => Some("base64".to_string()),
           crate::domain::plugin_shared::SkillResourceEncoding::Text => None,
         },
       });
@@ -398,7 +425,10 @@ fn append_skill_supporting_files(
 
   if let Some(mcp_config) = skill.mcp_config.as_ref() {
     output_files.push(BaseOutputFileDeclarationDto {
-      path: skill_sub_dir.join("mcp.json").to_string_lossy().into_owned(),
+      path: skill_sub_dir
+        .join("mcp.json")
+        .to_string_lossy()
+        .into_owned(),
       scope: Some(PROJECT_SCOPE.to_string()),
       content: mcp_config.raw_content.clone(),
       encoding: None,
@@ -528,61 +558,68 @@ mod tests {
         description: Some("desc".to_string()),
         ..SkillYAMLFrontMatter::default()
       }),
-      child_docs: Some(vec![SkillChildDoc {
-        prompt_type: PromptKind::SkillChildDoc,
-        content: "guide".to_string(),
-        length: 5,
-        file_path_kind: crate::infra::path_types::FilePathKind::Relative,
-        relative_path: "guide.mdx".to_string(),
-        dir: crate::infra::path_types::RelativePath::new(
-          "guide.mdx",
-          "/workspace/aindex/skills/test",
-        ),
-        raw_front_matter: None,
-        markdown_ast: None,
-        markdown_contents: None,
-      }, SkillChildDoc {
-        prompt_type: PromptKind::SkillChildDoc,
-        content: "linux-wsl".to_string(),
-        length: 9,
-        file_path_kind: crate::infra::path_types::FilePathKind::Relative,
-        relative_path: "references/linux-wsl.mdx".to_string(),
-        dir: crate::infra::path_types::RelativePath::new(
-          "references/linux-wsl.mdx",
-          "/workspace/aindex/skills/test",
-        ),
-        raw_front_matter: None,
-        markdown_ast: None,
-        markdown_contents: None,
-      }]),
-      resources: Some(vec![SkillResource {
-        prompt_type: PromptKind::SkillResource,
-        extension: "txt".to_string(),
-        file_name: "notes.txt".to_string(),
-        relative_path: "assets/notes.txt".to_string(),
-        content: "notes".to_string(),
-        encoding: SkillResourceEncoding::Text,
-        length: 5,
-        mime_type: None,
-      }, SkillResource {
-        prompt_type: PromptKind::SkillResource,
-        extension: "sh".to_string(),
-        file_name: "capture-workflow.sh".to_string(),
-        relative_path: "templates/capture-workflow.sh".to_string(),
-        content: "#!/usr/bin/env bash\necho capture\n".to_string(),
-        encoding: SkillResourceEncoding::Text,
-        length: 32,
-        mime_type: None,
-      }, SkillResource {
-        prompt_type: PromptKind::SkillResource,
-        extension: "bin".to_string(),
-        file_name: "blob.bin".to_string(),
-        relative_path: "assets/blob.bin".to_string(),
-        content: "AAEC".to_string(),
-        encoding: SkillResourceEncoding::Base64,
-        length: 3,
-        mime_type: Some("application/octet-stream".to_string()),
-      }]),
+      child_docs: Some(vec![
+        SkillChildDoc {
+          prompt_type: PromptKind::SkillChildDoc,
+          content: "guide".to_string(),
+          length: 5,
+          file_path_kind: crate::infra::path_types::FilePathKind::Relative,
+          relative_path: "guide.mdx".to_string(),
+          dir: crate::infra::path_types::RelativePath::new(
+            "guide.mdx",
+            "/workspace/aindex/skills/test",
+          ),
+          raw_front_matter: None,
+          markdown_ast: None,
+          markdown_contents: None,
+        },
+        SkillChildDoc {
+          prompt_type: PromptKind::SkillChildDoc,
+          content: "linux-wsl".to_string(),
+          length: 9,
+          file_path_kind: crate::infra::path_types::FilePathKind::Relative,
+          relative_path: "references/linux-wsl.mdx".to_string(),
+          dir: crate::infra::path_types::RelativePath::new(
+            "references/linux-wsl.mdx",
+            "/workspace/aindex/skills/test",
+          ),
+          raw_front_matter: None,
+          markdown_ast: None,
+          markdown_contents: None,
+        },
+      ]),
+      resources: Some(vec![
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "txt".to_string(),
+          file_name: "notes.txt".to_string(),
+          relative_path: "assets/notes.txt".to_string(),
+          content: "notes".to_string(),
+          encoding: SkillResourceEncoding::Text,
+          length: 5,
+          mime_type: None,
+        },
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "sh".to_string(),
+          file_name: "capture-workflow.sh".to_string(),
+          relative_path: "templates/capture-workflow.sh".to_string(),
+          content: "#!/usr/bin/env bash\necho capture\n".to_string(),
+          encoding: SkillResourceEncoding::Text,
+          length: 32,
+          mime_type: None,
+        },
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "bin".to_string(),
+          file_name: "blob.bin".to_string(),
+          relative_path: "assets/blob.bin".to_string(),
+          content: "AAEC".to_string(),
+          encoding: SkillResourceEncoding::Base64,
+          length: 3,
+          mime_type: Some("application/octet-stream".to_string()),
+        },
+      ]),
       mcp_config: Some(SkillMcpConfig {
         prompt_type: PromptKind::SkillMcpConfig,
         mcp_servers: std::collections::HashMap::new(),
@@ -637,10 +674,26 @@ mod tests {
     );
     assert!(skill_paths.iter().any(|path| path.ends_with("SKILL.md")));
     assert!(skill_paths.iter().any(|path| path.ends_with("guide.md")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("references/linux-wsl.md")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("assets/notes.txt")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("templates/capture-workflow.sh")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("assets/blob.bin")));
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("references/linux-wsl.md"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("assets/notes.txt"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("templates/capture-workflow.sh"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("assets/blob.bin"))
+    );
     assert!(skill_paths.iter().any(|path| path.ends_with("mcp.json")));
 
     let binary_resource = plan
@@ -692,9 +745,15 @@ mod tests {
       })
       .unwrap();
 
-    assert!(skill_file.content.contains("name: dev-tools-reverse-engineering"));
     assert!(
-      skill_file.content.contains("skill: aindex/skills/dev-tools/reverse-engineering")
+      skill_file
+        .content
+        .contains("name: dev-tools-reverse-engineering")
+    );
+    assert!(
+      skill_file
+        .content
+        .contains("skill: aindex/skills/dev-tools/reverse-engineering")
     );
   }
 }

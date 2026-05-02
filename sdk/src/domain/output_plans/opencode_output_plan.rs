@@ -13,6 +13,7 @@ const OPENCODE_PLUGIN_NAME: &str = "OpencodeCLIOutputAdaptor";
 const OPENCODE_MEMORY_FILE: &str = "AGENTS.md";
 const OPENCODE_PROJECT_CONFIG_DIR: &str = ".opencode";
 const OPENCODE_GLOBAL_CONFIG_DIR: &str = ".config/opencode";
+const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 fn resolve_skill_dir_name(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
@@ -63,27 +64,70 @@ fn build_output_files(
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
+  let agents_registered = context
+    .registered_output_plugins
+    .as_ref()
+    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
+    .unwrap_or(false);
 
-  let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
+  if agents_registered {
+    // Fixes #379: Opencode project memory should collapse to the global-only payload
+    // while AgentsOutputAdaptor is registered.
+    if let Some(global_memory) = context.global_memory.as_ref() {
+      for project in &prompt_projects {
+        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+          continue;
+        };
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: project_root_dir
+            .join(OPENCODE_PROJECT_CONFIG_DIR)
+            .join(OPENCODE_MEMORY_FILE)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: global_memory.content.clone(),
+          encoding: None,
+        });
+      }
+    }
+  } else {
+    let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
 
-  for project in &prompt_projects {
-    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-      continue;
-    };
+    for project in &prompt_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
 
-    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-      let combined_content =
-        combine_global_with_content(global_memory_content, &root_prompt.content);
-      output_files.push(BaseOutputFileDeclarationDto {
-        path: project_root_dir
-          .join(OPENCODE_PROJECT_CONFIG_DIR)
-          .join(OPENCODE_MEMORY_FILE)
-          .to_string_lossy()
-          .into_owned(),
-        scope: Some(PROJECT_SCOPE.to_string()),
-        content: combined_content,
-        encoding: None,
-      });
+      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+        let combined_content =
+          combine_global_with_content(global_memory_content, &root_prompt.content);
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: project_root_dir
+            .join(OPENCODE_PROJECT_CONFIG_DIR)
+            .join(OPENCODE_MEMORY_FILE)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: combined_content,
+          encoding: None,
+        });
+      }
+
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        // Fixes #380: Opencode needs nested .opencode/AGENTS.md files for child prompts.
+        for child_prompt in child_prompts {
+          output_files.push(BaseOutputFileDeclarationDto {
+            path: resolve_relative_path(&child_prompt.dir)
+              .join(OPENCODE_PROJECT_CONFIG_DIR)
+              .join(OPENCODE_MEMORY_FILE)
+              .to_string_lossy()
+              .into_owned(),
+            scope: Some(PROJECT_SCOPE.to_string()),
+            content: child_prompt.content.clone(),
+            encoding: None,
+          });
+        }
+      }
     }
   }
 
@@ -336,7 +380,9 @@ fn append_skill_supporting_files(
     for child_doc in child_docs {
       output_files.push(BaseOutputFileDeclarationDto {
         path: skill_sub_dir
-          .join(resolve_child_doc_output_relative_path(&child_doc.relative_path))
+          .join(resolve_child_doc_output_relative_path(
+            &child_doc.relative_path,
+          ))
           .to_string_lossy()
           .into_owned(),
         scope: Some(PROJECT_SCOPE.to_string()),
@@ -356,9 +402,7 @@ fn append_skill_supporting_files(
         scope: Some(PROJECT_SCOPE.to_string()),
         content: resource.content.clone(),
         encoding: match resource.encoding {
-          crate::domain::plugin_shared::SkillResourceEncoding::Base64 => {
-            Some("base64".to_string())
-          }
+          crate::domain::plugin_shared::SkillResourceEncoding::Base64 => Some("base64".to_string()),
           crate::domain::plugin_shared::SkillResourceEncoding::Text => None,
         },
       });
@@ -367,7 +411,10 @@ fn append_skill_supporting_files(
 
   if let Some(mcp_config) = skill.mcp_config.as_ref() {
     output_files.push(BaseOutputFileDeclarationDto {
-      path: skill_sub_dir.join("mcp.json").to_string_lossy().into_owned(),
+      path: skill_sub_dir
+        .join("mcp.json")
+        .to_string_lossy()
+        .into_owned(),
       scope: Some(PROJECT_SCOPE.to_string()),
       content: mcp_config.raw_content.clone(),
       encoding: None,
@@ -781,61 +828,68 @@ mod tests {
         description: Some("desc".to_string()),
         ..SkillYAMLFrontMatter::default()
       }),
-      child_docs: Some(vec![SkillChildDoc {
-        prompt_type: PromptKind::SkillChildDoc,
-        content: "guide".to_string(),
-        length: 5,
-        file_path_kind: crate::infra::path_types::FilePathKind::Relative,
-        relative_path: "guide.mdx".to_string(),
-        dir: crate::infra::path_types::RelativePath::new(
-          "guide.mdx",
-          "/workspace/aindex/skills/test",
-        ),
-        raw_front_matter: None,
-        markdown_ast: None,
-        markdown_contents: None,
-      }, SkillChildDoc {
-        prompt_type: PromptKind::SkillChildDoc,
-        content: "linux-wsl".to_string(),
-        length: 9,
-        file_path_kind: crate::infra::path_types::FilePathKind::Relative,
-        relative_path: "references/linux-wsl.mdx".to_string(),
-        dir: crate::infra::path_types::RelativePath::new(
-          "references/linux-wsl.mdx",
-          "/workspace/aindex/skills/test",
-        ),
-        raw_front_matter: None,
-        markdown_ast: None,
-        markdown_contents: None,
-      }]),
-      resources: Some(vec![SkillResource {
-        prompt_type: PromptKind::SkillResource,
-        extension: "txt".to_string(),
-        file_name: "notes.txt".to_string(),
-        relative_path: "assets/notes.txt".to_string(),
-        content: "notes".to_string(),
-        encoding: SkillResourceEncoding::Text,
-        length: 5,
-        mime_type: None,
-      }, SkillResource {
-        prompt_type: PromptKind::SkillResource,
-        extension: "sh".to_string(),
-        file_name: "capture-workflow.sh".to_string(),
-        relative_path: "templates/capture-workflow.sh".to_string(),
-        content: "#!/usr/bin/env bash\necho capture\n".to_string(),
-        encoding: SkillResourceEncoding::Text,
-        length: 32,
-        mime_type: None,
-      }, SkillResource {
-        prompt_type: PromptKind::SkillResource,
-        extension: "bin".to_string(),
-        file_name: "blob.bin".to_string(),
-        relative_path: "assets/blob.bin".to_string(),
-        content: "AAEC".to_string(),
-        encoding: SkillResourceEncoding::Base64,
-        length: 3,
-        mime_type: Some("application/octet-stream".to_string()),
-      }]),
+      child_docs: Some(vec![
+        SkillChildDoc {
+          prompt_type: PromptKind::SkillChildDoc,
+          content: "guide".to_string(),
+          length: 5,
+          file_path_kind: crate::infra::path_types::FilePathKind::Relative,
+          relative_path: "guide.mdx".to_string(),
+          dir: crate::infra::path_types::RelativePath::new(
+            "guide.mdx",
+            "/workspace/aindex/skills/test",
+          ),
+          raw_front_matter: None,
+          markdown_ast: None,
+          markdown_contents: None,
+        },
+        SkillChildDoc {
+          prompt_type: PromptKind::SkillChildDoc,
+          content: "linux-wsl".to_string(),
+          length: 9,
+          file_path_kind: crate::infra::path_types::FilePathKind::Relative,
+          relative_path: "references/linux-wsl.mdx".to_string(),
+          dir: crate::infra::path_types::RelativePath::new(
+            "references/linux-wsl.mdx",
+            "/workspace/aindex/skills/test",
+          ),
+          raw_front_matter: None,
+          markdown_ast: None,
+          markdown_contents: None,
+        },
+      ]),
+      resources: Some(vec![
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "txt".to_string(),
+          file_name: "notes.txt".to_string(),
+          relative_path: "assets/notes.txt".to_string(),
+          content: "notes".to_string(),
+          encoding: SkillResourceEncoding::Text,
+          length: 5,
+          mime_type: None,
+        },
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "sh".to_string(),
+          file_name: "capture-workflow.sh".to_string(),
+          relative_path: "templates/capture-workflow.sh".to_string(),
+          content: "#!/usr/bin/env bash\necho capture\n".to_string(),
+          encoding: SkillResourceEncoding::Text,
+          length: 32,
+          mime_type: None,
+        },
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "bin".to_string(),
+          file_name: "blob.bin".to_string(),
+          relative_path: "assets/blob.bin".to_string(),
+          content: "AAEC".to_string(),
+          encoding: SkillResourceEncoding::Base64,
+          length: 3,
+          mime_type: Some("application/octet-stream".to_string()),
+        },
+      ]),
       mcp_config: Some(SkillMcpConfig {
         prompt_type: PromptKind::SkillMcpConfig,
         mcp_servers: std::collections::HashMap::new(),
@@ -890,10 +944,26 @@ mod tests {
     );
     assert!(skill_paths.iter().any(|path| path.ends_with("SKILL.md")));
     assert!(skill_paths.iter().any(|path| path.ends_with("guide.md")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("references/linux-wsl.md")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("assets/notes.txt")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("templates/capture-workflow.sh")));
-    assert!(skill_paths.iter().any(|path| path.ends_with("assets/blob.bin")));
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("references/linux-wsl.md"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("assets/notes.txt"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("templates/capture-workflow.sh"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("assets/blob.bin"))
+    );
     assert!(skill_paths.iter().any(|path| path.ends_with("mcp.json")));
 
     let binary_resource = plan
@@ -945,9 +1015,15 @@ mod tests {
       })
       .unwrap();
 
-    assert!(skill_file.content.contains("name: dev-tools-reverse-engineering"));
     assert!(
-      skill_file.content.contains("skill: aindex/skills/dev-tools/reverse-engineering")
+      skill_file
+        .content
+        .contains("name: dev-tools-reverse-engineering")
+    );
+    assert!(
+      skill_file
+        .content
+        .contains("skill: aindex/skills/dev-tools/reverse-engineering")
     );
   }
 }

@@ -333,6 +333,13 @@ fn strip_prompt_extension(file_path: &str) -> String {
   }
 }
 
+fn safe_listed_relative_path(cwd: &Path, entry_path: &Path) -> Option<String> {
+  // Fixes #361: if strip_prefix fails, skip the entry instead of leaking an
+  // absolute path through the prompt catalog.
+  let relative_path = entry_path.strip_prefix(cwd).ok()?;
+  Some(normalize_slash_path(&relative_path.to_string_lossy()))
+}
+
 fn list_files(cwd: &Path, suffixes: &[&str]) -> Vec<String> {
   if !cwd.is_dir() {
     return vec![];
@@ -344,9 +351,9 @@ fn list_files(cwd: &Path, suffixes: &[&str]) -> Vec<String> {
     }
     if let Some(name) = entry.file_name().to_str()
       && suffixes.iter().any(|s| name.ends_with(s))
+      && let Some(rel) = safe_listed_relative_path(cwd, entry.path())
     {
-      let rel = entry.path().strip_prefix(cwd).unwrap_or(entry.path());
-      results.push(normalize_slash_path(&rel.to_string_lossy()));
+      results.push(rel);
     }
   }
   results
@@ -726,7 +733,11 @@ fn collect_skill_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String> {
 
   let mut skill_names = BTreeSet::new();
   for entry in fs::read_dir(&root).into_iter().flatten().flatten() {
-    if !entry.file_type().map(|file_type| file_type.is_dir()).unwrap_or(false) {
+    if !entry
+      .file_type()
+      .map(|file_type| file_type.is_dir())
+      .unwrap_or(false)
+    {
       continue;
     }
 
@@ -740,7 +751,11 @@ fn collect_skill_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String> {
       continue;
     }
 
-    for nested_entry in fs::read_dir(&first_level_dir).into_iter().flatten().flatten() {
+    for nested_entry in fs::read_dir(&first_level_dir)
+      .into_iter()
+      .flatten()
+      .flatten()
+    {
       let nested_path = nested_entry.path();
       if !nested_entry
         .file_type()
@@ -1248,8 +1263,18 @@ mod tests {
 
     let skill = build_prompt_definition_from_id("skill:tools/demo", &env).unwrap();
     assert_eq!(skill.prompt_id, "skill:tools/demo");
-    assert!(skill.paths.zh.ends_with("aindex/skills/tools/demo/skill.src.mdx"));
-    assert!(skill.paths.en.ends_with("aindex/skills/tools/demo/skill.mdx"));
+    assert!(
+      skill
+        .paths
+        .zh
+        .ends_with("aindex/skills/tools/demo/skill.src.mdx")
+    );
+    assert!(
+      skill
+        .paths
+        .en
+        .ends_with("aindex/skills/tools/demo/skill.mdx")
+    );
 
     let child =
       build_prompt_definition_from_id("skill-child-doc:tools/demo/guides/setup", &env).unwrap();
@@ -1279,7 +1304,11 @@ mod tests {
 
     fs::write(legacy_dir.join("skill.mdx"), "Legacy").unwrap();
     fs::write(legacy_dir.join("guide.mdx"), "Legacy guide").unwrap();
-    fs::write(env.aindex_dir.join("skills").join("tools").join("desc.mdx"), "Tools").unwrap();
+    fs::write(
+      env.aindex_dir.join("skills").join("tools").join("desc.mdx"),
+      "Tools",
+    )
+    .unwrap();
     fs::write(categorized_dir.join("skill.mdx"), "Categorized").unwrap();
     fs::write(categorized_dir.join("guides").join("setup.mdx"), "Setup").unwrap();
 
@@ -1295,6 +1324,18 @@ mod tests {
         .any(|prompt_id| prompt_id.contains("desc")),
       "desc files must not produce prompt ids: {:?}",
       prompt_ids
+    );
+  }
+
+  #[test]
+  fn safe_listed_relative_path_drops_non_descendant_entries() {
+    let tmp = TempDir::new().unwrap();
+    let leaked_path = tmp.path().join("outside").join("prompt.mdx");
+    let listed = safe_listed_relative_path(tmp.path().join("workspace").as_path(), &leaked_path);
+
+    assert!(
+      listed.is_none(),
+      "strip_prefix fallback must not leak absolute paths"
     );
   }
 }
