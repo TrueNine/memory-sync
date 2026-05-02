@@ -69,6 +69,10 @@ tauri-plugin-updater = "2"
 # JSON5 (for GUI log parsing compat)
 json5 = "1.3.1"
 
+# Tests
+assert_cmd = "2.1.1"
+predicates = "3.1.3"
+
 [profile.release]
 strip = true
 lto = true

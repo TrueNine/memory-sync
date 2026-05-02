@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -39,19 +40,22 @@ const PACKAGE_TARGETS: &[PackageTarget] = &[
 ];
 
 pub fn execute(args: &AssembleNpmArgs) -> ExitCode {
+  let mut stderr = io::stderr().lock();
+  execute_with_stderr(args, &mut stderr)
+}
+
+fn execute_with_stderr(args: &AssembleNpmArgs, stderr: &mut impl Write) -> ExitCode {
   match assemble_packages(args) {
     Ok(copied) => {
-      // Use stderr: this binary's primary mode is the MCP stdio server,
-      // and stdout is reserved for JSON-RPC framing. Routing all
-      // assemble-npm chatter to stderr keeps stdout protocol-safe even
-      // if the subcommand is ever invoked from a wrapped context.
+      // Fixes #225: stdout is reserved for MCP JSON-RPC framing, so even
+      // package-hydration status output must stay off stdout.
       for path in copied {
-        eprintln!("Hydrated {}", path.display());
+        let _ = writeln!(stderr, "Hydrated {}", path.display());
       }
       ExitCode::SUCCESS
     }
     Err(error) => {
-      eprintln!("Error: {error}");
+      let _ = writeln!(stderr, "Error: {error}");
       ExitCode::FAILURE
     }
   }
@@ -186,4 +190,27 @@ fn set_executable_permissions(path: &Path) -> Result<(), String> {
 #[cfg(not(unix))]
 fn set_executable_permissions(_path: &Path) -> Result<(), String> {
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn assemble_npm_reports_errors_to_stderr_only() {
+    let mut stderr = Vec::new();
+    let args = AssembleNpmArgs {
+      artifacts_dir: None,
+      profile: "missing-profile-for-issue-225".to_string(),
+    };
+
+    let exit = execute_with_stderr(&args, &mut stderr);
+
+    assert_eq!(exit, ExitCode::FAILURE);
+    let stderr = String::from_utf8(stderr).expect("stderr output should be UTF-8");
+    assert!(
+      stderr.contains("Error: Missing local host binary"),
+      "expected assemble-npm errors to be written to stderr, got: {stderr}"
+    );
+  }
 }

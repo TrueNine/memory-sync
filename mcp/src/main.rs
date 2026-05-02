@@ -391,23 +391,17 @@ fn main() -> ExitCode {
   );
 
   let cli = Cli::parse();
-  let logger = tnmsd::infra::logger::create_logger("tnmsm", None);
 
   match resolve_command(&cli) {
     ResolvedCommand::Serve => {
-      let _span = logger.span("server.serve").enter();
-      logger.info(
-        "MCP server started",
-        Some(json!({
-          "serverName": SERVER_NAME,
-          "protocolVersion": PROTOCOL_VERSION,
-        })),
-      );
+      // Fixes #225: in stdio mode stdout is the MCP JSON-RPC transport, so
+      // server startup must not emit logger messages or spans there.
       run_stdio_server();
       ExitCode::SUCCESS
     }
     ResolvedCommand::AssembleNpm(args) => {
-      let _span = logger.span("command.assemble_npm").enter();
+      // Fixes #225: keep hidden packaging output off stdout as well; the
+      // package command writes human-readable status to stderr internally.
       commands::package::execute(&args)
     }
   }
