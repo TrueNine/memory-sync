@@ -47,6 +47,22 @@ fn print_result(result: Result<String, tnmsd::CliError>) -> ExitCode {
   }
 }
 
+fn build_collect_aindex_resolvers_input(
+  workspace_dir: &std::path::Path,
+) -> Result<serde_json::Value, tnmsd::CliError> {
+  let workspace_dir = workspace_dir.to_str().ok_or_else(|| {
+    // Fixes #382: test/debug tooling must reject non-UTF-8 workspace paths
+    // explicitly instead of silently corrupting them with to_string_lossy().
+    tnmsd::CliError::ConfigError(
+      "CollectAindexResolvers requires --workspace-dir to be valid UTF-8".to_string(),
+    )
+  })?;
+
+  Ok(serde_json::json!({
+    "workspaceDir": workspace_dir,
+  }))
+}
+
 fn main() -> ExitCode {
   let cli = Cli::parse();
 
@@ -61,12 +77,42 @@ fn main() -> ExitCode {
       .map_err(tnmsd::CliError::ExecutionError),
     ),
     Command::CollectAindexResolvers(args) => {
-      let input = serde_json::json!({
-        "workspaceDir": args.workspace_dir.to_string_lossy(),
+      let result = build_collect_aindex_resolvers_input(&args.workspace_dir).and_then(|input| {
+        tnmsd::repositories::aindex_resolvers::collect_aindex_resolvers(&input.to_string())
       });
-      print_result(
-        tnmsd::repositories::aindex_resolvers::collect_aindex_resolvers(&input.to_string()),
-      )
+      print_result(result)
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::build_collect_aindex_resolvers_input;
+  use std::path::Path;
+
+  #[test]
+  fn collect_aindex_resolvers_input_preserves_utf8_workspace_dir() {
+    let input = build_collect_aindex_resolvers_input(Path::new("/tmp/demo")).unwrap();
+
+    assert_eq!(input["workspaceDir"], serde_json::json!("/tmp/demo"));
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn collect_aindex_resolvers_input_rejects_non_utf8_workspace_dir() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+    use std::path::PathBuf;
+
+    let invalid_path = PathBuf::from(OsString::from_vec(vec![0x66, 0x6f, 0x80, 0x6f]));
+    let result = build_collect_aindex_resolvers_input(&invalid_path);
+
+    assert!(
+      result
+        .as_ref()
+        .err()
+        .is_some_and(|error| error.to_string().contains("valid UTF-8")),
+      "unexpected result: {result:?}"
+    );
   }
 }

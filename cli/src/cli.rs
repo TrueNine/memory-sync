@@ -195,8 +195,8 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use clap::error::ErrorKind;
   use clap::Parser;
+  use clap::error::ErrorKind;
 
   #[test]
   fn resolve_command_defaults_to_install() {
