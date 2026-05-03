@@ -16,10 +16,10 @@ catalog:
   "@tanstack/react-router": ^1.168.22
   "@tanstack/router-generator": ^1.166.32
   "@tanstack/router-plugin": ^1.167.22
-  "@tauri-apps/api": ^2.10.1
-  "@tauri-apps/cli": ^2.10.1
-  "@tauri-apps/plugin-shell": ^2.3.5
-  "@tauri-apps/plugin-updater": ^2.10.1
+  "@tauri-apps/api": ~2.10.1
+  "@tauri-apps/cli": ~2.10.1
+  "@tauri-apps/plugin-shell": ~2.3.5
+  "@tauri-apps/plugin-updater": ~2.10.1
   "@theguild/remark-mermaid": ^0.3.0
   "@truenine/eslint10-config": ^2026.10411.10025
   "@types/estree": ^1.0.8
