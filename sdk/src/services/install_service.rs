@@ -91,7 +91,7 @@ pub(crate) fn install(
     "Context collected",
     Some(json!({
       "globalMemory": context.global_memory.is_some(),
-      "commands": context.fast_commands.as_ref().map(|v| v.len()),
+      "commands": context.slash_commands.as_ref().map(|v| v.len()),
       "skills": context.skills.as_ref().map(|v| v.len()),
       "rules": context.rules.as_ref().map(|v| v.len()),
     })),

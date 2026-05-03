@@ -6,11 +6,10 @@ use serde_json::{Map, Value};
 
 use crate::CliError;
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
-use crate::domain::config;
 use crate::domain::output_context::OutputContext;
+use crate::domain::output_plans::shared::resolve_effective_home_dir;
 use crate::domain::plugin_shared::{
-  FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt, SkillResourceEncoding,
-  Workspace,
+  Project, RelativePath, RuleScope, SkillPrompt, SlashCommandPrompt, Workspace,
 };
 
 const DROID_PLUGIN_NAME: &str = "DroidCLIOutputAdaptor";
