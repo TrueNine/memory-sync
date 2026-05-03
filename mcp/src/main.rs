@@ -394,6 +394,7 @@ fn main() -> ExitCode {
 
   match resolve_command(&cli) {
     ResolvedCommand::Serve => {
+      let logger = tnmsd::infra::logger::create_logger("mcp.server", None);
       let _span = logger.span("server.serve").enter();
       logger.info(
         "MCP server started",
