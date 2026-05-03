@@ -3,7 +3,7 @@ use std::process::{Command as ProcCommand, Stdio};
 
 #[derive(Parser)]
 #[command(name = "memory-sync-xtask")]
-#[command(version = "2026.10422.10749")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(about = "Unified build entry for memory-sync workspace")]
 struct Cli {
   #[command(subcommand)]
