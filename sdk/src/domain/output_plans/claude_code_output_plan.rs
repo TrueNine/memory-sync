@@ -14,7 +14,6 @@ const CLAUDE_CODE_MEMORY_FILE: &str = "CLAUDE.md";
 const CLAUDE_CODE_SETTINGS_FILE: &str = "settings.json";
 const CLAUDE_CODE_SETTINGS_LOCAL_FILE: &str = "settings.local.json";
 const CLAUDE_CODE_GLOBAL_CONFIG_DIR: &str = ".claude";
-const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 pub fn collect_claude_code_output_plan(context_json: &str) -> Result<String, CliError> {
@@ -45,76 +44,39 @@ fn build_output_files(
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
-  let agents_registered = context
-    .registered_output_plugins
-    .as_ref()
-    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
-    .unwrap_or(false);
 
-  if agents_registered {
-    // Fixes #379: Claude's project files should switch to the global-only memory
-    // payload while AgentsOutputAdaptor is registered.
-    if let Some(global_memory) = context.global_memory.as_ref() {
-      for project in &prompt_projects {
-        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-          continue;
-        };
-        output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
-            .join(CLAUDE_CODE_MEMORY_FILE)
-            .to_string_lossy()
-            .into_owned(),
-          scope: Some(PROJECT_SCOPE.to_string()),
-          content: global_memory.content.clone(),
-          encoding: None,
-        });
-      }
+  // Fixes #379 historical note: that issue incorrectly attributed global
+  // memory to project CLAUDE.md files while AgentsOutputAdaptor is active.
+  // Fixes #389: aindex/global.mdx belongs only in ~/.claude/CLAUDE.md.
+  // 项目级 CLAUDE.md（根目录 + 子目录）只承载项目 / 工作区提示。
+  for project in &prompt_projects {
+    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+      continue;
+    };
+
+    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: project_root_dir
+          .join(CLAUDE_CODE_MEMORY_FILE)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: root_prompt.content.clone(),
+        encoding: None,
+      });
     }
-  } else {
-    // 项目级 CLAUDE.md（根目录 + 子目录）
-    // 工作区根 CLAUDE.md 需要同时携带全局 memory 和工作区 prompt，
-    // 这样打包 CLI 在裸容器里安装后也能直接看到完整的 Claude 上下文。
-    for project in &prompt_projects {
-      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-        continue;
-      };
 
-      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-        let content = if project.is_workspace_root_project == Some(true) {
-          merge_workspace_root_memory(
-            context
-              .global_memory
-              .as_ref()
-              .map(|prompt| prompt.content.as_str()),
-            &root_prompt.content,
-          )
-        } else {
-          root_prompt.content.clone()
-        };
-
+    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+      for child_prompt in child_prompts {
         output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
+          path: resolve_relative_path(&child_prompt.dir)
             .join(CLAUDE_CODE_MEMORY_FILE)
             .to_string_lossy()
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
-          content,
+          content: child_prompt.content.clone(),
           encoding: None,
         });
-      }
-
-      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-        for child_prompt in child_prompts {
-          output_files.push(BaseOutputFileDeclarationDto {
-            path: resolve_relative_path(&child_prompt.dir)
-              .join(CLAUDE_CODE_MEMORY_FILE)
-              .to_string_lossy()
-              .into_owned(),
-            scope: Some(PROJECT_SCOPE.to_string()),
-            content: child_prompt.content.clone(),
-            encoding: None,
-          });
-        }
       }
     }
   }
@@ -235,18 +197,6 @@ fn build_output_files(
   }
 
   output_files
-}
-
-fn merge_workspace_root_memory(global_memory: Option<&str>, workspace_prompt: &str) -> String {
-  let global_memory = global_memory.unwrap_or("").trim();
-  let workspace_prompt = workspace_prompt.trim();
-
-  match (global_memory.is_empty(), workspace_prompt.is_empty()) {
-    (true, true) => String::new(),
-    (false, true) => global_memory.to_string(),
-    (true, false) => workspace_prompt.to_string(),
-    (false, false) => format!("{global_memory}\n\n{workspace_prompt}"),
-  }
 }
 
 fn resolve_skill_dir_name(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
@@ -530,19 +480,6 @@ mod tests {
     let empty = serde_json::Map::new();
     let result = wrap_yaml_front_matter(&empty, "Just content.");
     assert_eq!(result, "Just content.");
-  }
-
-  #[test]
-  fn merge_workspace_root_memory_includes_global_and_workspace_content() {
-    let merged = merge_workspace_root_memory(
-      Some("Global memory from aindex"),
-      "Workspace root prompt from aindex",
-    );
-
-    assert_eq!(
-      merged,
-      "Global memory from aindex\n\nWorkspace root prompt from aindex"
-    );
   }
 
   fn make_test_skill(name: &str) -> crate::domain::plugin_shared::SkillPrompt {

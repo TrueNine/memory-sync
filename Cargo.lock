@@ -2798,7 +2798,7 @@ dependencies = [
 
 [[package]]
 name = "memory-sync"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "tnmsc",
 ]
@@ -5809,7 +5809,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tnmsc"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "clap",
  "serde_json",
@@ -5818,7 +5818,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsc-local-tests"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "dirs",
  "json5",
@@ -5827,7 +5827,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsd"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -5855,7 +5855,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsg"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "dirs",
  "proptest",
@@ -5870,7 +5870,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsm"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -7301,7 +7301,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "2026.10502.118"
+version = "2026.10503.119"
 dependencies = [
  "clap",
  "serde",

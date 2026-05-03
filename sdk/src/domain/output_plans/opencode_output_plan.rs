@@ -13,7 +13,6 @@ const OPENCODE_PLUGIN_NAME: &str = "OpencodeCLIOutputAdaptor";
 const OPENCODE_MEMORY_FILE: &str = "AGENTS.md";
 const OPENCODE_PROJECT_CONFIG_DIR: &str = ".opencode";
 const OPENCODE_GLOBAL_CONFIG_DIR: &str = ".config/opencode";
-const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 fn resolve_skill_dir_name(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
@@ -64,69 +63,41 @@ fn build_output_files(
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
-  let agents_registered = context
-    .registered_output_plugins
-    .as_ref()
-    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
-    .unwrap_or(false);
 
-  if agents_registered {
-    // Fixes #379: Opencode project memory should collapse to the global-only payload
-    // while AgentsOutputAdaptor is registered.
-    if let Some(global_memory) = context.global_memory.as_ref() {
-      for project in &prompt_projects {
-        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-          continue;
-        };
-        output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
-            .join(OPENCODE_PROJECT_CONFIG_DIR)
-            .join(OPENCODE_MEMORY_FILE)
-            .to_string_lossy()
-            .into_owned(),
-          scope: Some(PROJECT_SCOPE.to_string()),
-          content: global_memory.content.clone(),
-          encoding: None,
-        });
-      }
+  // Fixes #379 historical note: that issue incorrectly attributed global
+  // memory to project .opencode/AGENTS.md while AgentsOutputAdaptor is active.
+  // Fixes #389: aindex/global.mdx belongs only in ~/.config/opencode/AGENTS.md.
+  for project in &prompt_projects {
+    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+      continue;
+    };
+
+    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: project_root_dir
+          .join(OPENCODE_PROJECT_CONFIG_DIR)
+          .join(OPENCODE_MEMORY_FILE)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: root_prompt.content.clone(),
+        encoding: None,
+      });
     }
-  } else {
-    let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
 
-    for project in &prompt_projects {
-      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-        continue;
-      };
-
-      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-        let combined_content =
-          combine_global_with_content(global_memory_content, &root_prompt.content);
+    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+      // Fixes #380: Opencode needs nested .opencode/AGENTS.md files for child prompts.
+      for child_prompt in child_prompts {
         output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
+          path: resolve_relative_path(&child_prompt.dir)
             .join(OPENCODE_PROJECT_CONFIG_DIR)
             .join(OPENCODE_MEMORY_FILE)
             .to_string_lossy()
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
-          content: combined_content,
+          content: child_prompt.content.clone(),
           encoding: None,
         });
-      }
-
-      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-        // Fixes #380: Opencode needs nested .opencode/AGENTS.md files for child prompts.
-        for child_prompt in child_prompts {
-          output_files.push(BaseOutputFileDeclarationDto {
-            path: resolve_relative_path(&child_prompt.dir)
-              .join(OPENCODE_PROJECT_CONFIG_DIR)
-              .join(OPENCODE_MEMORY_FILE)
-              .to_string_lossy()
-              .into_owned(),
-            scope: Some(PROJECT_SCOPE.to_string()),
-            content: child_prompt.content.clone(),
-            encoding: None,
-          });
-        }
       }
     }
   }
@@ -527,15 +498,6 @@ fn indent_yaml_list_items(yaml: &str) -> String {
     })
     .collect::<Vec<_>>()
     .join("\n")
-}
-
-fn combine_global_with_content(global_content: Option<&str>, project_content: &str) -> String {
-  match global_content {
-    Some(global) if !global.trim().is_empty() => {
-      format!("{}\n\n{}", global.trim(), project_content.trim())
-    }
-    _ => project_content.to_string(),
-  }
 }
 
 fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {

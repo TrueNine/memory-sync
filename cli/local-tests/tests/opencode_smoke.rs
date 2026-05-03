@@ -281,7 +281,7 @@ fn local_opencode_global_md_url_interpolation() {
 }
 
 #[test]
-fn local_opencode_project_content_includes_workspace_memory() {
+fn local_opencode_global_memory_stays_out_of_project_agents_md() {
   let fixture = IsolatedOpencodeFixture::new();
 
   fixture
@@ -295,12 +295,12 @@ fn local_opencode_project_content_includes_workspace_memory() {
   let global_content = fs::read_to_string(fixture.global_agents_path()).unwrap();
 
   assert!(
-    project_content.len() >= global_content.len(),
-    "project .opencode/AGENTS.md should be at least as long as global content"
+    global_content.contains("TrueNine"),
+    "global ~/.config/opencode/AGENTS.md should contain global memory content"
   );
   assert!(
-    project_content.contains("TrueNine"),
-    "project .opencode/AGENTS.md should contain global memory content"
+    !project_content.contains("TrueNine"),
+    "project .opencode/AGENTS.md should not contain global memory content"
   );
   assert!(
     project_content.contains("Project root instructions"),

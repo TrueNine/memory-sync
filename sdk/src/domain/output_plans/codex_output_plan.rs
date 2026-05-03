@@ -30,7 +30,6 @@ const CODEX_GLOBAL_CONFIG_DIR: &str = ".codex";
 const CODEX_PROMPTS_DIR: &str = "prompts";
 const CODEX_AGENTS_DIR: &str = "agents";
 const CODEX_SKILLS_DIR: &str = "skills";
-const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 fn resolve_skill_dir_name(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
@@ -82,11 +81,6 @@ fn build_output_files(
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
   let project_output_projects = get_project_output_projects(workspace);
-  let agents_registered = context
-    .registered_output_plugins
-    .as_ref()
-    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
-    .unwrap_or(false);
 
   // Global ~/.codex/AGENTS.md (use raw content to match aindex/global.mdx)
   if let Some(global_memory) = context.global_memory.as_ref() {
@@ -107,57 +101,38 @@ fn build_output_files(
     });
   }
 
-  if agents_registered {
-    // Fixes #379: Codex project AGENTS.md files should switch to the
-    // dedicated global-memory payload when AgentsOutputAdaptor is active.
-    if let Some(global_memory) = context.global_memory.as_ref() {
-      for project in &prompt_projects {
-        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-          continue;
-        };
-        output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
-            .join(CODEX_INSTRUCTIONS_FILE)
-            .to_string_lossy()
-            .into_owned(),
-          scope: Some(PROJECT_SCOPE.to_string()),
-          content: global_memory.content.clone(),
-          encoding: None,
-        });
-      }
+  // Fixes #379 historical note: that issue incorrectly attributed global
+  // memory to project AGENTS.md files while AgentsOutputAdaptor is active.
+  // Fixes #389: aindex/global.mdx belongs only in ~/.codex/AGENTS.md.
+  for project in &prompt_projects {
+    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+      continue;
+    };
+
+    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: project_root_dir
+          .join(CODEX_INSTRUCTIONS_FILE)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: root_prompt.content.clone(),
+        encoding: None,
+      });
     }
-  } else {
-    let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
-    for project in &prompt_projects {
-      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-        continue;
-      };
 
-      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+      // Fixes #380: Codex must emit nested AGENTS.md files for child memory prompts.
+      for child_prompt in child_prompts {
         output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
+          path: resolve_relative_path(&child_prompt.dir)
             .join(CODEX_INSTRUCTIONS_FILE)
             .to_string_lossy()
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
-          content: combine_global_with_content(global_memory_content, &root_prompt.content),
+          content: child_prompt.content.clone(),
           encoding: None,
         });
-      }
-
-      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-        // Fixes #380: Codex must emit nested AGENTS.md files for child memory prompts.
-        for child_prompt in child_prompts {
-          output_files.push(BaseOutputFileDeclarationDto {
-            path: resolve_relative_path(&child_prompt.dir)
-              .join(CODEX_INSTRUCTIONS_FILE)
-              .to_string_lossy()
-              .into_owned(),
-            scope: Some(PROJECT_SCOPE.to_string()),
-            content: child_prompt.content.clone(),
-            encoding: None,
-          });
-        }
       }
     }
   }
@@ -534,15 +509,6 @@ fn camel_to_kebab(s: &str) -> String {
   }
 
   result
-}
-
-fn combine_global_with_content(global_content: Option<&str>, project_content: &str) -> String {
-  match global_content {
-    Some(global) if !global.trim().is_empty() => {
-      format!("{}\n\n{}", global.trim(), project_content.trim())
-    }
-    _ => project_content.to_string(),
-  }
 }
 
 fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {

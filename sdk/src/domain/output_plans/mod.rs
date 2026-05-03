@@ -200,9 +200,10 @@ mod regression_tests {
   }
 
   #[test]
-  fn regression_379_agents_output_mode_uses_global_memory_for_project_files() {
-    // Fixes #379: when AgentsOutputAdaptor is registered, project output files should switch
-    // to the global-only memory mode that the cursor/warp/windsurf/trae plans already use.
+  fn regression_389_global_memory_stays_in_global_tool_files() {
+    // Fixes #379 historical note: that issue incorrectly attributed global
+    // memory to project files while AgentsOutputAdaptor is active.
+    // Fixes #389: global memory belongs only in tool-global prompt files.
     let workspace_root = "/workspace";
     let project_root = format!("{workspace_root}/project-a");
     let context = OutputContext {
@@ -218,37 +219,25 @@ mod regression_tests {
         .output_files
         .iter()
         .any(|file| file.path == format!("{project_root}/CLAUDE.md")
+          && file.content == "project root"),
+      "claude project CLAUDE.md must keep project memory when AgentsOutputAdaptor is active"
+    );
+    assert!(
+      claude_plan
+        .output_files
+        .iter()
+        .any(|file| file.path.ends_with("/.claude/CLAUDE.md")
+          && file.scope.as_deref() == Some("global")
           && file.content == "global memory"),
-      "claude output plan must emit global-only CLAUDE.md when AgentsOutputAdaptor is active"
+      "claude global CLAUDE.md must receive global memory"
     );
     assert!(
       !claude_plan
         .output_files
         .iter()
-        .any(|file| file.path.contains("/packages/api/CLAUDE.md")),
-      "claude output plan must omit child project memory files in agents mode"
-    );
-
-    let gemini_plan =
-      crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(&context).unwrap();
-    assert!(
-      gemini_plan
-        .output_files
-        .iter()
-        .any(|file| file.path == format!("{project_root}/GEMINI.md")
-          && file.content == "global memory"),
-      "gemini output plan must emit global-only GEMINI.md when AgentsOutputAdaptor is active"
-    );
-
-    let droid_plan =
-      crate::domain::output_plans::droid_output_plan::build_droid_output_plan(&context).unwrap();
-    assert!(
-      droid_plan
-        .output_files
-        .iter()
-        .any(|file| file.path == format!("{project_root}/AGENTS.md")
-          && file.content == "global memory"),
-      "droid output plan must emit global-only AGENTS.md when AgentsOutputAdaptor is active"
+        .any(|file| file.path == format!("{project_root}/CLAUDE.md")
+          && file.content.contains("global memory")),
+      "claude project CLAUDE.md must not receive global memory"
     );
 
     let opencode_plan =
@@ -257,9 +246,24 @@ mod regression_tests {
     assert!(
       opencode_plan.output_files.iter().any(|file| {
         file.path == format!("{project_root}/.opencode/AGENTS.md")
+          && file.content == "project root"
+      }),
+      "opencode project AGENTS.md must keep project memory when AgentsOutputAdaptor is active"
+    );
+    assert!(
+      opencode_plan.output_files.iter().any(|file| {
+        file.path.ends_with("/.config/opencode/AGENTS.md")
+          && file.scope.as_deref() == Some("global")
           && file.content == "global memory"
       }),
-      "opencode output plan must emit global-only project memory when AgentsOutputAdaptor is active"
+      "opencode global AGENTS.md must receive global memory"
+    );
+    assert!(
+      !opencode_plan.output_files.iter().any(|file| {
+        file.path == format!("{project_root}/.opencode/AGENTS.md")
+          && file.content.contains("global memory")
+      }),
+      "opencode project AGENTS.md must not receive global memory"
     );
 
     let codex_plan =
@@ -269,8 +273,25 @@ mod regression_tests {
         .output_files
         .iter()
         .any(|file| file.path == format!("{project_root}/AGENTS.md")
+          && file.content == "project root"),
+      "codex project AGENTS.md must keep project memory when AgentsOutputAdaptor is active"
+    );
+    assert!(
+      codex_plan
+        .output_files
+        .iter()
+        .any(|file| file.path.ends_with("/.codex/AGENTS.md")
+          && file.scope.as_deref() == Some("global")
           && file.content == "global memory"),
-      "codex output plan must emit global-only AGENTS.md when AgentsOutputAdaptor is active"
+      "codex global AGENTS.md must receive global memory"
+    );
+    assert!(
+      !codex_plan
+        .output_files
+        .iter()
+        .any(|file| file.path == format!("{project_root}/AGENTS.md")
+          && file.content.contains("global memory")),
+      "codex project AGENTS.md must not receive global memory"
     );
   }
 }
