@@ -10,6 +10,14 @@ pub enum DependencyResolverError {
   CircularDependency {
     cycle_path: Vec<String>,
   },
+  /// The caller passed a string that didn't deserialise into a valid
+  /// `Vec<DependencyNodeInput>`. Pre-#209 this was reported as
+  /// `MissingDependency { node_name: "invalid input: …", missing_dependency: "" }`
+  /// — which made downstream consumers matching on the serialised
+  /// `kind` field treat parse failures as graph problems.
+  InvalidInput {
+    message: String,
+  },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -159,9 +167,8 @@ pub fn topological_sort_nodes(
 
 pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverError> {
   let nodes: Vec<DependencyNodeInput> =
-    serde_json::from_str(input_json).map_err(|e| DependencyResolverError::MissingDependency {
-      node_name: format!("invalid input: {}", e),
-      missing_dependency: String::new(),
+    serde_json::from_str(input_json).map_err(|e| DependencyResolverError::InvalidInput {
+      message: e.to_string(),
     })?;
 
   topological_sort_nodes(&nodes).map(|sorted| serde_json::to_string(&sorted).unwrap())
@@ -300,5 +307,29 @@ mod tests {
     assert!(path.contains(&"b".to_string()));
     assert!(path.contains(&"c".to_string()));
     assert!(!path.contains(&"a".to_string()));
+  }
+
+  // Regression for #209: invalid input must surface as InvalidInput, not
+  // as a synthesised MissingDependency. The serialised payload's `kind`
+  // field is the consumer-facing discriminator.
+  #[test]
+  fn topological_sort_maps_invalid_json_to_invalid_input() {
+    let err = topological_sort("not json").unwrap_err();
+    match &err {
+      DependencyResolverError::InvalidInput { message } => {
+        assert!(!message.is_empty(), "expected serde error message");
+      }
+      _ => panic!("Expected InvalidInput, got {:?}", err),
+    }
+
+    let payload = serde_json::to_value(&err).unwrap();
+    assert_eq!(payload["kind"], "invalidInput");
+  }
+
+  #[test]
+  fn topological_sort_handles_well_formed_input() {
+    let result = topological_sort(r#"[{"name":"a","dependsOn":[]}]"#).unwrap();
+    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    assert_eq!(sorted, vec!["a"]);
   }
 }

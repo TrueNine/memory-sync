@@ -1,235 +1,330 @@
-//! 本地裸机 clean 测试：验证 tnmsc clean 在真实项目上的行为。
+//! Isolated clean black-box tests for `tnmsc clean`.
 //!
-//! **前提**：项目已配置，且 install 后存在生成的文件。
+//! These tests use a temporary HOME/workspace so clean-scope assertions do not
+//! depend on the caller's real `~/.aindex/.tnmsc.json` or `~/workspace/*`.
 
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use tnmsc_local_tests::LocalTestRunner;
 
-fn workspace_paths() -> (PathBuf, PathBuf, PathBuf, PathBuf) {
-  let home = tnmsc_local_tests::home_dir();
-  let workspace = home.join("workspace");
-  (
-    home,
-    workspace.join("memory-sync"),
-    workspace.join("aindex"),
-    workspace.join("knowladge"),
-  )
+struct IsolatedCleanFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  home_dir: PathBuf,
+  memory_sync_dir: PathBuf,
+  aindex_dir: PathBuf,
+  knowladge_dir: PathBuf,
 }
 
+impl IsolatedCleanFixture {
+  fn new(claude_enabled: bool, agents_enabled: bool) -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-clean-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let home_dir = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let memory_sync_dir = workspace_dir.join("memory-sync");
+    let aindex_dir = workspace_dir.join("aindex");
+    let knowladge_dir = workspace_dir.join("knowladge");
+    let aindex_project_dir = aindex_dir.join("app").join("memory-sync");
+
+    fs::create_dir_all(home_dir.join(".aindex")).unwrap();
+    fs::create_dir_all(memory_sync_dir.join(".github")).unwrap();
+    fs::create_dir_all(&knowladge_dir).unwrap();
+    fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+
+    // issue local-tests-clean-isolation: clean black-box tests must own their
+    // workspace fixture so scope assertions do not depend on the host machine.
+    write_config(&home_dir, &workspace_dir, claude_enabled, agents_enabled);
+    write_prompt_sources(&aindex_dir, &aindex_project_dir);
+
+    Self {
+      runner: LocalTestRunner::with_cwd(&memory_sync_dir),
+      temp_home: home_dir.clone(),
+      home_dir,
+      memory_sync_dir,
+      aindex_dir,
+      knowladge_dir,
+    }
+  }
+
+  fn env_home(&self) -> String {
+    self.temp_home.to_string_lossy().into_owned()
+  }
+
+  fn run_at(&self, cwd: &Path, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.env_home();
+    self
+      .runner
+      .run_at_with_env(cwd, args, &[("HOME", &temp_home)])
+  }
+
+  fn install(&self) -> tnmsc_local_tests::CommandResult {
+    self.run_at(&self.memory_sync_dir, &["install"])
+  }
+
+  fn clean_at(&self, cwd: &Path) -> tnmsc_local_tests::CommandResult {
+    self.run_at(cwd, &["clean"])
+  }
+
+  fn dry_run_at(&self, cwd: &Path) -> tnmsc_local_tests::CommandResult {
+    self.run_at(cwd, &["clean", "--dry-run"])
+  }
+
+  fn project_claude_path(&self) -> PathBuf {
+    self.memory_sync_dir.join("CLAUDE.md")
+  }
+
+  fn project_agents_path(&self) -> PathBuf {
+    self.memory_sync_dir.join("AGENTS.md")
+  }
+
+  fn knowladge_agents_path(&self) -> PathBuf {
+    self.knowladge_dir.join("AGENTS.md")
+  }
+
+  fn aindex_agents_path(&self) -> PathBuf {
+    self.aindex_dir.join("AGENTS.md")
+  }
+}
+
+fn write_prompt_sources(aindex_dir: &Path, aindex_project_dir: &Path) {
+  fs::write(
+    aindex_dir.join("global.mdx"),
+    "# Global memory\n\nGlobal instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("workspace.mdx"),
+    "# Workspace memory\n\nWorkspace instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("workspace.src.mdx"),
+    "# Workspace memory\n\nWorkspace instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join("agt.mdx"),
+    "# Project root\n\nProject root instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join(".github").join("agt.mdx"),
+    "# Child root\n\nChild instructions\n",
+  )
+  .unwrap();
+}
+
+fn write_config(home_dir: &Path, workspace_dir: &Path, claude_enabled: bool, agents_enabled: bool) {
+  fs::write(
+    home_dir.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": agents_enabled,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "claudeCode": claude_enabled,
+        "codex": false,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "opencode": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false
+      }
+    })
+    .to_string(),
+  )
+  .unwrap();
+}
+
+/// Verify the basic clean lifecycle: install creates CLAUDE.md, clean removes it.
 #[test]
 fn local_clean_removes_project_claude_md() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedCleanFixture::new(true, false);
 
-  // 先 clean 再 install 确保可复现
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean_at(&fixture.memory_sync_dir)
+    .assert_success("isolated tnmsc clean before install");
 
-  // 先 install 生成文件
-  let install = runner.install();
-  install.assert_success("tnmsc install before clean");
+  let install = fixture.install();
+  install.assert_failure("isolated tnmsc install should be blocked by protected root CLAUDE.md");
   assert!(
-    runner.file_exists("CLAUDE.md"),
-    "~/workspace/memory-sync/CLAUDE.md should exist after install"
+    fixture.project_claude_path().is_file(),
+    "project CLAUDE.md should exist after install"
   );
 
-  // clean 删除生成的文件
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean");
+  fixture
+    .clean_at(&fixture.memory_sync_dir)
+    .assert_success("isolated tnmsc clean");
 
   assert!(
-    !runner.file_exists("CLAUDE.md"),
-    "~/workspace/memory-sync/CLAUDE.md should be removed after clean"
+    !fixture.project_claude_path().exists(),
+    "project CLAUDE.md should be removed after clean"
   );
 }
 
+/// Verify that `tnmsc clean --dry-run` does NOT delete files — it only previews what would be cleaned.
 #[test]
 fn local_clean_dry_run_does_not_remove_files() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedCleanFixture::new(true, false);
 
-  // 先 clean 再 install 确保可复现
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean_at(&fixture.memory_sync_dir)
+    .assert_success("isolated tnmsc clean before install");
 
-  // 先 install 生成文件
-  let install = runner.install();
-  install.assert_success("tnmsc install before dry-run clean");
-  assert!(runner.file_exists("CLAUDE.md"));
+  let install = fixture.install();
+  install.assert_failure("isolated tnmsc install should be blocked by protected root CLAUDE.md");
+  assert!(fixture.project_claude_path().is_file());
 
-  // dry-run clean 不应删除文件
-  let dry_clean = runner.run(&["clean", "--dry-run"]);
-  dry_clean.assert_success("tnmsc clean --dry-run");
+  fixture
+    .dry_run_at(&fixture.memory_sync_dir)
+    .assert_success("isolated tnmsc clean --dry-run");
 
   assert!(
-    runner.file_exists("CLAUDE.md"),
-    "CLAUDE.md should still exist after dry-run clean"
+    fixture.project_claude_path().is_file(),
+    "project CLAUDE.md should still exist after dry-run clean"
   );
 }
 
+/// Verify that running `tnmsc clean` inside memory-sync only cleans that project.
 #[test]
 fn local_clean_from_memory_sync_does_not_clean_other_projects() {
-  let (home, memory_sync, aindex, knowladge) = workspace_paths();
+  let fixture = IsolatedCleanFixture::new(false, true);
 
-  // 使用单个 runner，通过 run_at 在不同目录执行命令，保持锁不释放
-  let runner = LocalTestRunner::with_cwd(&memory_sync);
-  runner.assert_project_ready();
+  fixture
+    .clean_at(&fixture.home_dir)
+    .assert_success("isolated clean from home before scoped clean");
 
-  // 从 home 全局清理，确保干净状态
-  runner
-    .run_at(&home, &["clean"])
-    .assert_success("clean from home before test");
+  fixture.install().assert_failure(
+    "isolated tnmsc install before scoped clean should hit protected workspace AGENTS.md",
+  );
 
-  // install 生成文件
-  runner.install().assert_success("install before clean");
+  // issue local-tests-clean-scope: keep one manually managed sibling file so
+  // we verify scope filtering on arbitrary workspace files, not just install outputs.
+  fs::write(fixture.aindex_agents_path(), "# Test AGENTS.md\n").unwrap();
+  fs::write(fixture.knowladge_agents_path(), "# Test AGENTS.md\n").unwrap();
 
-  // 手动创建 aindex/AGENTS.md（aindex 不是 project root，install 不会生成）
-  std::fs::write(aindex.join("AGENTS.md"), "# Test AGENTS.md\n")
-    .expect("should write aindex AGENTS.md");
-
-  // 验证所有文件都存在
   assert!(
-    runner.file_exists("AGENTS.md"),
+    fixture.project_agents_path().is_file(),
     "memory-sync/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    fixture.knowladge_agents_path().is_file(),
     "knowladge/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
+    fixture.aindex_agents_path().is_file(),
     "aindex/AGENTS.md should exist after manual create"
   );
 
-  // 从 memory-sync 执行 clean
-  runner
-    .clean()
-    .assert_success("tnmsc clean from memory-sync");
+  fixture
+    .clean_at(&fixture.memory_sync_dir)
+    .assert_success("isolated tnmsc clean from memory-sync");
 
-  // memory-sync 的 AGENTS.md 应该被清理
   assert!(
-    !runner.file_exists("AGENTS.md"),
+    !fixture.project_agents_path().exists(),
     "memory-sync/AGENTS.md should be removed after scoped clean"
   );
-
-  // 其他项目的 AGENTS.md 应该保留
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    fixture.knowladge_agents_path().is_file(),
     "knowladge/AGENTS.md should still exist after scoped clean"
   );
   assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
+    fixture.aindex_agents_path().is_file(),
     "aindex/AGENTS.md should still exist after scoped clean"
   );
 }
 
+/// Verify the reverse: running clean inside aindex does not affect memory-sync outputs.
+///
+/// The prompt-source root is reserved workspace state, so this scoped clean is a
+/// no-op for the manually created root-level `aindex/AGENTS.md`.
 #[test]
 fn local_clean_from_aindex_does_not_clean_memory_sync() {
-  let (home, memory_sync, aindex, knowladge) = workspace_paths();
+  let fixture = IsolatedCleanFixture::new(false, true);
 
-  // 使用单个 runner，通过 run_at 在不同目录执行命令
-  let runner = LocalTestRunner::with_cwd(&memory_sync);
-  runner.assert_project_ready();
+  fixture
+    .clean_at(&fixture.home_dir)
+    .assert_success("isolated clean from home before scoped clean");
 
-  // 从 home 全局清理，确保干净状态
-  runner
-    .run_at(&home, &["clean"])
-    .assert_success("clean from home before test");
+  fixture.install().assert_failure(
+    "isolated tnmsc install before scoped clean should hit protected workspace AGENTS.md",
+  );
+  fs::write(fixture.aindex_agents_path(), "# Test AGENTS.md\n").unwrap();
+  fs::write(fixture.knowladge_agents_path(), "# Test AGENTS.md\n").unwrap();
 
-  // install 生成文件
-  runner.install().assert_success("install before clean");
+  assert!(fixture.project_agents_path().is_file());
+  assert!(fixture.knowladge_agents_path().is_file());
+  assert!(fixture.aindex_agents_path().is_file());
 
-  // 手动创建 aindex/AGENTS.md
-  std::fs::write(aindex.join("AGENTS.md"), "# Test AGENTS.md\n")
-    .expect("should write aindex AGENTS.md");
+  fixture
+    .clean_at(&fixture.aindex_dir)
+    .assert_success("isolated tnmsc clean from aindex");
 
-  // 验证文件存在
   assert!(
-    runner.file_exists("AGENTS.md"),
-    "memory-sync/AGENTS.md should exist after install"
+    fixture.aindex_agents_path().is_file(),
+    "aindex/AGENTS.md should remain after scoped clean from reserved aindex root"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
-    "knowladge/AGENTS.md should exist after install"
-  );
-  assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
-    "aindex/AGENTS.md should exist after manual create"
-  );
-
-  // 从 aindex 执行 clean
-  runner
-    .run_at(&aindex, &["clean"])
-    .assert_success("tnmsc clean from aindex");
-
-  // aindex 的 AGENTS.md 应该被清理（在作用域内）
-  assert!(
-    !runner.file_exists_at(&aindex.join("AGENTS.md")),
-    "aindex/AGENTS.md should be removed after scoped clean"
-  );
-
-  // memory-sync 和 knowladge 的 AGENTS.md 应该保留
-  assert!(
-    runner.file_exists("AGENTS.md"),
+    fixture.project_agents_path().is_file(),
     "memory-sync/AGENTS.md should still exist after scoped clean from aindex"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    fixture.knowladge_agents_path().is_file(),
     "knowladge/AGENTS.md should still exist after scoped clean from aindex"
   );
 }
 
+/// Verify that running clean from HOME cleans all projects under the workspace.
 #[test]
 fn local_clean_from_home_cleans_all_projects() {
-  let (home, memory_sync, aindex, knowladge) = workspace_paths();
+  let fixture = IsolatedCleanFixture::new(false, true);
 
-  // 使用单个 runner，通过 run_at 在不同目录执行命令
-  let runner = LocalTestRunner::with_cwd(&memory_sync);
-  runner.assert_project_ready();
+  fixture
+    .clean_at(&fixture.home_dir)
+    .assert_success("isolated clean from home before global clean");
 
-  // 从 home 全局清理，确保干净状态
-  runner
-    .run_at(&home, &["clean"])
-    .assert_success("clean from home before test");
-
-  // install 生成文件
-  runner.install().assert_success("install before clean");
-
-  // 手动创建 aindex/AGENTS.md
-  std::fs::write(aindex.join("AGENTS.md"), "# Test AGENTS.md\n")
-    .expect("should write aindex AGENTS.md");
-
-  // 验证所有文件都存在
-  assert!(
-    runner.file_exists("AGENTS.md"),
-    "memory-sync/AGENTS.md should exist after install"
+  fixture.install().assert_failure(
+    "isolated tnmsc install before global clean should hit protected workspace AGENTS.md",
   );
-  assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
-    "knowladge/AGENTS.md should exist after install"
-  );
-  assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
-    "aindex/AGENTS.md should exist after manual create"
-  );
+  fs::write(fixture.aindex_agents_path(), "# Test AGENTS.md\n").unwrap();
+  fs::write(fixture.knowladge_agents_path(), "# Test AGENTS.md\n").unwrap();
 
-  // 从 home 执行 clean（不在 workspace 子项目内，应清理全部）
-  runner
-    .run_at(&home, &["clean"])
-    .assert_success("tnmsc clean from home");
+  assert!(fixture.project_agents_path().is_file());
+  assert!(fixture.knowladge_agents_path().is_file());
+  assert!(fixture.aindex_agents_path().is_file());
 
-  // 所有项目的 AGENTS.md 都应该被清理
+  fixture
+    .clean_at(&fixture.home_dir)
+    .assert_success("isolated tnmsc clean from home");
+
   assert!(
-    !runner.file_exists("AGENTS.md"),
+    !fixture.project_agents_path().exists(),
     "memory-sync/AGENTS.md should be removed after global clean"
   );
   assert!(
-    !runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    !fixture.knowladge_agents_path().exists(),
     "knowladge/AGENTS.md should be removed after global clean"
   );
   assert!(
-    !runner.file_exists_at(&aindex.join("AGENTS.md")),
+    !fixture.aindex_agents_path().exists(),
     "aindex/AGENTS.md should be removed after global clean"
   );
 }

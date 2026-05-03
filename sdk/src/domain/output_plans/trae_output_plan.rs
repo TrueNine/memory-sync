@@ -75,20 +75,27 @@ fn build_output_files(
           .to_string_lossy()
           .into_owned(),
         scope: Some(PROJECT_SCOPE.to_string()),
-        content: content.clone(),
-        encoding: None,
-      });
-
-      let trae_cn_dir = project_root_dir.join(".trae-cn").join("user_rules");
-      output_files.push(BaseOutputFileDeclarationDto {
-        path: trae_cn_dir
-          .join(TRAE_CN_USER_RULES_FILE)
-          .to_string_lossy()
-          .into_owned(),
-        scope: Some(PROJECT_SCOPE.to_string()),
         content,
         encoding: None,
       });
+
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        // Fixes #380: Trae must emit nested steering files for child memory prompts.
+        for child_prompt in child_prompts {
+          let child_steering_dir = resolve_relative_path(&child_prompt.dir)
+            .join(".trae")
+            .join("steering");
+          output_files.push(BaseOutputFileDeclarationDto {
+            path: child_steering_dir
+              .join(TRAE_STEERING_FILE)
+              .to_string_lossy()
+              .into_owned(),
+            scope: Some(PROJECT_SCOPE.to_string()),
+            content: child_prompt.content.clone(),
+            encoding: None,
+          });
+        }
+      }
     }
   }
 
@@ -192,4 +199,227 @@ fn resolve_relative_path(rp: &RelativePath) -> PathBuf {
     return raw.to_path_buf();
   }
   PathBuf::from(&rp.base_path).join(raw)
+}
+
+#[cfg(test)]
+mod tests {
+  use tempfile::TempDir;
+
+  use super::*;
+  use crate::domain::plugin_shared::{
+    FilePathKind, GlobalMemoryPrompt, ProjectRootMemoryPrompt, PromptKind, RootPath,
+  };
+
+  fn create_relative_path(base_path: &str, path: &str) -> RelativePath {
+    RelativePath::new(path, base_path)
+  }
+
+  fn create_root_prompt(content: &str) -> ProjectRootMemoryPrompt {
+    ProjectRootMemoryPrompt {
+      prompt_type: PromptKind::ProjectRootMemory,
+      content: content.to_string(),
+      length: content.len(),
+      file_path_kind: FilePathKind::Root,
+      dir: RootPath::new(""),
+      yaml_front_matter: None,
+      raw_front_matter: None,
+      markdown_ast: None,
+      markdown_contents: None,
+    }
+  }
+
+  fn create_global_memory(content: &str) -> GlobalMemoryPrompt {
+    GlobalMemoryPrompt {
+      prompt_type: PromptKind::GlobalMemory,
+      content: content.to_string(),
+      length: content.len(),
+      file_path_kind: FilePathKind::Relative,
+      dir: create_relative_path("/home", ".trae"),
+      raw_front_matter: None,
+      markdown_contents: None,
+      parent_directory_path: None,
+      raw_content: None,
+    }
+  }
+
+  fn create_project(workspace_root: &str, name: &str) -> Project {
+    Project {
+      name: Some(name.to_string()),
+      dir_from_workspace_path: Some(create_relative_path(workspace_root, name)),
+      ..Project::default()
+    }
+  }
+
+  #[test]
+  fn trae_output_contains_only_steering_not_trae_cn() {
+    let temp_dir = TempDir::new().unwrap();
+    let workspace_dir = temp_dir.path().join("workspace");
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new(&workspace_dir.to_string_lossy()),
+        projects: vec![
+          Project {
+            name: Some("__workspace__".to_string()),
+            is_workspace_root_project: Some(true),
+            root_memory_prompt: Some(create_root_prompt("workspace root")),
+            ..Project::default()
+          },
+          Project {
+            is_prompt_source_project: Some(true),
+            root_memory_prompt: Some(create_root_prompt("prompt source")),
+            ..create_project(&workspace_dir.to_string_lossy(), "aindex")
+          },
+          Project {
+            root_memory_prompt: Some(create_root_prompt("project root")),
+            ..create_project(&workspace_dir.to_string_lossy(), "project-a")
+          },
+          Project {
+            root_memory_prompt: Some(create_root_prompt("project root")),
+            ..create_project(&workspace_dir.to_string_lossy(), "project-a")
+          },
+        ],
+      }),
+      global_memory: Some(create_global_memory("global prompt")),
+      registered_output_plugins: Some(vec![AGENTS_OUTPUT_ADAPTOR.to_string()]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_trae_output_plan(&context).unwrap();
+    let output_paths: Vec<&str> = plan.output_files.iter().map(|f| f.path.as_str()).collect();
+
+    assert!(
+      output_paths.contains(
+        &workspace_dir
+          .join(".trae")
+          .join("steering")
+          .join("GLOBAL.md")
+          .to_string_lossy()
+          .as_ref()
+      ),
+      "output must include .trae/steering/GLOBAL.md"
+    );
+
+    assert!(
+      !output_paths.iter().any(|p| p.contains(".trae-cn")),
+      "output must NOT include any .trae-cn path, got: {:?}",
+      output_paths
+    );
+  }
+
+  #[test]
+  fn trae_output_omits_prompt_source_projects() {
+    let temp_dir = TempDir::new().unwrap();
+    let workspace_dir = temp_dir.path().join("workspace");
+
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new(&workspace_dir.to_string_lossy()),
+        projects: vec![
+          Project {
+            name: Some("__workspace__".to_string()),
+            is_workspace_root_project: Some(true),
+            root_memory_prompt: Some(create_root_prompt("workspace root")),
+            ..Project::default()
+          },
+          Project {
+            is_prompt_source_project: Some(true),
+            root_memory_prompt: Some(create_root_prompt("prompt source")),
+            ..create_project(&workspace_dir.to_string_lossy(), "aindex")
+          },
+          Project {
+            root_memory_prompt: Some(create_root_prompt("project root")),
+            ..create_project(&workspace_dir.to_string_lossy(), "project-a")
+          },
+        ],
+      }),
+      ..OutputContext::default()
+    };
+
+    let plan = build_trae_output_plan(&context).unwrap();
+    let output_paths: Vec<&str> = plan.output_files.iter().map(|f| f.path.as_str()).collect();
+
+    assert!(
+      output_paths.contains(
+        &workspace_dir
+          .join("project-a")
+          .join(".trae")
+          .join("steering")
+          .join("GLOBAL.md")
+          .to_string_lossy()
+          .as_ref()
+      ),
+      "output must include project-a/.trae/steering/GLOBAL.md"
+    );
+
+    assert!(
+      !output_paths.contains(
+        &workspace_dir
+          .join("aindex")
+          .join(".trae")
+          .join("steering")
+          .join("GLOBAL.md")
+          .to_string_lossy()
+          .as_ref()
+      ),
+      "output must NOT include prompt source project"
+    );
+  }
+
+  #[test]
+  fn trae_cleanup_still_removes_trae_cn_for_compatibility() {
+    let temp_dir = TempDir::new().unwrap();
+    let workspace_dir = temp_dir.path().join("workspace");
+    let project_root = workspace_dir.join("project-a");
+
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new(&workspace_dir.to_string_lossy()),
+        projects: vec![
+          Project {
+            name: Some("__workspace__".to_string()),
+            is_workspace_root_project: Some(true),
+            ..Project::default()
+          },
+          Project {
+            ..create_project(&workspace_dir.to_string_lossy(), "project-a")
+          },
+        ],
+      }),
+      ..OutputContext::default()
+    };
+
+    let plan = build_trae_output_plan(&context).unwrap();
+    let cleanup_paths: Vec<&str> = plan
+      .cleanup
+      .delete
+      .iter()
+      .map(|t| t.path.as_str())
+      .collect();
+
+    assert!(
+      cleanup_paths.contains(
+        &project_root
+          .join(".trae-cn")
+          .join("user_rules")
+          .join("GLOBAL.md")
+          .to_string_lossy()
+          .as_ref()
+      ),
+      "cleanup must still include .trae-cn/user_rules/GLOBAL.md for backward compatibility, got: {:?}",
+      cleanup_paths
+    );
+
+    assert!(
+      cleanup_paths.contains(
+        &project_root
+          .join(".trae")
+          .join("steering")
+          .join("GLOBAL.md")
+          .to_string_lossy()
+          .as_ref()
+      ),
+      "cleanup must include .trae/steering/GLOBAL.md, got: {:?}",
+      cleanup_paths
+    );
+  }
 }

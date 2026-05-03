@@ -21,7 +21,15 @@ pub fn find_git_module_info_dirs(dot_git_dir: &Path) -> Vec<PathBuf> {
     };
 
     let mut has_info = false;
-    let mut nested_modules = None;
+    // Pre-#211 this was a single `Option<PathBuf>`, so a directory
+    // listing that yielded more than one entry whose `file_name()`
+    // matched `modules` would only keep the last one walked. The case
+    // is unusual on case-sensitive filesystems but reachable on
+    // case-insensitive ones (macOS / NTFS) where `modules` and
+    // `Modules` can collide as dir entries from different writers,
+    // and a future relax of the equality match (icase, alt names)
+    // would silently start dropping subtrees. Collect them all.
+    let mut nested_modules_dirs: Vec<PathBuf> = Vec::new();
 
     for entry in entries.flatten() {
       let name = entry.file_name();
@@ -35,7 +43,7 @@ pub fn find_git_module_info_dirs(dot_git_dir: &Path) -> Vec<PathBuf> {
         && let Ok(ft) = entry.file_type()
         && ft.is_dir()
       {
-        nested_modules = Some(entry.path());
+        nested_modules_dirs.push(entry.path());
       }
     }
 
@@ -43,10 +51,10 @@ pub fn find_git_module_info_dirs(dot_git_dir: &Path) -> Vec<PathBuf> {
       results.push(dir.join("info"));
     }
 
-    if let Some(nested) = nested_modules {
+    for nested in nested_modules_dirs {
       let sub_entries = match fs::read_dir(&nested) {
         Ok(e) => e,
-        Err(_) => return,
+        Err(_) => continue,
       };
       for entry in sub_entries.flatten() {
         if let Ok(ft) = entry.file_type()

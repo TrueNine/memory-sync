@@ -5,8 +5,8 @@
 
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::path::Path;
+use std::collections::{BTreeMap, HashMap};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use deno_ast::MediaType;
@@ -48,14 +48,24 @@ impl DenoRuntime {
       return Err(format!("Script not found: {}", script_path.display()));
     }
 
+    let parsed_context: serde_json::Value = serde_json::from_str(context_json)
+      .map_err(|error| format!("Invalid runtime context JSON: {error}"))?;
+    let resolved_script_path = ensure_allowed_script_path(script_path, &parsed_context)?;
+
     tokio::runtime::Builder::new_current_thread()
       .enable_all()
       .build()
       .map_err(|error| format!("Failed to create embedded Deno runtime: {error}"))?
-      .block_on(Self::execute_ts_async(script_path, context_json))
+      .block_on(Self::execute_ts_async(
+        &resolved_script_path,
+        parsed_context,
+      ))
   }
 
-  async fn execute_ts_async(script_path: &Path, context_json: &str) -> Result<String, String> {
+  async fn execute_ts_async(
+    script_path: &Path,
+    parsed_context: serde_json::Value,
+  ) -> Result<String, String> {
     let source_map_store = Rc::new(RefCell::new(HashMap::new()));
     let module_loader = Rc::new(TypescriptModuleLoader {
       source_maps: source_map_store,
@@ -71,9 +81,7 @@ impl DenoRuntime {
     let main_module = resolve_path(&script_path.to_string_lossy(), &current_dir)
       .map_err(|error| format!("Unable to resolve script module: {error}"))?;
 
-    let parsed_context: serde_json::Value = serde_json::from_str(context_json)
-      .map_err(|error| format!("Invalid runtime context JSON: {error}"))?;
-    let env_map: HashMap<String, String> = std::env::vars().collect();
+    let env_map = allowed_environment(&parsed_context);
     let bootstrap = format!(
       r#"
 const __TNMS_CONTEXT_JSON = {context_json};
@@ -174,6 +182,9 @@ globalThis.Deno = {{
         return Err("Proxy context must be a JSON object".to_string());
       }
     };
+    // Fixes #360: proxy execution should stay anchored to the proxy's own
+    // directory instead of allowing arbitrary script roots from the callsite.
+    append_allowed_script_root(&mut context, proxy_path.parent());
     context.insert(
       "logicalPath".to_string(),
       serde_json::Value::String(logical_path.to_string()),
@@ -233,10 +244,117 @@ globalThis.Deno = {{
   }
 }
 
+fn append_allowed_script_root(
+  context: &mut serde_json::Map<String, serde_json::Value>,
+  root: Option<&Path>,
+) {
+  let Some(root) = root else {
+    return;
+  };
+  let root = root.to_string_lossy().into_owned();
+  let roots = context
+    .entry("allowedScriptRoots".to_string())
+    .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+
+  if let serde_json::Value::Array(values) = roots
+    && !values
+      .iter()
+      .any(|value| value.as_str() == Some(root.as_str()))
+  {
+    values.push(serde_json::Value::String(root));
+  }
+}
+
+fn resolve_existing_path(path: &Path, label: &str) -> Result<PathBuf, String> {
+  let absolute = if path.is_absolute() {
+    path.to_path_buf()
+  } else {
+    std::env::current_dir()
+      .map_err(|error| format!("Unable to resolve current directory: {error}"))?
+      .join(path)
+  };
+
+  absolute
+    .canonicalize()
+    .map_err(|error| format!("Unable to resolve {label}: {error}"))
+}
+
+fn allowed_script_roots(context: &serde_json::Value) -> Result<Vec<PathBuf>, String> {
+  let mut roots = Vec::new();
+
+  if let Some(values) = context
+    .get("allowedScriptRoots")
+    .and_then(serde_json::Value::as_array)
+  {
+    for value in values {
+      let Some(path) = value.as_str() else {
+        continue;
+      };
+      roots.push(resolve_existing_path(
+        Path::new(path),
+        "allowed script root",
+      )?);
+    }
+  }
+
+  for key in ["aindexDir", "workspaceDir"] {
+    if let Some(path) = context.get(key).and_then(serde_json::Value::as_str) {
+      roots.push(resolve_existing_path(Path::new(path), key)?);
+    }
+  }
+
+  if roots.is_empty() {
+    return Err(
+      "Script execution requires at least one allowed script root in context".to_string(),
+    );
+  }
+
+  roots.sort();
+  roots.dedup();
+  Ok(roots)
+}
+
+fn ensure_allowed_script_path(
+  script_path: &Path,
+  context: &serde_json::Value,
+) -> Result<PathBuf, String> {
+  let resolved_script = resolve_existing_path(script_path, "script path")?;
+  let roots = allowed_script_roots(context)?;
+
+  // Fixes #360: execute_ts must fail closed unless the caller proves the
+  // script lives under an explicit allowlisted root.
+  if roots.iter().any(|root| resolved_script.starts_with(root)) {
+    return Ok(resolved_script);
+  }
+
+  Err(format!(
+    "Script path is outside allowed script roots: {}",
+    resolved_script.display()
+  ))
+}
+
 impl Default for DenoRuntime {
   fn default() -> Self {
-    Self::new().expect("Failed to initialize DenoRuntime")
+    Self
   }
+}
+
+fn allowed_environment(context: &serde_json::Value) -> BTreeMap<String, String> {
+  let allowlist = context
+    .get("allowedEnv")
+    .or_else(|| context.get("allowedEnvVars"))
+    .and_then(serde_json::Value::as_array);
+
+  allowlist
+    .into_iter()
+    .flatten()
+    .filter_map(serde_json::Value::as_str)
+    .filter_map(|name| {
+      std::env::var(name)
+        .ok()
+        .map(|value| (name.to_string(), value))
+    })
+    .collect()
 }
 
 struct TypescriptModuleLoader {
@@ -359,7 +477,7 @@ mod tests {
   static ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
   fn with_path_removed<T>(f: impl FnOnce() -> T) -> T {
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let original = std::env::var_os("PATH");
     unsafe {
       std::env::remove_var("PATH");
@@ -369,6 +487,22 @@ mod tests {
       match original {
         Some(path) => std::env::set_var("PATH", path),
         None => std::env::remove_var("PATH"),
+      }
+    }
+    result
+  }
+
+  fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let original = std::env::var_os(name);
+    unsafe {
+      std::env::set_var(name, value);
+    }
+    let result = f();
+    unsafe {
+      match original {
+        Some(value) => std::env::set_var(name, value),
+        None => std::env::remove_var(name),
       }
     }
     result
@@ -385,10 +519,13 @@ mod tests {
     let tmp = TempDir::new().unwrap();
     let script_path = tmp.path().join("echo.ts");
     std::fs::write(&script_path, "console.log('embedded-deno-ok');").unwrap();
+    let context = serde_json::json!({
+      "allowedScriptRoots": [tmp.path().to_string_lossy().to_string()]
+    });
 
     let result = with_path_removed(|| {
       let runtime = DenoRuntime::new().unwrap();
-      runtime.execute_ts(&script_path, "{}")
+      runtime.execute_ts(&script_path, &context.to_string())
     });
 
     assert!(result.is_ok(), "expected embedded runtime, got: {result:?}");
@@ -441,5 +578,96 @@ console.log(`proxied/${ctx.logicalPath}`)
       "expected arbitrary proxy execution, got: {result:?}"
     );
     assert_eq!(result.unwrap().trim(), "proxied/notes/today.md");
+  }
+
+  #[test]
+  fn test_execute_ts_hides_untrusted_environment_by_default() {
+    with_env_var("TNMSD_SECRET_TOKEN_FOR_TEST", "secret-value", || {
+      let runtime = DenoRuntime::new().unwrap();
+      let tmp = TempDir::new().unwrap();
+      let script_path = tmp.path().join("env.ts");
+      std::fs::write(
+        &script_path,
+        r#"
+console.log(JSON.stringify({
+  hasSecret: Deno.env.has("TNMSD_SECRET_TOKEN_FOR_TEST"),
+  secret: Deno.env.get("TNMSD_SECRET_TOKEN_FOR_TEST") ?? null,
+  envKeys: Object.keys(Deno.env.toObject())
+}))
+"#,
+      )
+      .unwrap();
+
+      let context = serde_json::json!({
+        "allowedScriptRoots": [tmp.path().to_string_lossy().to_string()]
+      });
+      let result = runtime
+        .execute_ts(&script_path, &context.to_string())
+        .unwrap();
+      let parsed: serde_json::Value = serde_json::from_str(result.trim()).unwrap();
+
+      assert_eq!(parsed["hasSecret"], false);
+      assert_eq!(parsed["secret"], serde_json::Value::Null);
+      assert_eq!(parsed["envKeys"], serde_json::json!([]));
+    });
+  }
+
+  #[test]
+  fn test_execute_ts_exposes_only_allowed_environment_names() {
+    with_env_var("TNMSD_ALLOWED_ENV_FOR_TEST", "visible-value", || {
+      let runtime = DenoRuntime::new().unwrap();
+      let tmp = TempDir::new().unwrap();
+      let script_path = tmp.path().join("env.ts");
+      std::fs::write(
+        &script_path,
+        r#"
+console.log(JSON.stringify({
+  allowed: Deno.env.get("TNMSD_ALLOWED_ENV_FOR_TEST") ?? null,
+  keys: Object.keys(Deno.env.toObject())
+}))
+"#,
+      )
+      .unwrap();
+
+      let context = serde_json::json!({
+        "allowedScriptRoots": [tmp.path().to_string_lossy().to_string()],
+        "allowedEnv": ["TNMSD_ALLOWED_ENV_FOR_TEST", "TNMSD_MISSING_ENV_FOR_TEST"]
+      });
+      let result = runtime
+        .execute_ts(&script_path, &context.to_string())
+        .unwrap();
+      let parsed: serde_json::Value = serde_json::from_str(result.trim()).unwrap();
+
+      assert_eq!(parsed["allowed"], "visible-value");
+      assert_eq!(
+        parsed["keys"],
+        serde_json::json!(["TNMSD_ALLOWED_ENV_FOR_TEST"])
+      );
+    });
+  }
+
+  #[test]
+  fn test_execute_ts_rejects_scripts_outside_allowed_roots() {
+    let runtime = DenoRuntime::new().unwrap();
+    let tmp = TempDir::new().unwrap();
+    let allowed_root = tmp.path().join("allowed");
+    let blocked_root = tmp.path().join("blocked");
+    std::fs::create_dir_all(&allowed_root).unwrap();
+    std::fs::create_dir_all(&blocked_root).unwrap();
+    let blocked_script = blocked_root.join("echo.ts");
+    std::fs::write(&blocked_script, "console.log('blocked');").unwrap();
+
+    let context = serde_json::json!({
+      "allowedScriptRoots": [allowed_root.to_string_lossy().to_string()]
+    });
+    let result = runtime.execute_ts(&blocked_script, &context.to_string());
+
+    assert!(
+      result
+        .as_ref()
+        .err()
+        .is_some_and(|error| error.contains("outside allowed script roots")),
+      "unexpected result: {result:?}"
+    );
   }
 }

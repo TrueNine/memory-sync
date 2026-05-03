@@ -822,7 +822,7 @@ mod tests {
       Some("[question]")
     );
     assert!(
-      result.metadata.exports.get("allowedTools").is_some(),
+      result.metadata.exports.contains_key("allowedTools"),
       "allowedTools should be extracted"
     );
   }

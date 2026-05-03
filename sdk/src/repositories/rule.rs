@@ -92,10 +92,9 @@ fn build_rule_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
   dir: &str,
 ) -> Result<RulePrompt, crate::CliError> {
-  let compiled = entry
-    .compiled
-    .as_ref()
-    .ok_or_else(|| crate::CliError::ConfigError("Missing compiled prompt".to_string()))?;
+  let compiled = entry.compiled.as_ref().ok_or_else(|| {
+    crate::CliError::ConfigError(format!("Missing compiled prompt: {}.mdx", entry.name))
+  })?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
   validate_rule_metadata(&compiled.metadata, &file_path).map_err(crate::CliError::ConfigError)?;
@@ -104,7 +103,7 @@ fn build_rule_prompt(
   let prefix = normalized_name.split('/').next().unwrap_or("").to_string();
   let rule_name = normalized_name
     .split('/')
-    .last()
+    .next_back()
     .unwrap_or(&normalized_name)
     .to_string();
 
@@ -196,9 +195,10 @@ pub fn collect_rule(options_json: &str) -> Result<String, crate::CliError> {
   let mut prompts: Vec<RulePrompt> = Vec::new();
   for entry in &entries {
     if entry.compiled.is_none() && (entry.src_zh.is_some() || entry.src_en.is_some()) {
-      return Err(crate::CliError::ConfigError(
-        "Missing compiled prompt".to_string(),
-      ));
+      return Err(crate::CliError::ConfigError(format!(
+        "Missing compiled prompt: {}.mdx",
+        entry.name
+      )));
     }
     if entry.compiled.is_some() {
       prompts.push(build_rule_prompt(entry, &dir_str)?);
@@ -238,11 +238,11 @@ mod tests {
 
     let result = collect_rule(&options.to_string());
     assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
     assert!(
-      result
-        .unwrap_err()
-        .to_string()
-        .contains("Missing compiled prompt")
+      err.contains("Missing compiled prompt: qa/boot.mdx"),
+      "expected file path in error message, got: {}",
+      err
     );
   }
 

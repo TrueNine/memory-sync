@@ -1,123 +1,168 @@
-//! 本地裸机 AGENTS.md 测试：验证 AgentsOutputAdaptor 生成的 AGENTS.md 文件。
+//! Isolated AGENTS.md smoke tests for AgentsOutputAdaptor.
 //!
-//! **前提**：项目已配置，aindex 目录已存在且有内容。
+//! These tests intentionally avoid the caller's real `~/.aindex/.tnmsc.json`
+//! because the shared local-test runner otherwise follows the host
+//! `workspaceDir` and mutates unrelated workspaces.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tnmsc_local_tests::LocalTestRunner;
 
-/// 临时修改全局配置以禁用 agents_md 插件，测试结束后自动恢复。
-struct GlobalConfigGuard {
-  config_path: PathBuf,
-  original_content: Option<String>,
+struct IsolatedAgentsFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  project_dir: PathBuf,
+  aindex_project_dir: PathBuf,
 }
 
-impl GlobalConfigGuard {
-  fn with_agents_md_disabled() -> Self {
-    let config_path = tnmsc_local_tests::home_dir()
-      .join(".aindex")
-      .join(".tnmsc.json");
+impl IsolatedAgentsFixture {
+  fn new(agents_enabled: bool) -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-agents-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let temp_home = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let project_dir = workspace_dir.join("memory-sync");
+    let aindex_project_dir = workspace_dir.join("aindex").join("app").join("memory-sync");
 
-    let original_content = if config_path.is_file() {
-      fs::read_to_string(&config_path).ok()
-    } else {
-      None
-    };
+    fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+    fs::create_dir_all(project_dir.join(".github")).unwrap();
+    fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
 
-    let mut config_json: serde_json::Value = original_content
-      .as_ref()
-      .and_then(|c| serde_json::from_str(c).ok())
-      .unwrap_or_else(|| serde_json::json!({}));
-
-    if let Some(obj) = config_json.as_object_mut() {
-      let plugins = obj
-        .entry("plugins")
-        .or_insert_with(|| serde_json::json!({}));
-      if let Some(p) = plugins.as_object_mut() {
-        p.insert("agentsMd".into(), serde_json::json!(false));
-        p.insert("claudeCode".into(), serde_json::json!(true));
-        p.insert("opencode".into(), serde_json::json!(true));
-        p.insert("git".into(), serde_json::json!(true));
-      }
-    }
-
-    let new_content = format!("{}\n", serde_json::to_string_pretty(&config_json).unwrap());
-    fs::write(&config_path, new_content).expect("should write temp global config");
+    // issue local-tests-agents-isolation: agents smoke tests must validate
+    // generated AGENTS.md files in a self-owned fixture instead of the host workspace.
+    write_config(&temp_home, &workspace_dir, agents_enabled);
+    fs::write(
+      aindex_project_dir.join("agt.mdx"),
+      "# Issue sync root\n\nProject root instructions\n",
+    )
+    .unwrap();
+    fs::write(
+      aindex_project_dir.join(".github").join("agt.mdx"),
+      "# Issue sync child\n\nChild instructions\n",
+    )
+    .unwrap();
 
     Self {
-      config_path,
-      original_content,
+      runner: LocalTestRunner::with_cwd(&project_dir),
+      temp_home,
+      project_dir,
+      aindex_project_dir,
     }
+  }
+
+  fn run(&self, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.temp_home.to_string_lossy().into_owned();
+    self
+      .runner
+      .run_at_with_env(&self.project_dir, args, &[("HOME", &temp_home)])
+  }
+
+  fn install(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["install"])
+  }
+
+  fn clean(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["clean"])
+  }
+
+  fn project_agents_path(&self) -> PathBuf {
+    self.project_dir.join("AGENTS.md")
+  }
+
+  fn child_agents_path(&self) -> PathBuf {
+    self.project_dir.join(".github").join("AGENTS.md")
+  }
+
+  fn overwrite_agents_enabled(&self, enabled: bool) {
+    let workspace_dir = self.project_dir.parent().unwrap_or(&self.project_dir);
+    write_config(&self.temp_home, workspace_dir, enabled);
   }
 }
 
-impl Drop for GlobalConfigGuard {
-  fn drop(&mut self) {
-    match &self.original_content {
-      Some(content) => {
-        let _ = fs::write(&self.config_path, content);
+fn write_config(temp_home: &Path, workspace_dir: &Path, agents_enabled: bool) {
+  fs::write(
+    temp_home.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": agents_enabled,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "claudeCode": false,
+        "codex": false,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "opencode": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false
       }
-      None => {
-        let _ = fs::remove_file(&self.config_path);
-      }
-    }
-  }
+    })
+    .to_string(),
+  )
+  .unwrap();
 }
 
 #[test]
 fn local_agents_md_install_generates_project_agents_md() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedAgentsFixture::new(true);
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  let clean = fixture.clean();
+  clean.assert_success("isolated tnmsc clean before install");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  let install = fixture.install();
+  install.assert_success("isolated tnmsc install");
 
   assert!(
-    runner.agents_md_project_file_exists(),
-    "~/workspace/memory-sync/AGENTS.md should be generated after install"
+    fixture.project_agents_path().is_file(),
+    "project AGENTS.md should be generated after install"
   );
-
-  let content = runner
-    .read_agents_md_project_file()
-    .expect("AGENTS.md should be readable");
-  assert!(!content.is_empty(), "AGENTS.md should not be empty");
-
   assert!(
-    runner.agents_md_child_file_exists(".github"),
-    "~/workspace/memory-sync/.github/AGENTS.md should be generated after install"
+    fixture.child_agents_path().is_file(),
+    "child .github/AGENTS.md should be generated after install"
   );
-
-  let child_content = runner
-    .read_agents_md_child_file(".github")
-    .expect(".github/AGENTS.md should be readable");
   assert!(
-    !child_content.is_empty(),
-    ".github/AGENTS.md should not be empty"
+    !fs::read_to_string(fixture.project_agents_path())
+      .unwrap()
+      .trim()
+      .is_empty(),
+    "project AGENTS.md should not be empty"
+  );
+  assert!(
+    !fs::read_to_string(fixture.child_agents_path())
+      .unwrap()
+      .trim()
+      .is_empty(),
+    "child .github/AGENTS.md should not be empty"
   );
 }
 
 #[test]
 fn local_agents_md_content_matches_aindex_source() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedAgentsFixture::new(true);
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
+  fixture.install().assert_success("isolated tnmsc install");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let aindex_content = runner
-    .read_aindex_file("app/memory-sync/agt.mdx")
-    .expect("aindex source agt.mdx should be readable");
-
-  let generated_content = runner
-    .read_agents_md_project_file()
-    .expect("AGENTS.md should be readable after install");
+  let aindex_content = fs::read_to_string(fixture.aindex_project_dir.join("agt.mdx")).unwrap();
+  let generated_content = fs::read_to_string(fixture.project_agents_path()).unwrap();
 
   assert_eq!(
     aindex_content.trim(),
@@ -128,22 +173,16 @@ fn local_agents_md_content_matches_aindex_source() {
 
 #[test]
 fn local_agents_md_child_content_matches_aindex_source() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedAgentsFixture::new(true);
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
+  fixture.install().assert_success("isolated tnmsc install");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  let aindex_child_content = runner
-    .read_aindex_file("app/memory-sync/.github/agt.mdx")
-    .expect("aindex source .github/agt.mdx should be readable");
-
-  let generated_child_content = runner
-    .read_agents_md_child_file(".github")
-    .expect(".github/AGENTS.md should be readable after install");
+  let aindex_child_content =
+    fs::read_to_string(fixture.aindex_project_dir.join(".github").join("agt.mdx")).unwrap();
+  let generated_child_content = fs::read_to_string(fixture.child_agents_path()).unwrap();
 
   assert_eq!(
     aindex_child_content.trim(),
@@ -154,121 +193,79 @@ fn local_agents_md_child_content_matches_aindex_source() {
 
 #[test]
 fn local_agents_md_clean_removes_files() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedAgentsFixture::new(true);
 
-  let install = runner.install();
-  install.assert_success("tnmsc install before clean");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install before clean");
+  assert!(fixture.project_agents_path().is_file());
+  assert!(fixture.child_agents_path().is_file());
+
+  fixture.clean().assert_success("isolated tnmsc clean");
 
   assert!(
-    runner.agents_md_project_file_exists(),
-    "AGENTS.md should exist after install"
+    !fixture.project_agents_path().exists(),
+    "project AGENTS.md should be removed after clean"
   );
   assert!(
-    runner.agents_md_child_file_exists(".github"),
-    ".github/AGENTS.md should exist after install"
-  );
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean");
-
-  assert!(
-    !runner.agents_md_project_file_exists(),
-    "AGENTS.md should be removed after clean"
-  );
-  assert!(
-    !runner.agents_md_child_file_exists(".github"),
-    ".github/AGENTS.md should be removed after clean"
+    !fixture.child_agents_path().exists(),
+    "child .github/AGENTS.md should be removed after clean"
   );
 }
 
 #[test]
 fn local_agents_md_disabled_by_config() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedAgentsFixture::new(false);
 
-  // 手动清除可能由前面测试遗留的 AGENTS.md 文件。
-  // 当 agents_md 被禁用时，clean 服务不会生成对应的 cleanup target，
-  // 因此无法依赖 tnmsc clean 来清理这些文件。
-  fn remove_all_agents_md(dir: &std::path::Path) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-      return;
-    };
-    for entry in entries.flatten() {
-      let path = entry.path();
-      let Ok(ft) = entry.file_type() else { continue };
-      if ft.is_dir() {
-        if let Some(name) = path.file_name() {
-          let name = name.to_string_lossy();
-          if name == ".git" || name == "node_modules" || name == "target" {
-            continue;
-          }
-        }
-        if path.join("AGENTS.md").is_file() {
-          let _ = std::fs::remove_file(path.join("AGENTS.md"));
-        }
-        remove_all_agents_md(&path);
-      }
-    }
-  }
-  if runner.cwd().join("AGENTS.md").is_file() {
-    let _ = std::fs::remove_file(runner.cwd().join("AGENTS.md"));
-  }
-  remove_all_agents_md(runner.cwd());
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before disabled install");
 
-  let _guard = GlobalConfigGuard::with_agents_md_disabled();
-
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  let install = fixture.install();
+  install.assert_success("isolated tnmsc install with agentsMd disabled");
 
   assert!(
-    !runner.agents_md_project_file_exists(),
-    "AGENTS.md should NOT be generated when agents_md is disabled"
+    !fixture.project_agents_path().exists(),
+    "project AGENTS.md should not be generated when agentsMd is disabled"
   );
   assert!(
-    !runner.agents_md_child_file_exists(".github"),
-    ".github/AGENTS.md should NOT be generated when agents_md is disabled"
+    !fixture.child_agents_path().exists(),
+    "child .github/AGENTS.md should not be generated when agentsMd is disabled"
   );
 }
 
-/// 回归测试：clean 必须始终清理所有插件生成的文件，即使该插件当前已被禁用。
-///
-/// 设计原因：用户可能在禁用某个插件之前已经运行过 install，导致该插件生成的文件
-/// 仍然残留在项目中。如果 clean 也跟随插件开关，则这些残留文件将永远无法被自动
-/// 清理。因此 clean 行为不受插件开关控制，install 行为才受插件开关控制。
 #[test]
 fn local_agents_md_clean_always_removes_files_even_when_disabled() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedAgentsFixture::new(true);
 
-  // Step 1: 在默认配置下（agents_md 启用）install，生成 AGENTS.md
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
+  fixture
+    .install()
+    .assert_success("isolated tnmsc install with agentsMd enabled");
 
   assert!(
-    runner.agents_md_project_file_exists(),
-    "AGENTS.md should exist after install with agents_md enabled"
-  );
-
-  // Step 2: 临时禁用 agents_md，然后执行 clean
-  let _guard = GlobalConfigGuard::with_agents_md_disabled();
-
-  let clean_disabled = runner.clean();
-  clean_disabled.assert_success("tnmsc clean with agents_md disabled");
-
-  // Step 3: 断言 AGENTS.md 已被清理，即使 agents_md 当前被禁用
-  assert!(
-    !runner.agents_md_project_file_exists(),
-    "AGENTS.md should be removed by clean even when agents_md is disabled"
+    fixture.project_agents_path().is_file(),
+    "project AGENTS.md should exist after install with agentsMd enabled"
   );
   assert!(
-    !runner.agents_md_child_file_exists(".github"),
-    ".github/AGENTS.md should be removed by clean even when agents_md is disabled"
+    fixture.child_agents_path().is_file(),
+    "child .github/AGENTS.md should exist after install with agentsMd enabled"
+  );
+
+  fixture.overwrite_agents_enabled(false);
+
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean with agentsMd disabled");
+
+  assert!(
+    !fixture.project_agents_path().exists(),
+    "project AGENTS.md should be removed by clean even when agentsMd is disabled"
+  );
+  assert!(
+    !fixture.child_agents_path().exists(),
+    "child .github/AGENTS.md should be removed by clean even when agentsMd is disabled"
   );
 }

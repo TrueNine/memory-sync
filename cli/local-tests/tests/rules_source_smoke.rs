@@ -1,21 +1,148 @@
-//! 本地裸机规则源文件格式回归测试。
+//! 隔离规则源文件格式回归测试。
 //!
-//! **核心设计断言**：aindex 中的规则源文件（*.src.mdx）的 export default 中
-//! 必须使用 `globs` 字段来描述匹配模式，而非 `paths`。
-//! SDK 负责在输出时将 `globs` 转换为 `paths`，源文件本身不应对外暴露 `paths`。
+//! 核心断言：
+//! 1. aindex 规则源文件使用 `globs`，不直接暴露 `paths`
+//! 2. SDK 在输出阶段会把 `globs` 转成下游规则文件中的 `paths`
 
 use serde_json::Value;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tnmsc_local_tests::LocalTestRunner;
+
+struct IsolatedRulesFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  project_dir: PathBuf,
+  aindex_dir: PathBuf,
+}
+
+impl IsolatedRulesFixture {
+  fn new() -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-rules-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let temp_home = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let project_dir = workspace_dir.join("memory-sync");
+    let aindex_dir = workspace_dir.join("aindex");
+    let rules_dir = aindex_dir.join("rules").join("qa");
+    let aindex_project_dir = aindex_dir.join("app").join("memory-sync");
+
+    fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+    fs::create_dir_all(&project_dir).unwrap();
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(&aindex_project_dir).unwrap();
+
+    // issue local-tests-rules-isolation: rules smoke tests must validate
+    // globs-to-paths conversion in a self-owned fixture instead of the host workspace.
+    write_rules_config(&temp_home, &workspace_dir);
+    write_rules_prompt_sources(&aindex_dir, &aindex_project_dir);
+
+    Self {
+      runner: LocalTestRunner::with_cwd(&project_dir),
+      temp_home,
+      project_dir,
+      aindex_dir,
+    }
+  }
+
+  fn env_home(&self) -> String {
+    self.temp_home.to_string_lossy().into_owned()
+  }
+
+  fn run(&self, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.env_home();
+    self
+      .runner
+      .run_at_with_env(&self.project_dir, args, &[("HOME", &temp_home)])
+  }
+
+  fn clean(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["clean"])
+  }
+
+  fn install(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["install"])
+  }
+}
+
+fn write_rules_config(temp_home: &Path, workspace_dir: &Path) {
+  fs::write(
+    temp_home.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": false,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "claudeCode": true,
+        "codex": false,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "opencode": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false
+      }
+    })
+    .to_string(),
+  )
+  .unwrap();
+}
+
+fn write_rules_prompt_sources(aindex_dir: &Path, aindex_project_dir: &Path) {
+  fs::write(
+    aindex_dir.join("global.mdx"),
+    "# Global memory\n\nRules fixture global memory\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("workspace.mdx"),
+    "# Workspace memory\n\nRules fixture workspace memory\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("workspace.src.mdx"),
+    "# Workspace memory\n\nRules fixture workspace memory\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join("agt.mdx"),
+    "# Project rules memory\n\nProject rule instructions\n",
+  )
+  .unwrap();
+
+  fs::write(
+    aindex_dir.join("rules").join("qa").join("boot.src.mdx"),
+    "export default {\n  description: 'QA boot rule source',\n  globs: ['**/*.rs', '**/*.toml'],\n  scope: 'project',\n}\n\n# Rule source\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_dir.join("rules").join("qa").join("boot.mdx"),
+    "export default {\n  description: 'QA boot rule source',\n  globs: ['**/*.rs', '**/*.toml'],\n  scope: 'project',\n}\n\n# Rule source\n",
+  )
+  .unwrap();
+}
 
 /// 从文件内容中提取 export default { ... } 的对象字面体字符串。
 fn extract_export_default_object(content: &str) -> Option<String> {
   let prefix_index = content.find("export default")?;
   let mut object_start = prefix_index + "export default".len();
 
-  // 跳过 export default 后面的空白字符
   while let Some(ch) = content[object_start..].chars().next() {
     if !ch.is_whitespace() {
       break;
@@ -23,12 +150,10 @@ fn extract_export_default_object(content: &str) -> Option<String> {
     object_start += ch.len_utf8();
   }
 
-  // 必须以 '{' 开头
   if content[object_start..].chars().next()? != '{' {
     return None;
   }
 
-  // 用括号深度匹配提取对象字面体
   let mut depth = 0usize;
   let mut in_string: Option<char> = None;
   let mut escaped = false;
@@ -70,15 +195,9 @@ fn extract_export_default_object(content: &str) -> Option<String> {
     }
 
     match ch {
-      '"' | '\'' | '`' => {
-        in_string = Some(ch);
-      }
-      '/' if next == Some('/') => {
-        in_line_comment = true;
-      }
-      '/' if next == Some('*') => {
-        in_block_comment = true;
-      }
+      '"' | '\'' | '`' => in_string = Some(ch),
+      '/' if next == Some('/') => in_line_comment = true,
+      '/' if next == Some('*') => in_block_comment = true,
       '{' => depth += 1,
       '}' => {
         depth = depth.saturating_sub(1);
@@ -94,23 +213,22 @@ fn extract_export_default_object(content: &str) -> Option<String> {
   None
 }
 
-/// 递归收集指定目录下的所有 .src.mdx 文件。
-fn collect_src_mdx_files(dir: &Path) -> Vec<std::path::PathBuf> {
+fn collect_src_mdx_files(dir: &Path) -> Vec<PathBuf> {
   let mut files = Vec::new();
   let Ok(entries) = fs::read_dir(dir) else {
     return files;
   };
   for entry in entries.flatten() {
     let path = entry.path();
-    let Ok(ft) = entry.file_type() else {
+    let Ok(file_type) = entry.file_type() else {
       continue;
     };
-    if ft.is_dir() {
+    if file_type.is_dir() {
       files.extend(collect_src_mdx_files(&path));
-    } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-      if name.ends_with(".src.mdx") {
-        files.push(path);
-      }
+    } else if let Some(name) = path.file_name().and_then(|name| name.to_str())
+      && name.ends_with(".src.mdx")
+    {
+      files.push(path);
     }
   }
   files
@@ -118,31 +236,19 @@ fn collect_src_mdx_files(dir: &Path) -> Vec<std::path::PathBuf> {
 
 #[test]
 fn local_rules_src_mdx_uses_globs_not_paths() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
-
-  let aindex_dir = runner
-    .resolve_aindex_dir()
-    .expect("aindex dir should be resolvable");
-  let rules_dir = aindex_dir.join("rules");
-
-  assert!(
-    rules_dir.is_dir(),
-    "aindex/rules/ directory should exist: {}",
-    rules_dir.display()
-  );
+  let fixture = IsolatedRulesFixture::new();
+  let rules_dir = fixture.aindex_dir.join("rules");
 
   let src_files = collect_src_mdx_files(&rules_dir);
   assert!(
     !src_files.is_empty(),
-    "aindex/rules/ should contain at least one .src.mdx file"
+    "aindex/rules should contain at least one .src.mdx file"
   );
 
   let mut failures = Vec::new();
 
   for file_path in &src_files {
     let content = fs::read_to_string(file_path).expect("should read rule source file");
-
     let Some(object_literal) = extract_export_default_object(&content) else {
       failures.push(format!(
         "  - {}: missing export default {{ ... }}",
@@ -151,7 +257,6 @@ fn local_rules_src_mdx_uses_globs_not_paths() {
       continue;
     };
 
-    // 使用 json5 解析对象字面体
     let parsed: Result<serde_json::Value, _> = json5::from_str(&object_literal);
     let Ok(Value::Object(map)) = parsed else {
       failures.push(format!(
@@ -162,10 +267,10 @@ fn local_rules_src_mdx_uses_globs_not_paths() {
       continue;
     };
 
-    // 断言必须包含 globs 字段
-    let has_globs = map.get("globs").is_some_and(|v| {
-      v.as_array()
-        .is_some_and(|a| !a.is_empty() && a.iter().all(|v| v.is_string()))
+    let has_globs = map.get("globs").is_some_and(|value| {
+      value
+        .as_array()
+        .is_some_and(|items| !items.is_empty() && items.iter().all(|item| item.is_string()))
     });
     if !has_globs {
       failures.push(format!(
@@ -174,10 +279,9 @@ fn local_rules_src_mdx_uses_globs_not_paths() {
       ));
     }
 
-    // 断言不能包含 paths 字段
     if map.contains_key("paths") {
       failures.push(format!(
-        "  - {}: must NOT contain 'paths' field (use 'globs' instead)",
+        "  - {}: must not contain 'paths' field (use 'globs' instead)",
         file_path.display()
       ));
     }
@@ -194,46 +298,37 @@ fn local_rules_src_mdx_uses_globs_not_paths() {
 
 #[test]
 fn local_rules_globs_converted_to_paths_in_output() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedRulesFixture::new();
 
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before rules install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should surface protected workspace CLAUDE.md");
 
-  let install = runner.install();
-  install.assert_success("tnmsc install");
+  let rules_dir = fixture.project_dir.join(".claude").join("rules");
+  assert!(
+    rules_dir.is_dir(),
+    "project .claude/rules should exist after install"
+  );
 
-  // 读取生成的规则文件，验证输出中使用的是 paths 而非 globs
-  // Claude Code 插件生成 .claude/rules/*.md
-  let rules_dir = runner.cwd().join(".claude").join("rules");
-  if !rules_dir.is_dir() {
-    // 如果项目没有匹配的规则，跳过此测试
-    return;
-  }
-
-  let mut rule_files = Vec::new();
-  let Ok(entries) = fs::read_dir(&rules_dir) else {
-    return;
-  };
-  for entry in entries.flatten() {
-    let path = entry.path();
-    if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("md") {
-      rule_files.push(path);
-    }
-  }
-
-  if rule_files.is_empty() {
-    return;
-  }
+  let rule_files: Vec<_> = fs::read_dir(&rules_dir)
+    .unwrap()
+    .flatten()
+    .map(|entry| entry.path())
+    .filter(|path| path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("md"))
+    .collect();
+  assert!(
+    !rule_files.is_empty(),
+    "project .claude/rules should contain at least one generated rule file"
+  );
 
   let mut failures = Vec::new();
 
   for file_path in &rule_files {
     let content = fs::read_to_string(file_path).expect("should read generated rule file");
-
-    // 检查 YAML front matter 中是否包含 paths
     let has_paths = content.contains("paths:");
-    // 检查是否错误地保留了 globs
     let has_globs = content.contains("globs:");
 
     if !has_paths {
@@ -243,8 +338,10 @@ fn local_rules_globs_converted_to_paths_in_output() {
       ));
     }
     if has_globs {
+      // issue #383: generated downstream rule files must expose `paths`, not
+      // raw `globs`, so consumers only see the normalized schema.
       failures.push(format!(
-        "  - {}: must NOT contain 'globs' in output (should be converted to 'paths')",
+        "  - {}: must not contain 'globs' in output (should be converted to 'paths')",
         file_path.display()
       ));
     }

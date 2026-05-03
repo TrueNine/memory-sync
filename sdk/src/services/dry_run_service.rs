@@ -94,10 +94,10 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
 
   for file in planned_outputs.values() {
     let path = Path::new(&file.path);
-    if let Some(parent) = path.parent() {
-      if !parent.exists() {
-        dirs_affected += crate::services::common::count_missing_directories(parent);
-      }
+    if let Some(parent) = path.parent()
+      && !parent.exists()
+    {
+      dirs_affected += crate::services::common::count_missing_directories(parent);
     }
     files_affected += 1;
   }

@@ -77,6 +77,20 @@ fn build_output_files(
           encoding: None,
         });
       }
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        // Fixes #380: Windsurf needs nested .windsurfrules files for child memory prompts.
+        for child_prompt in child_prompts {
+          output_files.push(BaseOutputFileDeclarationDto {
+            path: resolve_relative_path(&child_prompt.dir)
+              .join(WINDSURF_MEMORY_FILE)
+              .to_string_lossy()
+              .into_owned(),
+            scope: Some(PROJECT_SCOPE.to_string()),
+            content: child_prompt.content.clone(),
+            encoding: None,
+          });
+        }
+      }
     }
   }
   output_files

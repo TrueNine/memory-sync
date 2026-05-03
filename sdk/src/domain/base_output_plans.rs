@@ -378,9 +378,7 @@ fn resolve_project_root_dir(workspace: &Workspace, project: &Project) -> Option<
 
 fn resolve_relative_path(relative_path: &RelativePath) -> PathBuf {
   let raw_path = Path::new(&relative_path.path);
-  let candidate = if raw_path.is_absolute() {
-    raw_path.to_path_buf()
-  } else if relative_path.base_path.is_empty() {
+  let candidate = if raw_path.is_absolute() || relative_path.base_path.is_empty() {
     raw_path.to_path_buf()
   } else {
     PathBuf::from(&relative_path.base_path).join(raw_path)
@@ -532,7 +530,7 @@ fn sanitize_git_exclude_content(content: &str) -> String {
       if trimmed.is_empty() {
         return true;
       }
-      !(trimmed.starts_with('#') && !trimmed.starts_with("\\#"))
+      !trimmed.starts_with('#') || trimmed.starts_with("\\#")
     })
     .collect::<Vec<_>>()
     .join("\n");

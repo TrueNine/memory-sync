@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -9,7 +9,9 @@ use crate::domain::plugin_shared::{
   FilePathKind, McpServerConfig, PromptKind, RelativePath, SkillChildDoc, SkillMcpConfig,
   SkillPrompt, SkillResource, SkillResourceEncoding, SkillYAMLFrontMatter,
 };
-use crate::repositories::prompt_artifact::read_prompt_artifact;
+use crate::repositories::prompt_artifact::{
+  assert_no_residual_module_syntax, read_prompt_artifact,
+};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +19,20 @@ struct SkillInputOptions {
   workspace_dir: String,
   #[serde(default)]
   global_scope: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CollectedSkillDir {
+  category_name: Option<String>,
+  skill_name: String,
+  skill_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+struct CategoryDescriptionFiles {
+  description: Option<String>,
+  source_path: Option<PathBuf>,
+  compiled_path: Option<PathBuf>,
 }
 
 fn transform_mdx_references_to_md(content: &str) -> String {
@@ -38,52 +54,17 @@ fn transform_mdx_references_to_md(content: &str) -> String {
   .into_owned()
 }
 
-fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<(), String> {
-  let code_fence_pattern = regex_lite::Regex::new(r"^\s*(```|~~~)").unwrap();
-  let residual_patterns = [
-    regex_lite::Regex::new(r"^\s*export\s+default\b").unwrap(),
-    regex_lite::Regex::new(r"^\s*export\s+const\b").unwrap(),
-    regex_lite::Regex::new(r"^\s*import\b").unwrap(),
-  ];
-  let mut active_fence: Option<&str> = None;
-  for (index, line) in content.lines().enumerate() {
-    if let Some(caps) = code_fence_pattern.captures(line) {
-      let marker = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-      if active_fence.is_none() {
-        active_fence = Some(marker);
-      } else if active_fence == Some(marker) {
-        active_fence = None;
-      }
-      continue;
-    }
-    if active_fence.is_some() {
-      continue;
-    }
-    for pat in &residual_patterns {
-      if pat.is_match(line) {
-        return Err(format!(
-          "Compiled prompt still contains residual module syntax at {}:{}: {}",
-          file_path,
-          index + 1,
-          line.trim()
-        ));
-      }
-    }
-  }
-  Ok(())
-}
-
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   let front_matter_regex =
     regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
-  if let Some(re) = front_matter_regex {
-    if let Some(caps) = re.captures(raw_mdx) {
-      let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
-      let yaml_json = raw_fm
-        .as_deref()
-        .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
-      return (yaml_json, raw_fm);
-    }
+  if let Some(re) = front_matter_regex
+    && let Some(caps) = re.captures(raw_mdx)
+  {
+    let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
+    let yaml_json = raw_fm
+      .as_deref()
+      .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
+    return (yaml_json, raw_fm);
   }
   (None, None)
 }
@@ -99,65 +80,129 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
 
   let description_regex =
     regex_lite::Regex::new(r#"description\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = description_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert(
-        "description".to_string(),
-        Value::String(m.as_str().to_string()),
-      );
-    }
+  if let Some(caps) = description_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert(
+      "description".to_string(),
+      Value::String(m.as_str().to_string()),
+    );
   }
 
   let name_regex = regex_lite::Regex::new(r#"name\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = name_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert("name".to_string(), Value::String(m.as_str().to_string()));
-    }
+  if let Some(caps) = name_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert("name".to_string(), Value::String(m.as_str().to_string()));
   }
 
   let display_name_regex =
     regex_lite::Regex::new(r#"displayName\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = display_name_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert(
-        "displayName".to_string(),
-        Value::String(m.as_str().to_string()),
-      );
-    }
+  if let Some(caps) = display_name_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert(
+      "displayName".to_string(),
+      Value::String(m.as_str().to_string()),
+    );
   }
 
   let keywords_regex = regex_lite::Regex::new(r"keywords\s*:\s*\[([^\]]+)\]").unwrap();
-  if let Some(caps) = keywords_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      let keywords: Vec<Value> = m
-        .as_str()
-        .split(',')
-        .map(|k| {
-          k.trim()
-            .trim_matches(|c: char| c == '"' || c == '\'' || c == '`')
-        })
-        .filter(|k| !k.is_empty())
-        .map(|k| Value::String(k.to_string()))
-        .collect();
-      metadata.insert("keywords".to_string(), Value::Array(keywords));
-    }
+  if let Some(caps) = keywords_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    let keywords: Vec<Value> = m
+      .as_str()
+      .split(',')
+      .map(|k| {
+        k.trim()
+          .trim_matches(|c: char| c == '"' || c == '\'' || c == '`')
+      })
+      .filter(|k| !k.is_empty())
+      .map(|k| Value::String(k.to_string()))
+      .collect();
+    metadata.insert("keywords".to_string(), Value::Array(keywords));
   }
 
   let author_regex = regex_lite::Regex::new(r#"author\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = author_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert("author".to_string(), Value::String(m.as_str().to_string()));
-    }
+  if let Some(caps) = author_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert("author".to_string(), Value::String(m.as_str().to_string()));
   }
 
   let version_regex = regex_lite::Regex::new(r#"version\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = version_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert("version".to_string(), Value::String(m.as_str().to_string()));
-    }
+  if let Some(caps) = version_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert("version".to_string(), Value::String(m.as_str().to_string()));
   }
 
   Value::Object(metadata)
+}
+
+fn extract_description_from_exports(content: &str) -> Option<String> {
+  let default_description_regex =
+    regex_lite::Regex::new(r#"description\s*:\s*['"`]([^'"`]+)['"`]"#).ok()?;
+
+  let export_default_regex = regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").ok()?;
+  if let Some(caps) = export_default_regex.captures(content)
+    && let Some(object_content) = caps.get(1)
+    && let Some(desc_caps) = default_description_regex.captures(object_content.as_str())
+    && let Some(description) = desc_caps.get(1)
+  {
+    return Some(description.as_str().trim().to_string());
+  }
+
+  let named_export_regex =
+    regex_lite::Regex::new(r#"export\s+(?:const|let)\s+description\s*=\s*['"`]([^'"`]+)['"`]"#)
+      .ok()?;
+  named_export_regex
+    .captures(content)
+    .and_then(|caps| caps.get(1))
+    .map(|description| description.as_str().trim().to_string())
+}
+
+fn strip_leading_front_matter(content: &str) -> &str {
+  let front_matter_regex =
+    regex_lite::Regex::new(r"(?s)^---\r?\n.*?\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
+  if let Some(re) = front_matter_regex
+    && let Some(matched) = re.find(content)
+  {
+    return &content[matched.end()..];
+  }
+  content
+}
+
+fn strip_leading_export_statements(content: &str) -> String {
+  let export_default_regex =
+    regex_lite::Regex::new(r"(?s)^\s*export\s+default\s*\{[\s\S]*?\}\s*;?\s*").ok();
+  let named_export_regex = regex_lite::Regex::new(
+    r#"(?m)^\s*export\s+(?:const|let)\s+description\s*=\s*['"`][^'"`]+['"`]\s*;?\s*$\n?"#,
+  )
+  .ok();
+
+  let without_default = if let Some(re) = export_default_regex {
+    re.replace(content, "").into_owned()
+  } else {
+    content.to_string()
+  };
+
+  if let Some(re) = named_export_regex {
+    return re.replace_all(&without_default, "").into_owned();
+  }
+
+  without_default
+}
+
+fn extract_description_from_markdown_body(content: &str) -> Option<String> {
+  let without_front_matter = strip_leading_front_matter(content);
+  let without_exports = strip_leading_export_statements(without_front_matter);
+  let body = without_exports.trim();
+  if body.is_empty() {
+    return None;
+  }
+  Some(body.to_string())
 }
 
 fn merge_defined_skill_metadata(sources: &[Option<Value>]) -> Value {
@@ -172,6 +217,50 @@ fn merge_defined_skill_metadata(sources: &[Option<Value>]) -> Value {
     }
   }
   Value::Object(merged)
+}
+
+fn read_category_description_files(
+  category_dir: &Path,
+) -> Result<Option<CategoryDescriptionFiles>, crate::CliError> {
+  let source_path = category_dir.join("desc.src.mdx");
+  let compiled_path = category_dir.join("desc.mdx");
+  let has_source = source_path.is_file();
+  let has_compiled = compiled_path.is_file();
+
+  if has_source && !has_compiled {
+    return Err(crate::CliError::ConfigError(format!(
+      "Missing compiled prompt for category description \"{}\". source: {} expected compiled: {}",
+      category_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default(),
+      source_path.to_string_lossy(),
+      compiled_path.to_string_lossy()
+    )));
+  }
+
+  if !has_source && !has_compiled {
+    return Ok(None);
+  }
+
+  let preferred_path = if has_source {
+    &source_path
+  } else {
+    &compiled_path
+  };
+  let content = std::fs::read_to_string(preferred_path).map_err(crate::CliError::IoError)?;
+  let description = extract_description_from_exports(&content)
+    .or_else(|| extract_description_from_markdown_body(&content));
+
+  Ok(Some(CategoryDescriptionFiles {
+    description,
+    source_path: if has_source { Some(source_path) } else { None },
+    compiled_path: if has_compiled {
+      Some(compiled_path)
+    } else {
+      None
+    },
+  }))
 }
 
 const MIME_TYPES: &[(&str, &str)] = &[
@@ -292,13 +381,17 @@ fn scan_child_docs(
     let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
       continue;
     };
-    if file_name == "skill.mdx" || file_name.ends_with(".src.mdx") || !file_name.ends_with(".mdx") {
+    if file_name == "skill.mdx"
+      || file_name == "desc.mdx"
+      || file_name.ends_with(".src.mdx")
+      || !file_name.ends_with(".mdx")
+    {
       continue;
     }
 
     let file_path_str = path.to_string_lossy().into_owned();
     let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-      .map_err(|e| crate::CliError::ConfigError(e))?;
+      .map_err(crate::CliError::ConfigError)?;
     let compiled_content = transform_mdx_references_to_md(&artifact.content);
     assert_no_residual_module_syntax(&compiled_content, &file_path_str)
       .map_err(crate::CliError::ConfigError)?;
@@ -336,7 +429,6 @@ fn scan_child_docs(
 fn scan_resources(
   current_dir: &Path,
   root_src_dir: &Path,
-  skill_dir: &str,
 ) -> Result<Vec<SkillResource>, crate::CliError> {
   let mut resources = Vec::new();
   let entries = match std::fs::read_dir(current_dir) {
@@ -347,7 +439,7 @@ fn scan_resources(
   for entry in entries.flatten() {
     let path = entry.path();
     if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-      resources.extend(scan_resources(&path, root_src_dir, skill_dir)?);
+      resources.extend(scan_resources(&path, root_src_dir)?);
       continue;
     }
     let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
@@ -405,7 +497,8 @@ fn collect_expected_child_doc_paths(
     if !file_name.ends_with(".src.mdx") {
       continue;
     }
-    if current_dir == skill_src_dir && file_name == "skill.src.mdx" {
+    if current_dir == skill_src_dir && (file_name == "skill.src.mdx" || file_name == "desc.src.mdx")
+    {
       continue;
     }
     let relative_path = path
@@ -435,8 +528,9 @@ fn assert_compiled_child_docs_exist(
     }
     let src_path = skill_src_dir.join(relative_path.replace(".mdx", ".src.mdx"));
     return Err(crate::CliError::ConfigError(format!(
-      "Missing compiled prompt for skill child doc \"{}\". source: {} expected compiled: {}",
-      format!("{}/{}", skill_name, relative_path),
+      "Missing compiled prompt for skill child doc \"{}/{}\". source: {} expected compiled: {}",
+      skill_name,
+      relative_path,
       src_path.to_string_lossy(),
       compiled_path.to_string_lossy()
     )));
@@ -534,6 +628,7 @@ fn validate_skill_metadata(metadata: &Value, file_path: &str) -> Result<(), crat
 }
 
 fn create_skill_prompt(
+  category_name: Option<&str>,
   name: &str,
   skill_dir: &Path,
   global_scope_json: Option<&str>,
@@ -552,7 +647,7 @@ fn create_skill_prompt(
 
   let compiled_file_path_str = compiled_file_path.to_string_lossy().into_owned();
   let artifact = read_prompt_artifact(&compiled_file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   let raw_content = artifact.raw_mdx.clone();
   let content = transform_mdx_references_to_md(&artifact.content);
@@ -560,7 +655,7 @@ fn create_skill_prompt(
     .map_err(crate::CliError::ConfigError)?;
 
   let export_metadata = extract_skill_metadata_from_export(&raw_content);
-  let dist_metadata = Value::Object(artifact.metadata.into_iter().map(|(k, v)| (k, v)).collect());
+  let dist_metadata = Value::Object(artifact.metadata.into_iter().collect());
   let merged_metadata = merge_defined_skill_metadata(&[Some(export_metadata), Some(dist_metadata)]);
 
   let (yaml_front_matter, _raw_front_matter) = extract_front_matter(&raw_content);
@@ -603,13 +698,17 @@ fn create_skill_prompt(
 
   let length = content.len();
   let skill_dir_str = skill_dir.to_string_lossy().into_owned();
+  let skill_parent_dir = skill_dir
+    .parent()
+    .map(|path| path.to_string_lossy().into_owned())
+    .unwrap_or_default();
 
   let yaml_front_matter_typed: Option<SkillYAMLFrontMatter> =
     serde_json::from_value(final_front_matter.clone()).ok();
 
   let child_docs = scan_child_docs(skill_dir, skill_dir, &skill_dir_str, global_scope_json)?;
   let resources = if skill_dir.is_dir() {
-    scan_resources(skill_dir, skill_dir, &skill_dir_str)?
+    scan_resources(skill_dir, skill_dir)?
   } else {
     vec![]
   };
@@ -622,7 +721,8 @@ fn create_skill_prompt(
     content,
     length,
     skill_name: name.to_string(),
-    dir: RelativePath::new(name, &skill_dir_str),
+    category_name: category_name.map(str::to_string),
+    dir: RelativePath::new(name, &skill_parent_dir),
     yaml_front_matter: yaml_front_matter_typed,
     mcp_config,
     child_docs: if child_docs.is_empty() {
@@ -639,6 +739,93 @@ fn create_skill_prompt(
   })
 }
 
+fn collect_skill_directories(skills_dir: &Path) -> Result<Vec<CollectedSkillDir>, crate::CliError> {
+  let mut collected = Vec::new();
+  let entries = match std::fs::read_dir(skills_dir) {
+    Ok(entries) => entries,
+    Err(_) => return Ok(collected),
+  };
+
+  for entry in entries.flatten() {
+    if !entry
+      .file_type()
+      .map(|file_type| file_type.is_dir())
+      .unwrap_or(false)
+    {
+      continue;
+    }
+
+    let first_level_dir = entry.path();
+    let first_level_name = entry.file_name().to_string_lossy().into_owned();
+    let has_root_skill = first_level_dir.join("skill.mdx").is_file()
+      || first_level_dir.join("skill.src.mdx").is_file();
+
+    let mut nested_skill_dirs = Vec::new();
+    let nested_entries = std::fs::read_dir(&first_level_dir).map_err(crate::CliError::IoError)?;
+    for nested_entry in nested_entries.flatten() {
+      let nested_path = nested_entry.path();
+      if !nested_entry
+        .file_type()
+        .map(|file_type| file_type.is_dir())
+        .unwrap_or(false)
+      {
+        continue;
+      }
+      if !nested_path.join("skill.mdx").is_file() && !nested_path.join("skill.src.mdx").is_file() {
+        continue;
+      }
+      nested_skill_dirs.push(nested_entry);
+    }
+
+    if has_root_skill && !nested_skill_dirs.is_empty() {
+      return Err(crate::CliError::ConfigError(format!(
+        "Ambiguous skill layout in {}: directory cannot define both a root skill and nested categorized skills",
+        first_level_dir.to_string_lossy()
+      )));
+    }
+
+    if has_root_skill {
+      collected.push(CollectedSkillDir {
+        category_name: None,
+        skill_name: first_level_name,
+        skill_dir: first_level_dir,
+      });
+      continue;
+    }
+
+    if nested_skill_dirs.is_empty() {
+      continue;
+    }
+
+    if let Some(description_files) = read_category_description_files(&first_level_dir)? {
+      let _ = description_files.description.as_deref();
+      let _ = description_files.source_path.as_ref();
+      let _ = description_files.compiled_path.as_ref();
+    }
+
+    for nested_skill_dir in nested_skill_dirs {
+      let skill_name = nested_skill_dir.file_name().to_string_lossy().into_owned();
+      collected.push(CollectedSkillDir {
+        category_name: Some(first_level_name.clone()),
+        skill_name,
+        skill_dir: nested_skill_dir.path(),
+      });
+    }
+  }
+
+  collected.sort_by(|left, right| {
+    left
+      .category_name
+      .cmp(&right.category_name)
+      .then(left.skill_name.cmp(&right.skill_name))
+  });
+  collected.dedup_by(|left, right| {
+    left.category_name == right.category_name && left.skill_name == right.skill_name
+  });
+
+  Ok(collected)
+}
+
 pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
   let options: SkillInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
@@ -650,33 +837,23 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 
   let mut skills: Vec<SkillPrompt> = Vec::new();
+  let collected_skill_dirs = if skills_dir.is_dir() {
+    collect_skill_directories(&skills_dir)?
+  } else {
+    Vec::new()
+  };
 
-  let mut skill_names: Vec<String> = Vec::new();
-
-  if skills_dir.is_dir() {
-    if let Ok(entries) = std::fs::read_dir(&skills_dir) {
-      for entry in entries.flatten() {
-        if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-          skill_names.push(entry.file_name().to_string_lossy().into_owned());
-        }
-      }
-    }
-  }
-
-  if skill_names.is_empty() {
+  if collected_skill_dirs.is_empty() {
     return Ok("{\"skills\":[]}".to_string());
   }
 
-  skill_names.sort();
-  skill_names.dedup();
-
   let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
 
-  for skill_name in skill_names {
-    let skill_dir = skills_dir.join(&skill_name);
+  for collected_skill_dir in collected_skill_dirs {
     let prompt = create_skill_prompt(
-      &skill_name,
-      &skill_dir,
+      collected_skill_dir.category_name.as_deref(),
+      &collected_skill_dir.skill_name,
+      &collected_skill_dir.skill_dir,
       global_scope_json.as_deref(),
       &mut diagnostics,
     )?;
@@ -977,11 +1154,16 @@ mod tests {
 
     let result = collect_skill(&options.to_string());
     assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
     assert!(
-      result
-        .unwrap_err()
-        .to_string()
-        .contains("Missing compiled prompt")
+      err.contains("Missing compiled prompt for skill child doc"),
+      "expected detailed error message with path, got: {}",
+      err
+    );
+    assert!(
+      err.contains("guide.src.mdx"),
+      "expected source path in error: {}",
+      err
     );
   }
 
@@ -1003,11 +1185,16 @@ mod tests {
 
     let result = collect_skill(&options.to_string());
     assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
     assert!(
-      result
-        .unwrap_err()
-        .to_string()
-        .contains("Missing compiled prompt")
+      err.contains("Missing compiled prompt for skill"),
+      "expected detailed error message with path, got: {}",
+      err
+    );
+    assert!(
+      err.contains("skill.src.mdx"),
+      "expected source path in error: {}",
+      err
     );
   }
 
@@ -1074,6 +1261,307 @@ mod tests {
       diagnostics
         .iter()
         .any(|d| d["code"] == "SKILL_NAME_IGNORED")
+    );
+  }
+
+  #[test]
+  fn collect_skill_reads_categorized_skill_and_skips_category_desc_files() {
+    let tmp = TempDir::new().unwrap();
+    let category_dir = tmp.path().join("aindex").join("skills").join("tools");
+    let skill_dir = category_dir.join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
+
+    fs::write(
+      category_dir.join("desc.src.mdx"),
+      "---\n---\nexport const description = \"Tooling category\"\n\n# Tools",
+    )
+    .unwrap();
+    fs::write(category_dir.join("desc.mdx"), "# Tools").unwrap();
+    fs::write(
+      skill_dir.join("skill.src.mdx"),
+      "---\ndescription: src skill\n---\nSkill source",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("guide.src.mdx"),
+      "---\ndescription: src guide\n---\nGuide source",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nSkill compiled",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("guide.mdx"),
+      "---\ndescription: compiled guide\n---\nGuide compiled",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let skill = &parsed["skills"][0];
+
+    assert_eq!(skill["categoryName"], "tools");
+    assert_eq!(skill["skillName"], "demo");
+    assert_eq!(skill["dir"]["path"], "demo");
+    assert!(
+      skill["dir"]["basePath"]
+        .as_str()
+        .unwrap()
+        .replace('\\', "/")
+        .ends_with("/aindex/skills/tools")
+    );
+
+    let child_paths: Vec<String> = skill["childDocs"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|doc| doc["relativePath"].as_str().unwrap().to_string())
+      .collect();
+    assert_eq!(child_paths, vec!["guide.mdx"]);
+  }
+
+  #[test]
+  fn collect_skill_reads_all_nested_files_for_categorized_skill() {
+    let tmp = TempDir::new().unwrap();
+    let skill_dir = tmp
+      .path()
+      .join("aindex")
+      .join("skills")
+      .join("browser")
+      .join("agent-browser");
+    fs::create_dir_all(skill_dir.join("references")).unwrap();
+    fs::create_dir_all(skill_dir.join("templates")).unwrap();
+    fs::create_dir_all(skill_dir.join("assets")).unwrap();
+
+    fs::write(
+      skill_dir.join("skill.src.mdx"),
+      "---\ndescription: src skill\n---\nBrowser source",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nBrowser compiled",
+    )
+    .unwrap();
+
+    for name in ["linux-wsl", "authentication"] {
+      fs::write(
+        skill_dir.join("references").join(format!("{name}.src.mdx")),
+        format!("---\ndescription: {name}\n---\n{name} source"),
+      )
+      .unwrap();
+      fs::write(
+        skill_dir.join("references").join(format!("{name}.mdx")),
+        format!("---\ndescription: {name}\n---\n{name} compiled"),
+      )
+      .unwrap();
+    }
+
+    fs::write(
+      skill_dir.join("templates").join("capture-workflow.sh"),
+      "#!/usr/bin/env bash\necho capture\n",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("templates").join("authenticated-session.sh"),
+      "#!/usr/bin/env bash\necho auth\n",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("assets").join("logo.png"),
+      [0x89_u8, 0x50, 0x4E, 0x47],
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("mcp.json"),
+      r#"{"mcpServers":{"browser":{"command":"agent-browser"}}}"#,
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let skill = &parsed["skills"][0];
+
+    assert_eq!(skill["categoryName"], "browser");
+    assert_eq!(skill["skillName"], "agent-browser");
+
+    let child_paths: std::collections::HashSet<String> = skill["childDocs"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|doc| doc["relativePath"].as_str().unwrap().to_string())
+      .collect();
+    assert_eq!(
+      child_paths,
+      std::collections::HashSet::from([
+        "references/linux-wsl.mdx".to_string(),
+        "references/authentication.mdx".to_string(),
+      ])
+    );
+
+    let resource_paths: std::collections::HashSet<String> = skill["resources"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .map(|resource| resource["relativePath"].as_str().unwrap().to_string())
+      .collect();
+    assert_eq!(
+      resource_paths,
+      std::collections::HashSet::from([
+        "templates/capture-workflow.sh".to_string(),
+        "templates/authenticated-session.sh".to_string(),
+        "assets/logo.png".to_string(),
+      ])
+    );
+
+    let logo = skill["resources"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .find(|resource| resource["relativePath"] == "assets/logo.png")
+      .unwrap();
+    assert_eq!(logo["encoding"], "base64");
+    assert_eq!(
+      skill["mcpConfig"]["mcpServers"]["browser"]["command"],
+      "agent-browser"
+    );
+  }
+
+  #[test]
+  fn collect_skill_supports_legacy_and_categorized_layouts_together() {
+    let tmp = TempDir::new().unwrap();
+    let legacy_dir = tmp.path().join("aindex").join("skills").join("legacy");
+    let category_skill_dir = tmp
+      .path()
+      .join("aindex")
+      .join("skills")
+      .join("tools")
+      .join("demo");
+    fs::create_dir_all(&legacy_dir).unwrap();
+    fs::create_dir_all(&category_skill_dir).unwrap();
+
+    fs::write(
+      legacy_dir.join("skill.src.mdx"),
+      "---\ndescription: src legacy\n---\nLegacy source",
+    )
+    .unwrap();
+    fs::write(
+      legacy_dir.join("skill.mdx"),
+      "---\ndescription: compiled legacy\n---\nLegacy compiled",
+    )
+    .unwrap();
+    fs::write(
+      category_skill_dir.join("skill.src.mdx"),
+      "---\ndescription: src categorized\n---\nCategorized source",
+    )
+    .unwrap();
+    fs::write(
+      category_skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled categorized\n---\nCategorized compiled",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let skills = parsed["skills"].as_array().unwrap();
+
+    assert_eq!(skills.len(), 2);
+    assert_eq!(skills[0]["skillName"], "legacy");
+    assert!(skills[0]["categoryName"].is_null());
+    assert_eq!(skills[1]["categoryName"], "tools");
+    assert_eq!(skills[1]["skillName"], "demo");
+  }
+
+  #[test]
+  fn collect_skill_fails_on_ambiguous_mixed_skill_layout() {
+    let tmp = TempDir::new().unwrap();
+    let ambiguous_dir = tmp.path().join("aindex").join("skills").join("tools");
+    let nested_skill_dir = ambiguous_dir.join("demo");
+    fs::create_dir_all(&nested_skill_dir).unwrap();
+
+    fs::write(
+      ambiguous_dir.join("skill.src.mdx"),
+      "---\ndescription: src root skill\n---\nRoot source",
+    )
+    .unwrap();
+    fs::write(
+      ambiguous_dir.join("skill.mdx"),
+      "---\ndescription: compiled root skill\n---\nRoot compiled",
+    )
+    .unwrap();
+    fs::write(
+      nested_skill_dir.join("skill.src.mdx"),
+      "---\ndescription: src nested skill\n---\nNested source",
+    )
+    .unwrap();
+    fs::write(
+      nested_skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled nested skill\n---\nNested compiled",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string());
+    assert!(result.is_err());
+    assert!(
+      result
+        .unwrap_err()
+        .to_string()
+        .contains("Ambiguous skill layout")
+    );
+  }
+
+  #[test]
+  fn collect_skill_fails_missing_category_desc_dist() {
+    let tmp = TempDir::new().unwrap();
+    let category_dir = tmp.path().join("aindex").join("skills").join("tools");
+    let skill_dir = category_dir.join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
+
+    fs::write(
+      category_dir.join("desc.src.mdx"),
+      "export const description = \"Tooling category\"",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("skill.src.mdx"),
+      "---\ndescription: src categorized\n---\nCategorized source",
+    )
+    .unwrap();
+    fs::write(
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled categorized\n---\nCategorized compiled",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string());
+    assert!(result.is_err());
+    assert!(
+      result
+        .unwrap_err()
+        .to_string()
+        .contains("Missing compiled prompt for category description")
     );
   }
 }

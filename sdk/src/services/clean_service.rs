@@ -15,6 +15,9 @@ use crate::services::common::{
 };
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
+type CleanupOutputMap = HashMap<String, Vec<String>>;
+type CleanupDeclarationMap = HashMap<String, CleanupDeclarationsDto>;
+
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
   let logger = create_logger(
     "clean",
@@ -92,8 +95,8 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
 
   if options.dry_run.unwrap_or(false) {
     let plan_span = logger.span("cleanup.plan").enter();
-    let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
-      .map_err(|e| CliError::ExecutionError(e))?;
+    let plan =
+      crate::policy::cleanup::plan_cleanup(snapshot.clone()).map_err(CliError::ExecutionError)?;
     plan_span.exit();
 
     let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();
@@ -286,22 +289,16 @@ fn build_output_map(
   context: &crate::context::OutputContext,
   enabled_plugins: EnabledPlugins,
   logger: &Logger,
-) -> Result<
-  (
-    HashMap<String, Vec<String>>,
-    HashMap<String, CleanupDeclarationsDto>,
-  ),
-  CliError,
-> {
-  let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
-  let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+) -> Result<(CleanupOutputMap, CleanupDeclarationMap), CliError> {
+  let mut output_map: CleanupOutputMap = HashMap::new();
+  let mut cleanup_map: CleanupDeclarationMap = HashMap::new();
 
   let base_span = logger.span("output.build").enter();
   let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   for plan in &base_plans.plugins {
     cleanup_map
       .entry(plan.plugin_name.clone())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.is_enabled(plan.plugin_name.as_str()) {
@@ -399,7 +396,7 @@ fn build_output_map(
     }
   }
   if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
-    cleanup_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+    cleanup_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_default().delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.jetbrains {
       for file in &plan.output_files { output_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }

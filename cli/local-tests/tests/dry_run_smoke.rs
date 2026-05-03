@@ -4,6 +4,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that `tnmsc dry-run` reports what would be written but does NOT create
+/// any project files. The core safety guarantee of dry-run mode.
 #[test]
 fn local_dry_run_does_not_write_project_files() {
   let runner = LocalTestRunner::new();

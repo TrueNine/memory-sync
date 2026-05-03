@@ -30,7 +30,28 @@ const CODEX_GLOBAL_CONFIG_DIR: &str = ".codex";
 const CODEX_PROMPTS_DIR: &str = "prompts";
 const CODEX_AGENTS_DIR: &str = "agents";
 const CODEX_SKILLS_DIR: &str = "skills";
+const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
+
+fn resolve_skill_dir_name(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
+  if let Some(category_name) = skill.category_name.as_deref().map(str::trim)
+    && !category_name.is_empty()
+  {
+    return format!("{category_name}-{}", skill.skill_name);
+  }
+
+  skill.skill_name.clone()
+}
+
+fn build_skill_source_identifier(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
+  if let Some(category_name) = skill.category_name.as_deref().map(str::trim)
+    && !category_name.is_empty()
+  {
+    return format!("aindex/skills/{category_name}/{}", skill.skill_name);
+  }
+
+  format!("aindex/skills/{}", skill.skill_name)
+}
 
 pub fn collect_codex_output_plan(context_json: &str) -> Result<String, CliError> {
   let context = OutputContext::from_json(context_json)?;
@@ -59,7 +80,13 @@ fn build_output_files(
   context: &OutputContext,
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
+  let prompt_projects = get_project_prompt_output_projects(workspace);
   let project_output_projects = get_project_output_projects(workspace);
+  let agents_registered = context
+    .registered_output_plugins
+    .as_ref()
+    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
+    .unwrap_or(false);
 
   // Global ~/.codex/AGENTS.md (use raw content to match aindex/global.mdx)
   if let Some(global_memory) = context.global_memory.as_ref() {
@@ -80,8 +107,63 @@ fn build_output_files(
     });
   }
 
+  if agents_registered {
+    // Fixes #379: Codex project AGENTS.md files should switch to the
+    // dedicated global-memory payload when AgentsOutputAdaptor is active.
+    if let Some(global_memory) = context.global_memory.as_ref() {
+      for project in &prompt_projects {
+        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+          continue;
+        };
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: project_root_dir
+            .join(CODEX_INSTRUCTIONS_FILE)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: global_memory.content.clone(),
+          encoding: None,
+        });
+      }
+    }
+  } else {
+    let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
+    for project in &prompt_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+
+      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: project_root_dir
+            .join(CODEX_INSTRUCTIONS_FILE)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: combine_global_with_content(global_memory_content, &root_prompt.content),
+          encoding: None,
+        });
+      }
+
+      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+        // Fixes #380: Codex must emit nested AGENTS.md files for child memory prompts.
+        for child_prompt in child_prompts {
+          output_files.push(BaseOutputFileDeclarationDto {
+            path: resolve_relative_path(&child_prompt.dir)
+              .join(CODEX_INSTRUCTIONS_FILE)
+              .to_string_lossy()
+              .into_owned(),
+            scope: Some(PROJECT_SCOPE.to_string()),
+            content: child_prompt.content.clone(),
+            encoding: None,
+          });
+        }
+      }
+    }
+  }
+
   // Global ~/.codex/prompts/ (from commands)
-  if let Some(commands) = context.fast_commands.as_ref() {
+  if let Some(commands) = context.slash_commands.as_ref() {
     let codex_prompts_dir = resolve_effective_home_dir()
       .join(CODEX_GLOBAL_CONFIG_DIR)
       .join(CODEX_PROMPTS_DIR);
@@ -133,9 +215,8 @@ fn build_output_files(
         .join(CODEX_GLOBAL_CONFIG_DIR)
         .join(CODEX_SKILLS_DIR);
       for skill in skills {
-        let skill_sub_dir = codex_skills_dir.join(&skill.skill_name);
+        let skill_sub_dir = codex_skills_dir.join(resolve_skill_dir_name(skill));
 
-        // Main SKILL.md with YAML front matter
         output_files.push(BaseOutputFileDeclarationDto {
           path: skill_sub_dir
             .join("SKILL.md")
@@ -146,58 +227,7 @@ fn build_output_files(
           encoding: None,
         });
 
-        // Child docs
-        if let Some(child_docs) = skill.child_docs.as_ref() {
-          for child_doc in child_docs {
-            let child_path = child_doc
-              .relative_path
-              .replace(".mdx", ".md")
-              .replace(".src.md", ".md");
-            output_files.push(BaseOutputFileDeclarationDto {
-              path: skill_sub_dir
-                .join(&child_path)
-                .to_string_lossy()
-                .into_owned(),
-              scope: Some(PROJECT_SCOPE.to_string()),
-              content: child_doc.content.clone(),
-              encoding: None,
-            });
-          }
-        }
-
-        // Resources
-        if let Some(resources) = skill.resources.as_ref() {
-          for resource in resources {
-            let encoding = match resource.encoding {
-              crate::domain::plugin_shared::SkillResourceEncoding::Base64 => {
-                Some("base64".to_string())
-              }
-              crate::domain::plugin_shared::SkillResourceEncoding::Text => None,
-            };
-            output_files.push(BaseOutputFileDeclarationDto {
-              path: skill_sub_dir
-                .join(&resource.relative_path)
-                .to_string_lossy()
-                .into_owned(),
-              scope: Some(PROJECT_SCOPE.to_string()),
-              content: resource.content.clone(),
-              encoding,
-            });
-          }
-        }
-
-        // MCP config
-        if let Some(mcp_config) = skill.mcp_config.as_ref() {
-          output_files.push(BaseOutputFileDeclarationDto {
-            path: skill_sub_dir
-              .join("mcp.json")
-              .to_string_lossy()
-              .into_owned(),
-            scope: Some(PROJECT_SCOPE.to_string()),
-            content: mcp_config.raw_content.clone(),
-            encoding: None,
-          });
-        }
+        append_skill_supporting_files(&mut output_files, &skill_sub_dir, skill);
       }
     }
   }
@@ -253,7 +283,7 @@ fn build_agent_toml_content(agent: &crate::domain::plugin_shared::SubAgentPrompt
   })
 }
 
-fn build_command_content(command: &crate::domain::plugin_shared::FastCommandPrompt) -> String {
+fn build_command_content(command: &crate::domain::plugin_shared::SlashCommandPrompt) -> String {
   let metadata = if let Some(ref yaml_fm) = command.yaml_front_matter {
     match serde_json::to_value(yaml_fm) {
       Ok(serde_json::Value::Object(map)) => map,
@@ -278,8 +308,7 @@ fn build_command_content(command: &crate::domain::plugin_shared::FastCommandProm
     .into_iter()
     .filter(|(k, v)| {
       // Codex only supports description and argument-hint
-      !v.is_null()
-        && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+      !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
         && (k == "description" || k == "argument-hint")
     })
     .collect();
@@ -304,12 +333,16 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
   // Add skill source identifier
   metadata.insert(
     "skill".to_string(),
-    serde_json::Value::String(format!("aindex/skills/{}", skill.skill_name)),
+    serde_json::Value::String(build_skill_source_identifier(skill)),
+  );
+  metadata.insert(
+    "name".to_string(),
+    serde_json::Value::String(resolve_skill_dir_name(skill)),
   );
 
   // Filter out empty arrays and null values
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {
@@ -317,6 +350,65 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
   }
 
   wrap_yaml_front_matter(&metadata, &skill.content)
+}
+
+fn append_skill_supporting_files(
+  output_files: &mut Vec<BaseOutputFileDeclarationDto>,
+  skill_sub_dir: &std::path::Path,
+  skill: &crate::domain::plugin_shared::SkillPrompt,
+) {
+  if let Some(child_docs) = skill.child_docs.as_ref() {
+    for child_doc in child_docs {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: skill_sub_dir
+          .join(resolve_child_doc_output_relative_path(
+            &child_doc.relative_path,
+          ))
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: child_doc.content.clone(),
+        encoding: None,
+      });
+    }
+  }
+
+  if let Some(resources) = skill.resources.as_ref() {
+    for resource in resources {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: skill_sub_dir
+          .join(&resource.relative_path)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: resource.content.clone(),
+        encoding: match resource.encoding {
+          crate::domain::plugin_shared::SkillResourceEncoding::Base64 => Some("base64".to_string()),
+          crate::domain::plugin_shared::SkillResourceEncoding::Text => None,
+        },
+      });
+    }
+  }
+
+  if let Some(mcp_config) = skill.mcp_config.as_ref() {
+    output_files.push(BaseOutputFileDeclarationDto {
+      path: skill_sub_dir
+        .join("mcp.json")
+        .to_string_lossy()
+        .into_owned(),
+      scope: Some(PROJECT_SCOPE.to_string()),
+      content: mcp_config.raw_content.clone(),
+      encoding: None,
+    });
+  }
+}
+
+fn resolve_child_doc_output_relative_path(relative_path: &str) -> String {
+  if let Some(stripped) = relative_path.strip_suffix(".mdx") {
+    return format!("{stripped}.md");
+  }
+
+  relative_path.to_string()
 }
 
 fn wrap_yaml_front_matter(
@@ -444,6 +536,15 @@ fn camel_to_kebab(s: &str) -> String {
   result
 }
 
+fn combine_global_with_content(global_content: Option<&str>, project_content: &str) -> String {
+  match global_content {
+    Some(global) if !global.trim().is_empty() => {
+      format!("{}\n\n{}", global.trim(), project_content.trim())
+    }
+    _ => project_content.to_string(),
+  }
+}
+
 fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
   let mut delete = Vec::new();
 
@@ -481,6 +582,18 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       continue;
     };
 
+    delete.push(CleanupTargetDto {
+      path: project_root_dir
+        .join(CODEX_INSTRUCTIONS_FILE)
+        .to_string_lossy()
+        .into_owned(),
+      kind: CleanupTargetKindDto::File,
+      exclude_basenames: Vec::new(),
+      protection_mode: None,
+      scope: Some(PROJECT_SCOPE.to_string()),
+      label: Some("delete.project".to_string()),
+    });
+
     let codex_dir = project_root_dir.join(CODEX_GLOBAL_CONFIG_DIR);
 
     delete.push(CleanupTargetDto {
@@ -514,14 +627,6 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
   }
 }
 
-fn resolve_effective_home_dir() -> PathBuf {
-  let runtime_environment = config::resolve_runtime_environment();
-  runtime_environment
-    .effective_home_dir
-    .or(runtime_environment.native_home_dir)
-    .unwrap_or_else(|| PathBuf::from("/"))
-}
-
 fn get_concrete_projects(workspace: &Workspace) -> impl Iterator<Item = &Project> {
   workspace
     .projects
@@ -539,6 +644,13 @@ fn get_project_output_projects(workspace: &Workspace) -> Vec<&Project> {
     projects.push(root);
   }
   projects
+}
+
+fn get_project_prompt_output_projects(workspace: &Workspace) -> Vec<&Project> {
+  get_project_output_projects(workspace)
+    .into_iter()
+    .filter(|project| project.is_prompt_source_project != Some(true))
+    .collect()
 }
 
 fn resolve_project_root_dir(workspace: &Workspace, project: &Project) -> Option<PathBuf> {
@@ -560,4 +672,212 @@ fn resolve_relative_path(rp: &RelativePath) -> PathBuf {
     return raw.to_path_buf();
   }
   PathBuf::from(&rp.base_path).join(raw)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::domain::plugin_shared::*;
+  use crate::infra::path_types::*;
+
+  fn make_test_skill(name: &str) -> SkillPrompt {
+    SkillPrompt {
+      prompt_type: PromptKind::Skill,
+      content: "body".to_string(),
+      length: 4,
+      skill_name: name.to_string(),
+      category_name: None,
+      dir: RelativePath::new(name, "/workspace/aindex/skills"),
+      yaml_front_matter: Some(SkillYAMLFrontMatter {
+        description: Some("desc".to_string()),
+        ..SkillYAMLFrontMatter::default()
+      }),
+      child_docs: Some(vec![
+        SkillChildDoc {
+          prompt_type: PromptKind::SkillChildDoc,
+          content: "guide".to_string(),
+          length: 5,
+          file_path_kind: FilePathKind::Relative,
+          relative_path: "guide.mdx".to_string(),
+          dir: RelativePath::new("guide.mdx", "/workspace/aindex/skills/test"),
+          raw_front_matter: None,
+          markdown_ast: None,
+          markdown_contents: None,
+        },
+        SkillChildDoc {
+          prompt_type: PromptKind::SkillChildDoc,
+          content: "linux-wsl".to_string(),
+          length: 9,
+          file_path_kind: FilePathKind::Relative,
+          relative_path: "references/linux-wsl.mdx".to_string(),
+          dir: RelativePath::new("references/linux-wsl.mdx", "/workspace/aindex/skills/test"),
+          raw_front_matter: None,
+          markdown_ast: None,
+          markdown_contents: None,
+        },
+      ]),
+      resources: Some(vec![
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "txt".to_string(),
+          file_name: "notes.txt".to_string(),
+          relative_path: "assets/notes.txt".to_string(),
+          content: "notes".to_string(),
+          encoding: SkillResourceEncoding::Text,
+          length: 5,
+          mime_type: None,
+        },
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "sh".to_string(),
+          file_name: "capture-workflow.sh".to_string(),
+          relative_path: "templates/capture-workflow.sh".to_string(),
+          content: "#!/usr/bin/env bash\necho capture\n".to_string(),
+          encoding: SkillResourceEncoding::Text,
+          length: 32,
+          mime_type: None,
+        },
+        SkillResource {
+          prompt_type: PromptKind::SkillResource,
+          extension: "bin".to_string(),
+          file_name: "blob.bin".to_string(),
+          relative_path: "assets/blob.bin".to_string(),
+          content: "AAEC".to_string(),
+          encoding: SkillResourceEncoding::Base64,
+          length: 3,
+          mime_type: Some("application/octet-stream".to_string()),
+        },
+      ]),
+      mcp_config: Some(SkillMcpConfig {
+        prompt_type: PromptKind::SkillMcpConfig,
+        mcp_servers: std::collections::HashMap::new(),
+        raw_content: "{}".to_string(),
+      }),
+      markdown_contents: None,
+    }
+  }
+
+  #[test]
+  fn skill_output_includes_child_docs_resources_and_mcp_config() {
+    let skill = make_test_skill("test-skill");
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new("/workspace"),
+        projects: vec![Project {
+          name: Some("__workspace__".to_string()),
+          is_workspace_root_project: Some(true),
+          root_memory_prompt: Some(ProjectRootMemoryPrompt {
+            prompt_type: PromptKind::ProjectRootMemory,
+            content: "root".to_string(),
+            length: 4,
+            file_path_kind: FilePathKind::Root,
+            dir: RootPath::new("/workspace"),
+            yaml_front_matter: None,
+            raw_front_matter: None,
+            markdown_ast: None,
+            markdown_contents: None,
+          }),
+          ..Project::default()
+        }],
+      }),
+      skills: Some(vec![skill]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_codex_output_plan(&context).unwrap();
+    let skill_paths: Vec<&str> = plan
+      .output_files
+      .iter()
+      .map(|f| f.path.as_str())
+      .filter(|p| p.contains(".codex/skills/test-skill"))
+      .collect();
+
+    assert_eq!(
+      skill_paths.len(),
+      7,
+      "skill output should include main doc, child docs, resources, and mcp config, got: {:?}",
+      skill_paths
+    );
+    assert!(skill_paths.iter().any(|path| path.ends_with("SKILL.md")));
+    assert!(skill_paths.iter().any(|path| path.ends_with("guide.md")));
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("references/linux-wsl.md"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("assets/notes.txt"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("templates/capture-workflow.sh"))
+    );
+    assert!(
+      skill_paths
+        .iter()
+        .any(|path| path.ends_with("assets/blob.bin"))
+    );
+    assert!(skill_paths.iter().any(|path| path.ends_with("mcp.json")));
+
+    let binary_resource = plan
+      .output_files
+      .iter()
+      .find(|file| file.path.ends_with("assets/blob.bin"))
+      .unwrap();
+    assert_eq!(binary_resource.encoding.as_deref(), Some("base64"));
+  }
+
+  #[test]
+  fn categorized_skill_uses_prefixed_directory_and_source_identifier() {
+    let mut skill = make_test_skill("reverse-engineering");
+    skill.category_name = Some("dev-tools".to_string());
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new("/workspace"),
+        projects: vec![Project {
+          name: Some("__workspace__".to_string()),
+          is_workspace_root_project: Some(true),
+          root_memory_prompt: Some(ProjectRootMemoryPrompt {
+            prompt_type: PromptKind::ProjectRootMemory,
+            content: "root".to_string(),
+            length: 4,
+            file_path_kind: FilePathKind::Root,
+            dir: RootPath::new("/workspace"),
+            yaml_front_matter: None,
+            raw_front_matter: None,
+            markdown_ast: None,
+            markdown_contents: None,
+          }),
+          ..Project::default()
+        }],
+      }),
+      skills: Some(vec![skill]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_codex_output_plan(&context).unwrap();
+    let skill_file = plan
+      .output_files
+      .iter()
+      .find(|file| {
+        file
+          .path
+          .contains(".codex/skills/dev-tools-reverse-engineering/SKILL.md")
+      })
+      .unwrap();
+
+    assert!(
+      skill_file
+        .content
+        .contains("name: dev-tools-reverse-engineering")
+    );
+    assert!(
+      skill_file
+        .content
+        .contains("skill: aindex/skills/dev-tools/reverse-engineering")
+    );
+  }
 }

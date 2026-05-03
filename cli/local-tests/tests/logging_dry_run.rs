@@ -2,6 +2,8 @@
 
 use tnmsc_local_tests::LocalTestRunner;
 
+/// Verify that `--trace` dry-run outputs all major spans:
+/// config.load, context.collect, output.build.
 #[test]
 fn dry_run_outputs_key_spans_and_events() {
   let runner = LocalTestRunner::new();
@@ -35,6 +37,7 @@ fn dry_run_outputs_key_spans_and_events() {
   );
 }
 
+/// Verify that `--info` dry-run outputs a plan summary (what files would be written).
 #[test]
 fn dry_run_outputs_plan_preview() {
   let runner = LocalTestRunner::new();

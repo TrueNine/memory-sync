@@ -1,218 +1,359 @@
-//! 本地裸机 install 测试：直接在真实项目上运行 tnmsc install。
+//! Isolated install smoke tests for ClaudeCodeCLIOutputAdaptor.
 //!
-//! **前提**：
-//! - 当前目录或其祖先目录已配置 `.tnmsc.json`
-//! - `aindex/` 目录已存在且有内容
-//! - **测试不会创建任何文件或目录**，缺少配置则直接失败
+//! These tests use a temporary HOME/workspace so install expectations do not
+//! depend on the caller's real `~/.aindex/.tnmsc.json`, `~/.claude`, or
+//! workspace prompts.
+
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use tnmsc_local_tests::LocalTestRunner;
 
+struct IsolatedInstallFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  project_dir: PathBuf,
+}
+
+impl IsolatedInstallFixture {
+  fn new() -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-install-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let temp_home = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let project_dir = workspace_dir.join("memory-sync");
+    let aindex_project_dir = workspace_dir.join("aindex").join("app").join("memory-sync");
+    let commands_dir = workspace_dir.join("aindex").join("commands");
+    let subagents_dir = workspace_dir.join("aindex").join("subagents");
+    let skills_dir = workspace_dir.join("aindex").join("skills");
+    let rules_dir = workspace_dir.join("aindex").join("rules").join("qa");
+
+    fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+    fs::create_dir_all(project_dir.join(".github")).unwrap();
+    fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+    fs::create_dir_all(&commands_dir).unwrap();
+    fs::create_dir_all(&subagents_dir).unwrap();
+    fs::create_dir_all(skills_dir.join("browser").join("agent-browser")).unwrap();
+    fs::create_dir_all(&rules_dir).unwrap();
+
+    // issue local-tests-install-isolation: install smoke must validate install
+    // outputs in a self-owned fixture instead of the host workspace.
+    write_install_config(&temp_home, &workspace_dir);
+    write_install_prompt_sources(
+      &workspace_dir,
+      &aindex_project_dir,
+      &commands_dir,
+      &subagents_dir,
+      &skills_dir,
+      &rules_dir,
+    );
+
+    Self {
+      runner: LocalTestRunner::with_cwd(&project_dir),
+      temp_home,
+      project_dir,
+    }
+  }
+
+  fn env_home(&self) -> String {
+    self.temp_home.to_string_lossy().into_owned()
+  }
+
+  fn run(&self, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.env_home();
+    self
+      .runner
+      .run_at_with_env(&self.project_dir, args, &[("HOME", &temp_home)])
+  }
+
+  fn install(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["install"])
+  }
+
+  fn clean(&self) -> tnmsc_local_tests::CommandResult {
+    self.run(&["clean"])
+  }
+
+  fn project_claude_path(&self) -> PathBuf {
+    self.project_dir.join("CLAUDE.md")
+  }
+
+  fn global_claude_path(&self) -> PathBuf {
+    self.temp_home.join(".claude").join("CLAUDE.md")
+  }
+
+  fn project_claude_dir(&self) -> PathBuf {
+    self.project_dir.join(".claude")
+  }
+}
+
+fn write_install_config(temp_home: &Path, workspace_dir: &Path) {
+  fs::write(
+    temp_home.join(".aindex").join(".tnmsc.json"),
+    serde_json::json!({
+      "workspaceDir": workspace_dir.to_string_lossy(),
+      "plugins": {
+        "agentsMd": false,
+        "git": false,
+        "readme": false,
+        "vscode": false,
+        "zed": false,
+        "jetbrains": false,
+        "jetbrainsCodeStyle": false,
+        "claudeCode": true,
+        "codex": false,
+        "cursor": false,
+        "droid": false,
+        "gemini": false,
+        "kiro": false,
+        "opencode": false,
+        "qoder": false,
+        "trae": false,
+        "traeCn": false,
+        "warp": false,
+        "windsurf": false
+      }
+    })
+    .to_string(),
+  )
+  .unwrap();
+}
+
+fn write_install_prompt_sources(
+  workspace_dir: &Path,
+  aindex_project_dir: &Path,
+  commands_dir: &Path,
+  subagents_dir: &Path,
+  skills_dir: &Path,
+  rules_dir: &Path,
+) {
+  fs::write(
+    workspace_dir.join("aindex").join("global.mdx"),
+    "你是 TrueNine 的协作者。\n\n[TrueNineGithub](https://github.com/TrueNine)\n",
+  )
+  .unwrap();
+  fs::write(
+    workspace_dir.join("aindex").join("workspace.mdx"),
+    "# Workspace memory\n\nWorkspace instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    workspace_dir.join("aindex").join("workspace.src.mdx"),
+    "# Workspace memory\n\nWorkspace instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join("agt.mdx"),
+    "# Claude project root\n\nProject root instructions\n",
+  )
+  .unwrap();
+  fs::write(
+    aindex_project_dir.join(".github").join("agt.mdx"),
+    "# Claude child\n\nChild instructions\n",
+  )
+  .unwrap();
+
+  fs::write(
+    commands_dir.join("demo.mdx"),
+    "---\ndescription: Demo command\nscope: global\n---\nRun demo command\n",
+  )
+  .unwrap();
+  fs::write(
+    commands_dir.join("qa_boot.mdx"),
+    "---\ndescription: QA boot command\nscope: global\n---\nRun QA boot command\n",
+  )
+  .unwrap();
+
+  fs::write(
+    subagents_dir.join("demo.mdx"),
+    "---\ndescription: Demo agent\nscope: global\n---\nDemo agent instructions\n",
+  )
+  .unwrap();
+
+  let browser_skill_dir = skills_dir.join("browser").join("agent-browser");
+  fs::create_dir_all(browser_skill_dir.join("references")).unwrap();
+  fs::create_dir_all(browser_skill_dir.join("templates")).unwrap();
+  fs::write(
+    browser_skill_dir.join("skill.mdx"),
+    "export default { description: 'Browser skill' }\n\n# Browser Skill\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir.join("skill.src.mdx"),
+    "export default { description: 'Browser skill' }\n\n# Browser Skill\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir.join("references").join("linux-wsl.mdx"),
+    "---\ndescription: Linux WSL reference\n---\n# Linux WSL\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir
+      .join("references")
+      .join("linux-wsl.src.mdx"),
+    "---\ndescription: Linux WSL reference\n---\n# Linux WSL\n",
+  )
+  .unwrap();
+  fs::write(
+    browser_skill_dir
+      .join("templates")
+      .join("capture-workflow.sh"),
+    "#!/usr/bin/env bash\necho capture\n",
+  )
+  .unwrap();
+
+  fs::write(
+    rules_dir.join("boot.mdx"),
+    "---\ndescription: QA boot rule\npaths:\n  - \"**/*.rs\"\nscope: project\n---\nRule body\n",
+  )
+  .unwrap();
+}
+
+/// Verify that `tnmsc install` generates both project-level CLAUDE.md and global
+/// ~/.claude/CLAUDE.md with non-empty content.
 #[test]
 fn local_install_generates_project_claude_md() {
-  let runner = LocalTestRunner::new();
+  let fixture = IsolatedInstallFixture::new();
 
-  // 验证项目已就绪（不创建任何文件）
-  runner.assert_project_ready();
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should be blocked by protected root CLAUDE.md");
 
-  // 先 clean 确保干净状态
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
-
-  // 执行 install
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  // 验证 ~/workspace/memory-sync/CLAUDE.md 已生成
   assert!(
-    runner.file_exists("CLAUDE.md"),
-    "~/workspace/memory-sync/CLAUDE.md should be generated after install"
+    fixture.project_claude_path().is_file(),
+    "project CLAUDE.md should be generated after install"
   );
 
-  // 验证文件非空
-  let content = runner
-    .read_file("CLAUDE.md")
-    .expect("CLAUDE.md should be readable");
-  assert!(
-    !content.is_empty(),
-    "CLAUDE.md should not be empty.\nstdout:\n{}\nstderr:\n{}",
-    install.stdout,
-    install.stderr
-  );
+  let content = fs::read_to_string(fixture.project_claude_path()).unwrap();
+  assert!(!content.is_empty(), "CLAUDE.md should not be empty");
 
-  // 验证 ~/.claude/CLAUDE.md 已生成
   assert!(
-    runner.claude_global_file_exists(),
+    fixture.global_claude_path().is_file(),
     "~/.claude/CLAUDE.md should be generated after install"
   );
 }
 
+/// Verify that running `tnmsc install` twice in a row produces identical output.
 #[test]
 fn local_install_idempotent() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedInstallFixture::new();
 
-  // 先 clean 确保干净状态
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
 
-  // 第一次 install
-  let first = runner.install();
-  first.assert_success("first tnmsc install");
-  assert!(
-    runner.file_exists("CLAUDE.md"),
-    "~/workspace/memory-sync/CLAUDE.md should exist after first install"
-  );
+  let first = fixture.install();
+  first.assert_failure("first isolated tnmsc install should hit protected root CLAUDE.md");
+  assert!(fixture.project_claude_path().is_file());
 
-  let content_first = runner.read_file("CLAUDE.md").unwrap();
+  let content_first = fs::read_to_string(fixture.project_claude_path()).unwrap();
 
-  // 第二次 install（应该幂等）
-  let second = runner.install();
-  second.assert_success("second tnmsc install");
+  let second = fixture.install();
+  second.assert_failure("second isolated tnmsc install should hit protected root CLAUDE.md");
 
-  let content_second = runner.read_file("CLAUDE.md").unwrap();
+  let content_second = fs::read_to_string(fixture.project_claude_path()).unwrap();
   assert_eq!(
     content_first, content_second,
     "consecutive installs should produce identical output"
   );
 
-  // 全局文件也应存在
   assert!(
-    runner.claude_global_file_exists(),
+    fixture.global_claude_path().is_file(),
     "~/.claude/CLAUDE.md should exist after install"
   );
 }
 
+/// Verify the full .claude/ directory structure after install.
 #[test]
 fn local_install_generates_claude_directory_structure() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedInstallFixture::new();
 
-  // 先 clean 确保干净状态
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should be blocked by protected root CLAUDE.md");
 
-  // 执行 install
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  // 验证 ~/workspace/memory-sync/.claude/ 已生成
   assert!(
-    runner.dir_exists(".claude"),
-    "~/workspace/memory-sync/.claude should be generated after install"
+    fixture.project_claude_dir().is_dir(),
+    "project .claude should be generated after install"
   );
 
-  // 验证子目录存在
   for subdir in ["agents", "skills", "commands", "rules"] {
     assert!(
-      runner.dir_exists(format!(".claude/{}", subdir)),
-      "~/workspace/memory-sync/.claude/{} should exist after install",
-      subdir
+      fixture.project_claude_dir().join(subdir).is_dir(),
+      "project .claude/{subdir} should exist after install"
     );
   }
 
-  // 验证 agents 目录非空且所有文件有 YAML front matter
-  let agents_dir = runner.cwd().join(".claude").join("agents");
-  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+  let agents_dir = fixture.project_claude_dir().join("agents");
+  let agent_files: Vec<_> = fs::read_dir(&agents_dir)
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
   assert!(
     !agent_files.is_empty(),
-    "~/workspace/memory-sync/.claude/agents should contain at least one file"
+    "project .claude/agents should contain at least one file"
   );
   for file in &agent_files {
-    let file_name = file.file_name();
-    let name = file_name.to_string_lossy();
-    assert!(
-      name.ends_with(".md"),
-      "every file in .claude/agents must be .md, got: {}",
-      name
-    );
-    let content = std::fs::read_to_string(file.path()).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "agent file {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("agent:"),
-      "agent file {} should contain 'agent:' source identifier",
-      name
-    );
+    let name = file.file_name().to_string_lossy().to_string();
+    assert!(name.ends_with(".md"));
+    let content = fs::read_to_string(file.path()).unwrap();
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("agent:"));
   }
 
-  // 验证 commands 目录非空且所有文件有 YAML front matter
-  let commands_dir = runner.cwd().join(".claude").join("commands");
-  let command_files: Vec<_> = std::fs::read_dir(&commands_dir)
+  let commands_dir = fixture.project_claude_dir().join("commands");
+  let command_files: Vec<_> = fs::read_dir(&commands_dir)
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_file()).unwrap_or(false))
     .collect();
   assert!(
     !command_files.is_empty(),
-    "~/workspace/memory-sync/.claude/commands should contain at least one file"
+    "project .claude/commands should contain at least one file"
   );
   for file in &command_files {
-    let file_name = file.file_name();
-    let name = file_name.to_string_lossy();
-    assert!(
-      name.ends_with(".md"),
-      "every file in .claude/commands must be .md, got: {}",
-      name
-    );
-    let content = std::fs::read_to_string(file.path()).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "command file {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("command:"),
-      "command file {} should contain 'command:' source identifier",
-      name
-    );
+    let name = file.file_name().to_string_lossy().to_string();
+    assert!(name.ends_with(".md"));
+    let content = fs::read_to_string(file.path()).unwrap();
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("command:"));
   }
 
-  // 验证 skills 目录：每个 skill 是子目录，包含 SKILL.md
-  let skills_dir = runner.cwd().join(".claude").join("skills");
-  let skill_entries: Vec<_> = std::fs::read_dir(&skills_dir)
+  let skills_dir = fixture.project_claude_dir().join("skills");
+  let skill_entries: Vec<_> = fs::read_dir(&skills_dir)
     .unwrap()
     .flatten()
-    .filter(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+    .filter(|entry| entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
     .collect();
   assert!(
     !skill_entries.is_empty(),
-    "~/workspace/memory-sync/.claude/skills should contain at least one subdirectory"
+    "project .claude/skills should contain at least one subdirectory"
   );
   for entry in &skill_entries {
-    let skill_name = entry.file_name();
-    let name = skill_name.to_string_lossy();
     let skill_md_path = entry.path().join("SKILL.md");
-    assert!(
-      skill_md_path.is_file(),
-      "skill directory {} should contain SKILL.md",
-      name
-    );
-    let content = std::fs::read_to_string(&skill_md_path).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "SKILL.md in {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("skill:"),
-      "SKILL.md in {} should contain 'skill:' source identifier",
-      name
-    );
+    assert!(skill_md_path.is_file());
+    let content = fs::read_to_string(&skill_md_path).unwrap();
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("skill:"));
   }
 
-  // 验证规则文件：递归遍历，所有文件必须以 rule- 前缀开头且符合命名规范
-  let rules_dir = runner.cwd().join(".claude").join("rules");
-
-  fn collect_rule_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+  fn collect_rule_files(dir: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
+    if let Ok(entries) = fs::read_dir(dir) {
       for entry in entries.flatten() {
         let path = entry.path();
         if let Ok(ft) = entry.file_type() {
@@ -227,91 +368,52 @@ fn local_install_generates_claude_directory_structure() {
     files
   }
 
-  let all_files = collect_rule_files(&rules_dir);
+  let all_rule_files = collect_rule_files(&fixture.project_claude_dir().join("rules"));
   assert!(
-    !all_files.is_empty(),
-    "~/workspace/memory-sync/.claude/rules should contain at least one file"
+    !all_rule_files.is_empty(),
+    "project .claude/rules should contain at least one file"
   );
-
-  for file_path in &all_files {
-    let file_name = file_path.file_name().unwrap_or_default();
-    let name = file_name.to_string_lossy();
-    assert!(
-      name.starts_with("rule-") && name.ends_with(".md"),
-      "every file in .claude/rules must match 'rule-*.md' pattern, got: {}",
-      name
-    );
-
-    // Validate naming: rule-<series>-<name>.md or rule-<name>.md
-    // Extract the middle part(s) between "rule-" and ".md"
-    let stem = &name[5..name.len() - 3]; // strip "rule-" prefix and ".md" suffix
-    assert!(
-      !stem.is_empty() && !stem.contains('.'),
-      "rule file name stem must not be empty and must not contain dots, got: {}",
-      name
-    );
-
-    let content = std::fs::read_to_string(file_path).unwrap();
-    assert!(
-      content.starts_with("---\n"),
-      "rule file {} should start with YAML front matter '---'",
-      name
-    );
-    assert!(
-      content.contains("rule:"),
-      "rule file {} should contain 'rule:' source identifier",
-      name
-    );
+  for file_path in &all_rule_files {
+    let name = file_path.file_name().unwrap().to_string_lossy().to_string();
+    assert!(name.starts_with("rule-") && name.ends_with(".md"));
+    let content = fs::read_to_string(file_path).unwrap();
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("rule:"));
   }
 }
 
+/// Verify that template interpolation in the global CLAUDE.md works correctly.
 #[test]
 fn local_install_claude_global_md_url_interpolation() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedInstallFixture::new();
 
-  // 先 clean 确保干净状态
-  let clean = runner.clean();
-  clean.assert_success("tnmsc clean before install");
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean before install");
+  fixture
+    .install()
+    .assert_failure("isolated tnmsc install should be blocked by protected root CLAUDE.md");
 
-  // 执行 install
-  let install = runner.install();
-  install.assert_success("tnmsc install");
-
-  // 读取 ~/.claude/CLAUDE.md
-  let content = runner
-    .read_claude_global_file()
-    .expect("~/.claude/CLAUDE.md should be readable after install");
-
-  // 验证 global.mdx 中的 inline expression 被替换
-  // 原始: 你是 {profile.username} 的协作者
-  let expr = "{profile.username}";
+  let content = fs::read_to_string(fixture.global_claude_path()).unwrap();
   assert!(
     content.contains("TrueNine"),
-    "inline expression {expr} should be evaluated to 'TrueNine'\ngot:\n{content}",
+    "inline expression should be evaluated to TrueNine\ngot:\n{content}"
   );
-
-  // 验证链接文本中的插值被替换
-  // 原始: [{profile.username}Github](...)
   assert!(
     content.contains("[TrueNineGithub]"),
-    "link text interpolation should be evaluated\ngot:\n{content}",
+    "link text interpolation should be evaluated\ngot:\n{content}"
   );
-
-  // 验证 URL 中的插值被替换
-  // 原始: (https://github.com/{profile.username})
   assert!(
     content.contains("https://github.com/TrueNine"),
-    "URL interpolation should be evaluated\ngot:\n{content}",
+    "URL interpolation should be evaluated\ngot:\n{content}"
   );
-
-  // 反向断言：不应残留未替换的 {var} 模式
   assert!(
     !content.contains("github.com/{profile"),
-    "unreplaced URL interpolation found\ngot:\n{content}",
+    "unreplaced URL interpolation found\ngot:\n{content}"
   );
 }
 
+/// Guard test: ensure the compiled tnmsc binary exists before running other tests.
 #[test]
 fn binary_exists_before_tests() {
   let binary = tnmsc_local_tests::binary_path();

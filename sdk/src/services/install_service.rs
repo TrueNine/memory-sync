@@ -6,6 +6,7 @@ use base64::Engine;
 use serde_json::{Value, json};
 
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
+use crate::domain::cleanup::CleanupSnapshot;
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
 use crate::infra::desk_paths;
 use crate::infra::logger::{Logger, create_logger};
@@ -108,7 +109,8 @@ pub(crate) fn install(
   );
 
   let write_span = logger.span("files.write").enter();
-  let execution = write_output_files(&planned_outputs, &logger)?;
+  let protection_snapshot = build_install_protection_snapshot(&workspace_dir_str, &planned_outputs);
+  let execution = write_output_files(&planned_outputs, &protection_snapshot, &logger)?;
   write_span.exit();
 
   warnings.extend(execution.warnings);
@@ -287,6 +289,7 @@ struct InstallExecutionResult {
 
 fn write_output_files(
   outputs: &BTreeMap<String, PlannedOutputFile>,
+  protection_snapshot: &CleanupSnapshot,
   logger: &Logger,
 ) -> Result<InstallExecutionResult, CliError> {
   let mut files_affected = 0usize;
@@ -297,7 +300,21 @@ fn write_output_files(
   for file in outputs.values() {
     let path = Path::new(&file.path);
 
-    match prepare_target_path(path, &mut warnings) {
+    if let Some(violation) =
+      crate::policy::cleanup::detect_protected_path_violation(protection_snapshot, &file.path)
+        .map_err(CliError::ExecutionError)?
+    {
+      errors.push(json!({
+        "path": file.path,
+        "protected": violation.protected_path,
+        "reason": violation.reason,
+        "source": violation.source,
+        "error": "Refusing to write protected path.",
+      }));
+      continue;
+    }
+
+    match prepare_target_path(path, protection_snapshot, &mut warnings) {
       Ok(created_dirs) => {
         dirs_affected += created_dirs;
       }
@@ -359,13 +376,68 @@ fn render_bytes(file: &PlannedOutputFile) -> Result<Vec<u8>, CliError> {
   }
 }
 
-fn prepare_target_path(path: &Path, warnings: &mut Vec<Value>) -> Result<usize, String> {
+fn build_install_protection_snapshot(
+  workspace_dir: &str,
+  outputs: &BTreeMap<String, PlannedOutputFile>,
+) -> CleanupSnapshot {
+  CleanupSnapshot {
+    workspace_dir: workspace_dir.to_string(),
+    aindex_dir: Some(
+      crate::domain::config::resolve_workspace_aindex_dir(workspace_dir)
+        .to_string_lossy()
+        .into_owned(),
+    ),
+    project_roots: discover_install_project_roots(workspace_dir, outputs),
+    protected_rules: Vec::new(),
+    plugin_snapshots: Vec::new(),
+    empty_dir_exclude_globs: Vec::new(),
+  }
+}
+
+fn discover_install_project_roots(
+  workspace_dir: &str,
+  outputs: &BTreeMap<String, PlannedOutputFile>,
+) -> Vec<String> {
+  let workspace = Path::new(workspace_dir);
+  let mut roots = outputs
+    .values()
+    .filter_map(|file| {
+      Path::new(&file.path)
+        .strip_prefix(workspace)
+        .ok()
+        .and_then(|relative| relative.components().next())
+        .map(|component| {
+          workspace
+            .join(component.as_os_str())
+            .to_string_lossy()
+            .into_owned()
+        })
+    })
+    .collect::<Vec<_>>();
+  roots.sort();
+  roots.dedup();
+  roots
+}
+
+fn prepare_target_path(
+  path: &Path,
+  protection_snapshot: &CleanupSnapshot,
+  warnings: &mut Vec<Value>,
+) -> Result<usize, String> {
   let mut created_dirs = 0usize;
 
   if let Some(parent) = path.parent() {
     if let Some(blocking) =
       path_blocking::find_blocking_non_directory_path(&parent.to_string_lossy())
     {
+      if let Some(violation) =
+        crate::policy::cleanup::detect_protected_path_violation(protection_snapshot, &blocking)?
+      {
+        return Err(format!(
+          "Refusing to delete protected blocking path {} (protected: {}, reason: {})",
+          blocking, violation.protected_path, violation.reason
+        ));
+      }
       desk_paths::delete_path_sync(&blocking).map_err(|error| error.to_string())?;
       warnings.push(json!({
         "path": blocking,
@@ -380,6 +452,15 @@ fn prepare_target_path(path: &Path, warnings: &mut Vec<Value>) -> Result<usize, 
   if let Ok(metadata) = fs::symlink_metadata(path)
     && metadata.is_dir()
   {
+    let file_path = path.to_string_lossy().into_owned();
+    if let Some(violation) =
+      crate::policy::cleanup::detect_protected_path_violation(protection_snapshot, &file_path)?
+    {
+      return Err(format!(
+        "Refusing to delete protected blocking directory {} (protected: {}, reason: {})",
+        file_path, violation.protected_path, violation.reason
+      ));
+    }
     desk_paths::delete_path_sync(path).map_err(|error| error.to_string())?;
     warnings.push(json!({
       "path": path.to_string_lossy(),
@@ -394,6 +475,8 @@ fn prepare_target_path(path: &Path, warnings: &mut Vec<Value>) -> Result<usize, 
 mod tests {
   use super::*;
   use crate::domain::config::UserConfigFile;
+  use std::collections::BTreeMap;
+  use std::fs;
   use std::path::PathBuf;
 
   #[test]
@@ -473,5 +556,67 @@ mod tests {
       !merged.found,
       "found should be false when skipping user config"
     );
+  }
+
+  #[test]
+  fn write_output_files_refuses_to_overwrite_protected_project_root() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let project_root = temp_dir.path().join("project-a");
+    fs::create_dir_all(&project_root).unwrap();
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+      project_root.to_string_lossy().into_owned(),
+      PlannedOutputFile {
+        path: project_root.to_string_lossy().into_owned(),
+        content: "malicious".to_string(),
+        encoding: None,
+      },
+    );
+    let snapshot = build_install_protection_snapshot(&temp_dir.path().to_string_lossy(), &outputs);
+    let logger = create_logger("test", None);
+
+    let result = write_output_files(&outputs, &snapshot, &logger).unwrap();
+
+    assert_eq!(result.files_affected, 0);
+    assert_eq!(result.errors.len(), 1);
+    assert!(
+      result.errors[0]["error"]
+        .as_str()
+        .unwrap()
+        .contains("Refusing to write protected path")
+    );
+    assert!(project_root.is_dir());
+  }
+
+  #[test]
+  fn prepare_target_path_refuses_to_delete_protected_blocking_path() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let project_root = temp_dir.path().join("project-a");
+    fs::write(&project_root, "do-not-delete").unwrap();
+
+    let mut outputs = BTreeMap::new();
+    let target = project_root.join("nested").join("AGENTS.md");
+    outputs.insert(
+      target.to_string_lossy().into_owned(),
+      PlannedOutputFile {
+        path: target.to_string_lossy().into_owned(),
+        content: "content".to_string(),
+        encoding: None,
+      },
+    );
+    let snapshot = build_install_protection_snapshot(&temp_dir.path().to_string_lossy(), &outputs);
+    let mut warnings = Vec::new();
+
+    let result = prepare_target_path(&target, &snapshot, &mut warnings);
+
+    assert!(result.is_err());
+    assert!(
+      result
+        .unwrap_err()
+        .contains("Refusing to delete protected blocking path")
+    );
+    assert_eq!(fs::read_to_string(&project_root).unwrap(), "do-not-delete");
+    assert!(warnings.is_empty());
   }
 }

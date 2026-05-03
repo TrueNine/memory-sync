@@ -19,6 +19,8 @@ fn run_without_global_config(
   )
 }
 
+/// Verify that running install without config outputs a structured diagnostic with a
+/// "What happened" section, a fix suggestion mentioning .tnmsc.json, and actionable next steps.
 #[test]
 fn missing_config_outputs_diagnostic_with_fix() {
   let runner = LocalTestRunner::new();
@@ -51,6 +53,8 @@ fn missing_config_outputs_diagnostic_with_fix() {
   );
 }
 
+/// Verify that `--error` log level still shows the diagnostic structure when config
+/// is missing (error diagnostics are never suppressed regardless of log level).
 #[test]
 fn missing_config_at_error_level_shows_diagnostic() {
   let runner = LocalTestRunner::new();

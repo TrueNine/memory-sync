@@ -188,13 +188,11 @@ mod tests {
       .collect();
 
     assert!(
-      paths.iter().any(|p| *p == "/tmp/workspace/.kiro/streening"),
+      paths.contains(&"/tmp/workspace/.kiro/streening"),
       "expected workspace root glob"
     );
     assert!(
-      paths
-        .iter()
-        .any(|p| *p == "/tmp/workspace/project-a/.kiro/specs/**/*"),
+      paths.contains(&"/tmp/workspace/project-a/.kiro/specs/**/*"),
       "expected project glob"
     );
     assert!(

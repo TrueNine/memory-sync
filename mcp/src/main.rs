@@ -47,6 +47,17 @@ fn error_result(message: &str) -> Value {
   })
 }
 
+fn json_rpc_error_response(id: Value, code: i64, message: &str) -> Value {
+  json!({
+      "jsonrpc": "2.0",
+      "id": id,
+      "error": {
+          "code": code,
+          "message": message
+      }
+  })
+}
+
 fn handle_initialize() -> Value {
   json!({
       "capabilities": {
@@ -163,15 +174,41 @@ fn handle_tools_call(params: &Value) -> Value {
   }
 }
 
+fn parse_object_params(request: &Value, method: &str) -> Result<Value, String> {
+  // Fixes #376: JSON-RPC object params must be validated before dispatch so
+  // array params return the standard -32602 Invalid params error.
+  match request.get("params") {
+    None | Some(Value::Null) => Ok(json!({})),
+    Some(Value::Object(_)) => Ok(request.get("params").cloned().unwrap_or(json!({}))),
+    Some(_) => Err(format!("Invalid params for {method}: expected object")),
+  }
+}
+
+fn build_tools_call_response(id: Value, request: &Value) -> Value {
+  match parse_object_params(request, "tools/call") {
+    Ok(params) => json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": handle_tools_call(&params)
+    }),
+    Err(message) => json_rpc_error_response(id, -32602, &message),
+  }
+}
+
 fn handle_list_prompts(args: &Value) -> Value {
   let base = build_service_options(args);
-  let kinds: Option<Vec<tnmsd::ManagedPromptKind>> = args
-    .get("kinds")
-    .and_then(|v| serde_json::from_value(v.clone()).ok());
+  // Fixes #384: invalid enum filters must surface as MCP errors instead of
+  // silently degrading to an unfiltered query.
+  let kinds: Option<Vec<tnmsd::ManagedPromptKind>> = match parse_optional_kinds_arg(args, "kinds") {
+    Ok(value) => value,
+    Err(error) => return error_result(&error),
+  };
   let query = args.get("query").and_then(|v| v.as_str()).map(String::from);
-  let en_status: Option<Vec<tnmsd::PromptArtifactState>> = args
-    .get("enStatus")
-    .and_then(|v| serde_json::from_value(v.clone()).ok());
+  let en_status: Option<Vec<tnmsd::PromptArtifactState>> =
+    match parse_optional_prompt_state_arg(args, "enStatus") {
+      Ok(value) => value,
+      Err(error) => return error_result(&error),
+    };
 
   let options = ListPromptsOptions {
     base,
@@ -183,6 +220,33 @@ fn handle_list_prompts(args: &Value) -> Value {
   match list_prompts(&options) {
     Ok(prompts) => success_result(json!({"prompts": prompts})),
     Err(e) => error_result(&e),
+  }
+}
+
+fn parse_optional_kinds_arg(
+  args: &Value,
+  key: &str,
+) -> Result<Option<Vec<tnmsd::ManagedPromptKind>>, String> {
+  // Fixes #384: keep enum-filter validation explicit even after the caller
+  // has delegated parsing into a helper.
+  match args.get(key) {
+    Some(value) if !value.is_null() => serde_json::from_value(value.clone())
+      .map(Some)
+      .map_err(|error| format!("Invalid '{key}': {error}")),
+    _ => Ok(None),
+  }
+}
+
+fn parse_optional_prompt_state_arg(
+  args: &Value,
+  key: &str,
+) -> Result<Option<Vec<tnmsd::PromptArtifactState>>, String> {
+  // Fixes #384: prompt artifact states should fail closed on invalid values.
+  match args.get(key) {
+    Some(value) if !value.is_null() => serde_json::from_value(value.clone())
+      .map(Some)
+      .map_err(|error| format!("Invalid '{key}': {error}")),
+    _ => Ok(None),
   }
 }
 
@@ -279,7 +343,7 @@ fn run_stdio_server() {
       }
     };
 
-    let is_notification = !request.as_object().map_or(false, |m| m.contains_key("id"));
+    let is_notification = !request.as_object().is_some_and(|m| m.contains_key("id"));
     if is_notification {
       continue;
     }
@@ -298,27 +362,23 @@ fn run_stdio_server() {
           "id": id,
           "result": handle_tools_list()
       }),
-      "tools/call" => {
-        let params = request.get("params").cloned().unwrap_or(json!({}));
-        json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "result": handle_tools_call(&params)
-        })
-      }
-      _ => json!({
-          "jsonrpc": "2.0",
-          "id": id,
-          "error": {
-              "code": -32601,
-              "message": format!("Method not found: {}", method)
-          }
-      }),
+      "tools/call" => build_tools_call_response(id, &request),
+      _ => json_rpc_error_response(id, -32601, &format!("Method not found: {}", method)),
     };
 
-    let _ = writeln!(writer, "{}", response);
-    let _ = writer.flush();
+    // Fixes #383: once the client closes stdout, stop the loop instead of
+    // continuing to process requests that can never be delivered.
+    if write_json_response(&mut writer, &response).is_err() {
+      break;
+    }
   }
+}
+
+fn write_json_response(writer: &mut impl Write, response: &Value) -> std::io::Result<()> {
+  // Fixes #383: funnel response writes through one fallible path so BrokenPipe
+  // reaches the stdio loop and terminates the server cleanly.
+  writeln!(writer, "{}", response)?;
+  writer.flush()
 }
 
 fn main() -> ExitCode {
@@ -331,7 +391,6 @@ fn main() -> ExitCode {
   );
 
   let cli = Cli::parse();
-  let logger = tnmsd::infra::logger::create_logger("tnmsm", None);
 
   match resolve_command(&cli) {
     ResolvedCommand::Serve => {
@@ -347,8 +406,96 @@ fn main() -> ExitCode {
       ExitCode::SUCCESS
     }
     ResolvedCommand::AssembleNpm(args) => {
-      let _span = logger.span("command.assemble_npm").enter();
+      // Fixes #225: keep hidden packaging output off stdout as well; the
+      // package command writes human-readable status to stderr internally.
       commands::package::execute(&args)
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  struct BrokenPipeWriter;
+
+  impl Write for BrokenPipeWriter {
+    fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+      Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+      Ok(())
+    }
+  }
+
+  #[test]
+  fn list_prompts_rejects_invalid_kinds_filter() {
+    let result = handle_list_prompts(&json!({
+      "kinds": ["projct-memory"]
+    }));
+
+    assert_eq!(result.get("isError").and_then(Value::as_bool), Some(true));
+    assert!(
+      result
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .and_then(|item| item.get("text"))
+        .and_then(Value::as_str)
+        .is_some_and(|text| text.contains("kinds")),
+      "invalid kinds filter should surface an MCP error"
+    );
+  }
+
+  #[test]
+  fn list_prompts_rejects_invalid_en_status_filter() {
+    let result = handle_list_prompts(&json!({
+      "enStatus": ["unkown"]
+    }));
+
+    assert_eq!(result.get("isError").and_then(Value::as_bool), Some(true));
+    assert!(
+      result
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .and_then(|item| item.get("text"))
+        .and_then(Value::as_str)
+        .is_some_and(|text| text.contains("enStatus")),
+      "invalid enStatus filter should surface an MCP error"
+    );
+  }
+
+  #[test]
+  fn write_json_response_propagates_broken_pipe_errors() {
+    let mut writer = BrokenPipeWriter;
+    let result = write_json_response(&mut writer, &json!({"ok": true}));
+
+    assert!(
+      result.is_err(),
+      "broken pipe writes must be visible to the stdio server loop"
+    );
+  }
+
+  #[test]
+  fn tools_call_rejects_array_params_with_json_rpc_invalid_params() {
+    let response = build_tools_call_response(
+      json!(7),
+      &json!({
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "tools/call",
+        "params": []
+      }),
+    );
+
+    assert_eq!(response["error"]["code"], json!(-32602));
+    assert!(
+      response["error"]["message"]
+        .as_str()
+        .is_some_and(|message| message.contains("expected object")),
+      "unexpected invalid params error: {response}"
+    );
   }
 }

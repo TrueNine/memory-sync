@@ -8,7 +8,9 @@ use crate::domain::plugin_shared::{
   FilePathKind, Project, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt, PromptKind,
   RelativePath, RootPath, Workspace,
 };
-use crate::repositories::prompt_artifact::read_prompt_artifact;
+use crate::repositories::prompt_artifact::{
+  assert_no_residual_module_syntax, read_prompt_artifact,
+};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,52 +26,17 @@ const SERIES_NAMES: &[&str] = config::DEFAULT_PROJECT_SERIES;
 const PROJECT_MEMORY_FILE: &str = "agt.mdx";
 const SCAN_SKIP_DIRECTORIES: &[&str] = &["node_modules", ".git"];
 
-fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<(), String> {
-  let code_fence_pattern = regex_lite::Regex::new(r"^\s*(```|~~~)").unwrap();
-  let residual_patterns = [
-    regex_lite::Regex::new(r"^\s*export\s+default\b").unwrap(),
-    regex_lite::Regex::new(r"^\s*export\s+const\b").unwrap(),
-    regex_lite::Regex::new(r"^\s*import\b").unwrap(),
-  ];
-  let mut active_fence: Option<&str> = None;
-  for (index, line) in content.lines().enumerate() {
-    if let Some(caps) = code_fence_pattern.captures(line) {
-      let marker = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-      if active_fence.is_none() {
-        active_fence = Some(marker);
-      } else if active_fence == Some(marker) {
-        active_fence = None;
-      }
-      continue;
-    }
-    if active_fence.is_some() {
-      continue;
-    }
-    for pat in &residual_patterns {
-      if pat.is_match(line) {
-        return Err(format!(
-          "Compiled prompt still contains residual module syntax at {}:{}: {}",
-          file_path,
-          index + 1,
-          line.trim()
-        ));
-      }
-    }
-  }
-  Ok(())
-}
-
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   let front_matter_regex =
     regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
-  if let Some(re) = front_matter_regex {
-    if let Some(caps) = re.captures(raw_mdx) {
-      let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
-      let yaml_json = raw_fm
-        .as_deref()
-        .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
-      return (yaml_json, raw_fm);
-    }
+  if let Some(re) = front_matter_regex
+    && let Some(caps) = re.captures(raw_mdx)
+  {
+    let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
+    let yaml_json = raw_fm
+      .as_deref()
+      .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
+    return (yaml_json, raw_fm);
   }
   (None, None)
 }
@@ -85,7 +52,7 @@ fn read_root_memory_prompt(
   let file_path_str = file_path.to_string_lossy().into_owned();
 
   let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   assert_no_residual_module_syntax(&artifact.content, &file_path_str)
     .map_err(crate::CliError::ConfigError)?;
@@ -120,7 +87,7 @@ fn read_child_memory_prompt(
   let file_path_str = file_path.to_string_lossy().into_owned();
 
   let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   assert_no_residual_module_syntax(&artifact.content, &file_path_str)
     .map_err(crate::CliError::ConfigError)?;
@@ -238,7 +205,7 @@ fn read_workspace_root_project_prompt(
   let file_path_str = file_path.to_string_lossy().into_owned();
 
   let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   assert_no_residual_module_syntax(&artifact.content, &file_path_str)
     .map_err(crate::CliError::ConfigError)?;
@@ -298,25 +265,20 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
       continue;
     }
 
-    let series_configs: Vec<String> = if project.project_type.is_some() {
-      vec![project.project_type.clone().unwrap()]
-    } else {
-      SERIES_NAMES.iter().map(|&s| s.to_string()).collect()
+    let series_configs: Vec<String> = match &project.project_type {
+      Some(ptype) => vec![ptype.clone()],
+      None => SERIES_NAMES.iter().map(|&s| s.to_string()).collect(),
     };
 
-    let matching_series = series_configs.iter().find(|series_name| {
+    let Some(series_name) = series_configs.iter().find(|series_name| {
       let project_path =
         config::resolve_workspace_aindex_source_series_dir(&workspace_dir_str, series_name)
           .join(project_name);
       project_path.is_dir()
-    });
-
-    if matching_series.is_none() {
+    }) else {
       enhanced_projects.push(project);
       continue;
-    }
-
-    let series_name = matching_series.unwrap();
+    };
     let shadow_project_path =
       config::resolve_workspace_aindex_source_series_dir(&workspace_dir_str, series_name)
         .join(project_name);
@@ -413,7 +375,7 @@ mod tests {
     )
     .unwrap();
 
-    let workspace = create_workspace(&tmp.path().to_string_lossy().to_string(), vec![]);
+    let workspace = create_workspace(tmp.path().to_string_lossy().as_ref(), vec![]);
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
       "workspace": workspace,
@@ -440,7 +402,7 @@ mod tests {
     fs::create_dir_all(&external_dir).unwrap();
     fs::write(external_dir.join("workspace.mdx"), "Wrong workspace prompt").unwrap();
 
-    let workspace = create_workspace(&tmp.path().to_string_lossy().to_string(), vec![]);
+    let workspace = create_workspace(tmp.path().to_string_lossy().as_ref(), vec![]);
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
       "workspace": workspace,

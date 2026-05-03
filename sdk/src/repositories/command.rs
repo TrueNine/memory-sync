@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::domain::config;
 use crate::domain::plugin_shared::{
-  FastCommandPrompt, FastCommandYAMLFrontMatter, PromptKind, RelativePath,
+  PromptKind, RelativePath, SlashCommandPrompt, SlashCommandYAMLFrontMatter,
 };
 use crate::repositories::localized_reader::read_flat_files;
 
@@ -47,11 +47,10 @@ fn validate_command_metadata(
 fn build_command_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
   dir: &str,
-) -> Result<FastCommandPrompt, crate::CliError> {
-  let compiled = entry
-    .compiled
-    .as_ref()
-    .ok_or_else(|| crate::CliError::ConfigError("Missing compiled prompt".to_string()))?;
+) -> Result<SlashCommandPrompt, crate::CliError> {
+  let compiled = entry.compiled.as_ref().ok_or_else(|| {
+    crate::CliError::ConfigError(format!("Missing compiled prompt: {}.mdx", entry.name))
+  })?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
   validate_command_metadata(&compiled.metadata, &file_path)
@@ -73,10 +72,9 @@ fn build_command_prompt(
     .or_else(|| underscore_index.map(|i| &base_name[..i]))
     .map(String::from);
 
-  let command_name = if parent_dir_name.is_some() || underscore_index.is_none() {
-    base_name.to_string()
-  } else {
-    base_name[underscore_index.unwrap() + 1..].to_string()
+  let command_name = match (parent_dir_name, underscore_index) {
+    (Some(_), _) | (_, None) => base_name.to_string(),
+    (None, Some(index)) => base_name[index + 1..].to_string(),
   };
 
   let global_only = match compiled.metadata.get("scope") {
@@ -93,7 +91,7 @@ fn build_command_prompt(
     None
   } else {
     Some(
-      serde_json::from_value::<FastCommandYAMLFrontMatter>(Value::Object(
+      serde_json::from_value::<SlashCommandYAMLFrontMatter>(Value::Object(
         compiled.metadata.clone(),
       ))
       .map_err(|e| crate::CliError::ConfigError(e.to_string()))?,
@@ -103,8 +101,8 @@ fn build_command_prompt(
   let content = compiled.content.clone();
   let length = content.len();
 
-  Ok(FastCommandPrompt {
-    prompt_type: PromptKind::FastCommand,
+  Ok(SlashCommandPrompt {
+    prompt_type: PromptKind::SlashCommand,
     content,
     length,
     dir: RelativePath::new(&format!("{}.mdx", entry.name), dir),
@@ -132,12 +130,13 @@ pub fn collect_command(options_json: &str) -> Result<String, crate::CliError> {
 
   let entries = read_flat_files(&dir_str, global_scope_json.as_deref())?;
 
-  let mut prompts: Vec<FastCommandPrompt> = Vec::new();
+  let mut prompts: Vec<SlashCommandPrompt> = Vec::new();
   for entry in &entries {
     if entry.compiled.is_none() && (entry.src_zh.is_some() || entry.src_en.is_some()) {
-      return Err(crate::CliError::ConfigError(
-        "Missing compiled prompt".to_string(),
-      ));
+      return Err(crate::CliError::ConfigError(format!(
+        "Missing compiled prompt: {}.mdx",
+        entry.name
+      )));
     }
     if entry.compiled.is_some() {
       prompts.push(build_command_prompt(entry, &dir_str)?);
@@ -147,7 +146,7 @@ pub fn collect_command(options_json: &str) -> Result<String, crate::CliError> {
   #[derive(Debug, Clone, serde::Serialize)]
   #[serde(rename_all = "camelCase")]
   struct CommandResult {
-    commands: Vec<FastCommandPrompt>,
+    commands: Vec<SlashCommandPrompt>,
   }
 
   let result = CommandResult { commands: prompts };
@@ -245,11 +244,11 @@ mod tests {
 
     let result = collect_command(&options.to_string());
     assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
     assert!(
-      result
-        .unwrap_err()
-        .to_string()
-        .contains("Missing compiled prompt")
+      err.contains("Missing compiled prompt: demo.mdx"),
+      "expected file path in error message, got: {}",
+      err
     );
   }
 

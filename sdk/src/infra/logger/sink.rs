@@ -66,6 +66,10 @@ pub fn clear_diagnostics() {
   }
 }
 
+/// Bound the worker-drain wait so a wedged worker (deadlocked, sigstop'd,
+/// blocked on a slow stdout pipe) can't hang process shutdown indefinitely.
+const FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 pub fn flush() {
   let (ack_tx, ack_rx) = mpsc::channel();
   if OUTPUT_SINK
@@ -88,7 +92,6 @@ fn send_output(use_stderr: bool, output: String) {
     })
     .is_err()
   {
-    // Fallback: write directly if sink thread is dead
     write_direct(use_stderr, &output);
   }
 }

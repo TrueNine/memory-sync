@@ -138,7 +138,14 @@ fn normalize_glob_pattern(pattern: &str) -> String {
 fn normalize_relative_glob_pattern(pattern: &str) -> String {
   let normalized = pattern.replace('\\', "/");
   let normalized = normalized.trim_start_matches("./");
-  normalized.trim_start_matches('/').to_string()
+  // #250 fixes over-stripping of leading slashes in relative glob
+  // normalization. A relative `/foo` should become `foo`, but `//foo`
+  // must not collapse all the way to `foo` because that changes the
+  // pattern shape seen by downstream matching.
+  match normalized.strip_prefix('/') {
+    Some(rest) => rest.to_string(),
+    None => normalized.to_string(),
+  }
 }
 
 fn normalize_workspace_relative_path(path: &Path, workspace_dir: &Path) -> Option<String> {
@@ -269,13 +276,16 @@ fn build_globset(patterns: &[String]) -> Result<Option<GlobSet>, String> {
 }
 
 fn has_glob_magic(value: &str) -> bool {
-  value.contains('*')
+  // #251 fixes over-classifying literal `!` filename segments as glob
+  // syntax. In globset, `!` only has special meaning as a leading
+  // pattern negation marker, not in the middle of a path segment.
+  value.starts_with('!')
+    || value.contains('*')
     || value.contains('?')
     || value.contains('[')
     || value.contains(']')
     || value.contains('{')
     || value.contains('}')
-    || value.contains('!')
 }
 
 fn detect_glob_scan_root(pattern: &str) -> PathBuf {
@@ -501,8 +511,31 @@ impl BatchedGlobPlanner {
         });
 
       for entry in walker {
-        let Ok(entry) = entry else {
-          continue;
+        let entry = match entry {
+          Ok(e) => e,
+          Err(e) => {
+            // Pre-#200 these errors (permission denied, broken
+            // symlinks, ENOENT during walk) were silently dropped, so
+            // a cleanup that ran with insufficient privileges or
+            // across a half-deleted tree would skip files without
+            // surfacing why. Emit a debug log with the offending
+            // path + io::Error message so operators can correlate a
+            // missed delete with the underlying syscall failure
+            // without changing the "skip and continue" behaviour.
+            let path_text = e
+              .path()
+              .map(|p| p.display().to_string())
+              .unwrap_or_default();
+            crate::debug!(
+              logger,
+              "cleanup native walkdir entry skipped",
+              json!({
+                "path": path_text,
+                "error": e.to_string(),
+              })
+            );
+            continue;
+          }
         };
         walked_entries += 1;
 
@@ -765,7 +798,6 @@ fn collect_built_in_dangerous_path_rules() -> Vec<ProtectedRuleDto> {
 fn collect_workspace_reserved_rules(
   workspace_dir: &str,
   project_roots: &[String],
-  _include_reserved_workspace_content_roots: bool,
 ) -> Vec<ProtectedRuleDto> {
   let workspace_dir = path_to_string(&resolve_absolute_path(workspace_dir));
   let aindex_dir = path_to_string(&config::resolve_workspace_aindex_dir(&workspace_dir));
@@ -815,7 +847,6 @@ fn create_guard(
   all_rules.extend(collect_workspace_reserved_rules(
     &snapshot.workspace_dir,
     &snapshot.project_roots,
-    true,
   ));
 
   if let Some(aindex_dir) = snapshot.aindex_dir.as_ref() {
@@ -965,6 +996,14 @@ fn get_protected_path_violation(
   }
 
   get_protected_path_violation_for_key(&absolute_target_path, &canonical_target_key, guard)
+}
+
+pub fn detect_protected_path_violation(
+  snapshot: &CleanupSnapshot,
+  target_path: &str,
+) -> Result<Option<ProtectedPathViolationDto>, String> {
+  let guard = create_guard(snapshot, &snapshot.protected_rules)?;
+  Ok(get_protected_path_violation(target_path, &guard))
 }
 
 fn target_matches_project_root(target_path: &str, project_root_keys: &HashSet<String>) -> bool {
@@ -2072,21 +2111,10 @@ mod tests {
     }
   }
 
-  #[test]
-  fn include_reserved_workspace_content_roots_is_inert() {
-    let temp_dir = tempdir().unwrap();
-    let workspace_dir = temp_dir.path().join("workspace");
-    let aindex_dir = workspace_dir.join("aindex");
-    fs::create_dir_all(&aindex_dir).unwrap();
-
-    let rules_with_content =
-      collect_workspace_reserved_rules(&path_to_string(&workspace_dir), &[], true);
-    let rules_without_content =
-      collect_workspace_reserved_rules(&path_to_string(&workspace_dir), &[], false);
-
-    assert_eq!(rules_with_content.len(), rules_without_content.len());
-    assert_eq!(rules_with_content, rules_without_content);
-  }
+  // Pre-#208 the function took an `_include_reserved_workspace_content_roots`
+  // parameter that the body never read; the surrounding test asserted that
+  // it didn't change the result regardless of value. With the dead parameter
+  // removed the test is no longer meaningful, so it's been deleted.
 
   #[test]
   fn blocks_aindex_root_but_allows_deep_descendant_deletion() {
@@ -3174,5 +3202,24 @@ mod tests {
     assert!(!result.violations.is_empty());
     // The aindex directory must still exist
     assert!(aindex_dir.exists());
+  }
+
+  /// Regression for #250: normalizing a relative glob must strip exactly
+  /// one leading slash so `//foo` does not collapse to `foo`.
+  #[test]
+  fn regression_normalize_relative_glob_pattern_preserves_double_leading_slash_shape() {
+    assert_eq!(normalize_relative_glob_pattern("/foo"), "foo");
+    assert_eq!(normalize_relative_glob_pattern("./foo"), "foo");
+    assert_eq!(normalize_relative_glob_pattern("//foo"), "/foo");
+  }
+
+  /// Regression for #251: a literal `!` in the middle of a filename must
+  /// not classify the path as a glob pattern.
+  #[test]
+  fn regression_has_glob_magic_treats_only_leading_bang_as_magic() {
+    assert!(has_glob_magic("!foo/**"));
+    assert!(!has_glob_magic("/home/user/!important/file.txt"));
+    assert!(!has_glob_magic("name!suffix"));
+    assert!(!has_glob_magic("a!b"));
   }
 }

@@ -192,7 +192,7 @@ pub struct PluginsConfig {
 
 /// User configuration file (.tnmsc.json).
 /// All fields are optional — missing fields use default values.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserConfigFile {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -209,20 +209,6 @@ pub struct UserConfigFile {
   pub windows: Option<WindowsOptions>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub plugins: Option<PluginsConfig>,
-}
-
-impl Default for UserConfigFile {
-  fn default() -> Self {
-    Self {
-      version: None,
-      workspace_dir: None,
-      log_level: None,
-      profile: None,
-      code_styles: None,
-      windows: None,
-      plugins: None,
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -270,7 +256,7 @@ pub struct RuntimeEnvironmentContext {
 fn home_dir() -> Option<PathBuf> {
   std::env::var_os("HOME")
     .map(PathBuf::from)
-    .or_else(|| dirs::home_dir())
+    .or_else(dirs::home_dir)
 }
 
 fn normalize_posix_like_path(raw_path: &str) -> String {
@@ -1008,8 +994,25 @@ pub fn load_user_config(cwd: &Path) -> Result<MergedConfigResult, String> {
 pub fn write_config(path: &Path, config: &UserConfigFile, logger: &Logger) {
   if let Some(parent) = path.parent()
     && !parent.exists()
+    && let Err(e) = fs::create_dir_all(parent)
   {
-    let _ = fs::create_dir_all(parent);
+    // Pre-#188 the result was discarded; the subsequent `fs::write`
+    // would then fail with a confusing "No such file or directory"
+    // when the real cause was a parent-creation problem (permissions,
+    // EROFS, ENOSPC, etc.). Surface it as its own diagnostic so the
+    // operator sees the actual failing step before the redundant
+    // CONFIG_WRITE_FAILED that follows.
+    logger.warn(diagnostic(
+      "CONFIG_PARENT_DIR_CREATE_FAILED",
+      "Failed to create the config file's parent directory",
+      line("The CLI tried to create the directory holding the config file but the syscall failed."),
+      Some(line(
+        "Check that the parent path is writable and not on a read-only or full filesystem.",
+      )),
+      None,
+      path_error_details(parent, &e.to_string()),
+    ));
+    return;
   }
 
   match serde_json::to_string_pretty(config) {

@@ -24,7 +24,7 @@ pub enum PromptKind {
   GlobalMemory,
   ProjectRootMemory,
   ProjectChildrenMemory,
-  FastCommand,
+  SlashCommand,
   SubAgent,
   Skill,
   SkillChildDoc,
@@ -138,7 +138,7 @@ pub struct RuleYAMLFrontMatter {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FastCommandYAMLFrontMatter {
+pub struct SlashCommandYAMLFrontMatter {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -230,10 +230,10 @@ pub struct RulePrompt {
   pub markdown_contents: Option<Vec<Value>>,
 }
 
-/// Fast command prompt.
+/// Slash command prompt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FastCommandPrompt {
+pub struct SlashCommandPrompt {
   #[serde(rename = "type")]
   pub prompt_type: PromptKind,
   pub content: String,
@@ -251,7 +251,7 @@ pub struct FastCommandPrompt {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub global_only: Option<bool>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub yaml_front_matter: Option<FastCommandYAMLFrontMatter>,
+  pub yaml_front_matter: Option<SlashCommandYAMLFrontMatter>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub raw_mdx_content: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -357,6 +357,8 @@ pub struct SkillPrompt {
   pub content: String,
   pub length: usize,
   pub skill_name: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub category_name: Option<String>,
   pub dir: RelativePath,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub yaml_front_matter: Option<SkillYAMLFrontMatter>,
@@ -571,8 +573,8 @@ mod tests {
   #[test]
   fn test_enums_serialize() {
     assert_eq!(
-      serde_json::to_string(&PromptKind::FastCommand).unwrap(),
-      "\"FastCommand\""
+      serde_json::to_string(&PromptKind::SlashCommand).unwrap(),
+      "\"SlashCommand\""
     );
     assert_eq!(
       serde_json::to_string(&RuleScope::Global).unwrap(),

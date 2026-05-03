@@ -3,7 +3,7 @@ use std::process::{Command as ProcCommand, Stdio};
 
 #[derive(Parser)]
 #[command(name = "memory-sync-xtask")]
-#[command(version = "2026.10422.10749")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(about = "Unified build entry for memory-sync workspace")]
 struct Cli {
   #[command(subcommand)]
@@ -159,11 +159,7 @@ fn main() -> Result<(), String> {
         "--exclude",
         "tnmsg",
         "--exclude",
-        "tnmsc-integrate-tests",
-        "--exclude",
         "tnmsc-local-tests",
-        "--exclude",
-        "tnmsm-integrate-tests",
         "--lib",
         "--bins",
         "--tests",
@@ -173,10 +169,16 @@ fn main() -> Result<(), String> {
     Command::Lint => {
       println!("[xtask] Running fmt check...");
       run_cargo(&["fmt", "--check"])?;
-      println!("[xtask] Linting completed (clippy skipped - pre-existing warnings).");
-      // run_cargo(&["clippy", "--workspace", "--", "-D", "warnings"])?;
-      // println!("[xtask] Running clippy...");
-      // println!("[xtask] Linting completed.");
+      println!("[xtask] Running clippy...");
+      run_cargo(&[
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+      ])?;
+      println!("[xtask] Linting completed.");
     }
     Command::CheckType => {
       println!("[xtask] Running type checking...");
@@ -215,16 +217,20 @@ fn main() -> Result<(), String> {
       run_cargo(&["fmt", "--check"])?;
       run_cargo(&["check", "--workspace", "--exclude", "tnmsg"])?;
       run_cargo(&[
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+      ])?;
+      run_cargo(&[
         "test",
         "--workspace",
         "--exclude",
         "tnmsg",
         "--exclude",
-        "tnmsc-integrate-tests",
-        "--exclude",
         "tnmsc-local-tests",
-        "--exclude",
-        "tnmsm-integrate-tests",
         "--lib",
         "--bins",
         "--tests",
