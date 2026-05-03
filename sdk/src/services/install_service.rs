@@ -33,7 +33,7 @@ pub(crate) fn install(
     options
       .log_level
       .as_deref()
-      .and_then(crate::infra::logger::LogLevel::from_str_loose),
+      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
   );
   let _span = logger.span("command.install").enter();
 
@@ -91,7 +91,7 @@ pub(crate) fn install(
     "Context collected",
     Some(json!({
       "globalMemory": context.global_memory.is_some(),
-      "commands": context.slash_commands.as_ref().map(|v| v.len()),
+      "commands": context.fast_commands.as_ref().map(|v| v.len()),
       "skills": context.skills.as_ref().map(|v| v.len()),
       "rules": context.rules.as_ref().map(|v| v.len()),
     })),

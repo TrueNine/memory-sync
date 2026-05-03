@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::config;
 use crate::domain::output_context::OutputContext;
-use crate::domain::output_plans::shared::resolve_effective_home_dir;
 use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const GEMINI_PLUGIN_NAME: &str = "GeminiCLIOutputAdaptor";

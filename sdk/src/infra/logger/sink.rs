@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use std::sync::mpsc::{self, Receiver, SendError, Sender};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
 use std::thread;
 
@@ -76,7 +76,7 @@ pub fn flush() {
     .send(OutputCommand::Flush { ack: ack_tx })
     .is_ok()
   {
-    let _ = ack_rx.recv_timeout(FLUSH_TIMEOUT);
+    let _ = ack_rx.recv();
   }
 }
 
@@ -85,12 +85,12 @@ pub fn flush() {
 // ---------------------------------------------------------------------------
 
 fn send_output(use_stderr: bool, output: String) {
-  // Move the formatted string straight into the channel. On the rare
-  // sink-thread-dead path the channel hands it back via the SendError
-  // payload, so the fallback `write_direct` can borrow it without us
-  // paying a per-call `String::clone` on every log line (#189).
-  if let Err(SendError(OutputCommand::Write { output, .. })) =
-    OUTPUT_SINK.send(OutputCommand::Write { use_stderr, output })
+  if OUTPUT_SINK
+    .send(OutputCommand::Write {
+      use_stderr,
+      output: output.clone(),
+    })
+    .is_err()
   {
     write_direct(use_stderr, &output);
   }

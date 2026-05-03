@@ -394,8 +394,14 @@ fn main() -> ExitCode {
 
   match resolve_command(&cli) {
     ResolvedCommand::Serve => {
-      // Fixes #225: in stdio mode stdout is the MCP JSON-RPC transport, so
-      // server startup must not emit logger messages or spans there.
+      let _span = logger.span("server.serve").enter();
+      logger.info(
+        "MCP server started",
+        Some(json!({
+          "serverName": SERVER_NAME,
+          "protocolVersion": PROTOCOL_VERSION,
+        })),
+      );
       run_stdio_server();
       ExitCode::SUCCESS
     }
