@@ -116,7 +116,6 @@ fn write_trae_config(temp_home: &Path, workspace_dir: &Path) {
         "qoder": false,
         "trae": true,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })

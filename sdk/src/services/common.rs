@@ -115,7 +115,6 @@ impl EnabledPlugins {
       "OpencodeCLIOutputAdaptor",
       "QoderIDEPluginOutputAdaptor",
       "TraeOutputAdaptor",
-      "WarpIDEOutputAdaptor",
       "WindsurfOutputAdaptor",
     ] {
       if self.is_enabled(plugin_name) {

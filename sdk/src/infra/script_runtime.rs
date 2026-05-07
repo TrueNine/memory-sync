@@ -293,7 +293,6 @@ mod tests {
     assert_eq!(proxy_public_path(".kiroignore"), "____kiroignore");
     assert_eq!(proxy_public_path(".qoderignore"), "____qoderignore");
     assert_eq!(proxy_public_path(".traeignore"), "____traeignore");
-    assert_eq!(proxy_public_path(".warpindexignore"), "____warpindexignore");
   }
 
   #[test]

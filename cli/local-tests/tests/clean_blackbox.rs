@@ -145,7 +145,6 @@ fn write_config(home_dir: &Path, workspace_dir: &Path, claude_enabled: bool, age
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })

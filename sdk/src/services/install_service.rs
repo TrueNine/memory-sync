@@ -219,12 +219,6 @@ fn build_output_files(
     push_base_output_files(&mut outputs, &plan.output_files);
     plugin_span.exit();
   }
-  if enabled_plugins.warp {
-    let plugin_span = logger.span("output.warp").enter();
-    let plan = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-    plugin_span.exit();
-  }
   if enabled_plugins.windsurf {
     let plugin_span = logger.span("output.windsurf").enter();
     let plan =

@@ -214,7 +214,6 @@ fn write_opencode_config(temp_home: &Path, workspace_dir: &Path) {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })

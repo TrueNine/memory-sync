@@ -127,7 +127,6 @@ fn write_claude_config(temp_home: &Path, workspace_dir: &Path, enabled: bool) {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })
@@ -375,7 +374,6 @@ fn regression_isolated_claude_skill_name_and_child_doc_extensions() {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false,
         "codex": false,
         "claudeCode": true,

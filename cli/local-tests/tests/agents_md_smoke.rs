@@ -109,7 +109,6 @@ fn write_config(temp_home: &Path, workspace_dir: &Path, agents_enabled: bool) {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })

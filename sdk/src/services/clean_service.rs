@@ -464,20 +464,13 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
+  if let Some(workspace) = context.workspace.as_ref() {
+    let plan = crate::domain::output_plans::warp_output_plan::build_warp_cleanup(workspace);
     cleanup_map
       .entry("WarpIDEOutputAdaptor".to_string())
       .or_insert_with(CleanupDeclarationsDto::default)
       .delete
-      .extend(plan.cleanup.delete.clone());
-    if enabled_plugins.warp {
-      for file in &plan.output_files {
-        output_map
-          .entry("WarpIDEOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
-    }
+      .extend(plan.delete.clone());
   }
   if let Ok(plan) =
     crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)

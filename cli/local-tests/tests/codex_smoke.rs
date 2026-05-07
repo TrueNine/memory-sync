@@ -134,7 +134,6 @@ fn write_codex_config(temp_home: &Path, workspace_dir: &Path) {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })
@@ -711,7 +710,6 @@ fn regression_isolated_install_outputs_full_browser_skill_and_clean_removes_it()
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false,
         "codex": true,
         "claudeCode": false,

@@ -183,10 +183,6 @@ fn build_output_files(
     let plan = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
-  if enabled_plugins.warp {
-    let plan = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
   if enabled_plugins.windsurf {
     let plan =
       crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
