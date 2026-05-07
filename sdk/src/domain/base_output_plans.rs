@@ -879,11 +879,14 @@ mod tests {
     };
     let workspace_dir = temp_dir.path();
     let project_dir = workspace_dir.join("packages").join("app");
-    if let Err(error) = fs::create_dir_all(workspace_dir.join(".git").join("info")) {
-      panic!("workspace git dir should be created: {error}");
+    if let Err(error) = fs::create_dir_all(&project_dir) {
+      panic!("project dir should be created: {error}");
     }
-    if let Err(error) = fs::create_dir_all(project_dir.join(".git").join("info")) {
-      panic!("project git dir should be created: {error}");
+    if let Err(error) = git2::Repository::init(workspace_dir) {
+      panic!("workspace git repo should be created: {error}");
+    }
+    if let Err(error) = git2::Repository::init(&project_dir) {
+      panic!("project git repo should be created: {error}");
     }
 
     let context = OutputContext {

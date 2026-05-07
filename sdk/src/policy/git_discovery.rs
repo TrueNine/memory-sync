@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 /// Scans `.git/modules/` directory recursively to find all submodule `info/` dirs.
 /// Handles nested submodules (modules within modules). Returns absolute paths of
 /// `info/` directories.
+///
+/// Note: Uses filesystem walking rather than `git2::submodules()` because it must
+/// find all submodule dirs regardless of `.gitmodules` configuration state.
+/// Implements #345.
 pub fn find_git_module_info_dirs(dot_git_dir: &Path) -> Vec<PathBuf> {
   let modules_dir = dot_git_dir.join("modules");
   if !modules_dir.is_dir() {
