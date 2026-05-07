@@ -346,6 +346,9 @@ struct BatchedGlobPlanner {
   groups: Vec<GlobGroup>,
   normalized_patterns: Vec<String>,
   metadata: Vec<GlobTargetMetadata>,
+  /// Cache for resolve_absolute_path results keyed by raw pattern string.
+  /// Fixes #263: avoids re-resolving the same path prefix for every pattern.
+  path_cache: HashMap<String, PathBuf>,
 }
 
 impl BatchedGlobPlanner {
@@ -355,6 +358,7 @@ impl BatchedGlobPlanner {
       groups: Vec::new(),
       normalized_patterns: Vec::new(),
       metadata: Vec::new(),
+      path_cache: HashMap::new(),
     })
   }
 
@@ -366,7 +370,14 @@ impl BatchedGlobPlanner {
     target_index: usize,
     exclude_basenames: Vec<String>,
   ) {
-    let normalized = normalize_glob_pattern(pattern);
+    // Use path_cache to avoid re-resolving the same raw pattern path.
+    // Fixes #263: resolve_absolute_path involves expand_home_path, env::current_dir(), and
+    // normalize_path — all avoidable when multiple patterns share the same prefix.
+    let resolved = self
+      .path_cache
+      .entry(pattern.to_string())
+      .or_insert_with(|| resolve_absolute_path(pattern));
+    let normalized = path_to_glob_string(resolved);
     let pattern_index = self.normalized_patterns.len();
     self.normalized_patterns.push(normalized.clone());
     self.metadata.push(GlobTargetMetadata {
