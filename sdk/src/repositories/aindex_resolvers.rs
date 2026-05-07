@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -268,9 +269,85 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
     }
   }
 
+  // Implements #359: filter projects whose target dir is not git-managed
+  let series_with_projects: HashSet<&str> = projects
+    .iter()
+    .filter_map(|p| p.project_type.as_deref())
+    .collect();
+  for series in &series_configs {
+    let series_dir = aindex_dir.join(series.name);
+    if !series_dir.is_dir() && !series_with_projects.contains(series.name) {
+      diagnostics.push(Diagnostic {
+        level: "warn".to_string(),
+        code: "SERIES_DIR_MISSING".to_string(),
+        title: format!(
+          "Aindex section '{}' does not exist under the aindex directory and was not synchronized.",
+          series.name
+        ),
+        exact_fix: Some(vec![format!(
+          "Create the directory: mkdir -p {}",
+          series_dir.display()
+        )]),
+      });
+    }
+  }
+
+  // Implements #359: skip projects whose target dir is not git-managed
+  let mut filtered_projects: Vec<Project> = Vec::with_capacity(projects.len());
+  for project in projects {
+    let should_skip = match project.dir_from_workspace_path.as_ref() {
+      Some(rp) => {
+        let abs_path_str = rp.get_absolute_path();
+        let abs_path = Path::new(&abs_path_str);
+        if !abs_path.exists() {
+          // Target dir doesn't exist — skip per issue #359 policy
+          diagnostics.push(Diagnostic {
+            level: "warn".to_string(),
+            code: "PROJECT_DIR_NOT_FOUND".to_string(),
+            title: format!(
+              "Target project directory for '{}' does not exist; synchronization skipped.",
+              project.name.as_deref().unwrap_or("unknown")
+            ),
+            exact_fix: Some(vec![format!(
+              "Create the directory and initialize a git repo:\n  mkdir -p {}\n  cd {} && git init",
+              abs_path.display(),
+              abs_path.display()
+            )]),
+          });
+          true
+        } else if git2::Repository::open(abs_path).is_err() {
+          // Target dir exists but is not git-managed
+          diagnostics.push(Diagnostic {
+            level: "warn".to_string(),
+            code: "PROJECT_DIR_NOT_GIT_MANAGED".to_string(),
+            title: format!(
+              "Target project directory '{}' is not a git-managed directory; synchronization skipped.",
+              abs_path.display()
+            ),
+            exact_fix: Some(vec![format!(
+              "Initialize a git repository:\n  cd {} && git init",
+              abs_path.display()
+            )]),
+          });
+          true
+        } else {
+          false
+        }
+      }
+      None => {
+        // Project with no dir_from_workspace_path (e.g. workspace root) — always include
+        false
+      }
+    };
+
+    if !should_skip {
+      filtered_projects.push(project);
+    }
+  }
+
   let workspace = Workspace {
     directory: RootPath::new(&workspace_dir_str),
-    projects,
+    projects: filtered_projects,
   };
 
   #[derive(Debug, Clone, serde::Serialize)]
@@ -306,6 +383,15 @@ mod tests {
     fs::create_dir_all(&src).unwrap();
   }
 
+  /// Creates a target project directory under `temp_workspace` and initializes
+  /// a git repository in it, so the git-managed check in `collect_aindex_resolvers`
+  /// (Implements #359) passes.
+  fn create_target_git_project(temp_workspace: &Path, project_name: &str) {
+    let target = temp_workspace.join(project_name);
+    fs::create_dir_all(&target).unwrap();
+    git2::Repository::init(&target).unwrap();
+  }
+
   #[test]
   fn collect_aindex_loads_project_json5() {
     let tmp = TempDir::new().unwrap();
@@ -316,6 +402,7 @@ mod tests {
       "{\n  // comment\n  includeSeries: ['alpha'],\n  subSeries: { skills: ['ship-*'] }\n}\n",
     )
     .unwrap();
+    create_target_git_project(tmp.path(), "project-a");
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -348,7 +435,7 @@ console.log(JSON.stringify({
 "#,
     )
     .unwrap();
-    fs::write(src.join("project.json5"), "{ source: 'json5' }").unwrap();
+    create_target_git_project(tmp.path(), "project-a");
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -371,6 +458,7 @@ console.log(JSON.stringify({
       "{\"includeSeries\":[\"legacy\"]}\n",
     )
     .unwrap();
+    create_target_git_project(tmp.path(), "project-b");
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -393,6 +481,8 @@ console.log(JSON.stringify({
       "{includeSeries: ['broken',]} trailing",
     )
     .unwrap();
+
+    create_target_git_project(tmp.path(), "project-c");
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -422,6 +512,8 @@ console.log(JSON.stringify({
     )
     .unwrap();
 
+    create_target_git_project(tmp.path(), "project-ts");
+
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
     });
@@ -446,6 +538,10 @@ console.log(JSON.stringify({
     create_aindex_project(tmp.path(), "plugin-a", "ext");
     create_aindex_project(tmp.path(), "system-a", "arch");
     create_aindex_project(tmp.path(), "tool-a", "softwares");
+    create_target_git_project(tmp.path(), "project-a");
+    create_target_git_project(tmp.path(), "plugin-a");
+    create_target_git_project(tmp.path(), "system-a");
+    create_target_git_project(tmp.path(), "tool-a");
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -537,5 +633,119 @@ console.log(JSON.stringify({
       .unwrap();
 
     assert_eq!(workspace_dir, tmp.path().canonicalize().unwrap());
+  }
+
+  // Implements #359: git-managed filter tests
+  #[test]
+  fn collect_aindex_skips_project_without_target_dir() {
+    let tmp = TempDir::new().unwrap();
+    create_aindex_project(tmp.path(), "orphan-project", "app");
+
+    // No target git project dir created — project should be filtered out
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let projects = parsed["workspace"]["projects"].as_array().unwrap();
+    assert!(
+      projects.is_empty(),
+      "orphan project without target dir should be filtered out"
+    );
+
+    let diagnostics = parsed["diagnostics"].as_array().unwrap();
+    assert!(
+      diagnostics
+        .iter()
+        .any(|d| d["code"] == "PROJECT_DIR_NOT_FOUND"),
+      "should emit PROJECT_DIR_NOT_FOUND diagnostic"
+    );
+  }
+
+  #[test]
+  fn collect_aindex_skips_non_git_project() {
+    let tmp = TempDir::new().unwrap();
+    create_aindex_project(tmp.path(), "plain-dir", "app");
+
+    // Create target dir but WITHOUT git repo
+    let target = tmp.path().join("plain-dir");
+    fs::create_dir_all(&target).unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let projects = parsed["workspace"]["projects"].as_array().unwrap();
+    assert!(
+      projects.is_empty(),
+      "non-git target dir should be filtered out"
+    );
+
+    let diagnostics = parsed["diagnostics"].as_array().unwrap();
+    assert!(
+      diagnostics
+        .iter()
+        .any(|d| d["code"] == "PROJECT_DIR_NOT_GIT_MANAGED"),
+      "should emit PROJECT_DIR_NOT_GIT_MANAGED diagnostic"
+    );
+  }
+
+  #[test]
+  fn collect_aindex_keeps_git_project() {
+    let tmp = TempDir::new().unwrap();
+    create_aindex_project(tmp.path(), "legit-project", "app");
+    create_target_git_project(tmp.path(), "legit-project");
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let projects = parsed["workspace"]["projects"].as_array().unwrap();
+    assert_eq!(projects.len(), 1, "git-managed project should be kept");
+    assert_eq!(projects[0]["name"], "legit-project");
+  }
+
+  #[test]
+  fn collect_aindex_emits_series_missing_diagnostics() {
+    let tmp = TempDir::new().unwrap();
+    // Only create app series; ext, arch, softwares are missing
+    create_aindex_project(tmp.path(), "my-app", "app");
+    create_target_git_project(tmp.path(), "my-app");
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+
+    let diagnostics = parsed["diagnostics"].as_array().unwrap();
+    let series_codes: Vec<&str> = diagnostics
+      .iter()
+      .filter(|d| d["code"] == "SERIES_DIR_MISSING")
+      .map(|d| d["title"].as_str().unwrap_or(""))
+      .collect();
+    assert!(
+      series_codes.iter().any(|t| t.contains("ext")),
+      "should warn for missing ext series"
+    );
+    assert!(
+      series_codes.iter().any(|t| t.contains("arch")),
+      "should warn for missing arch series"
+    );
+    assert!(
+      series_codes.iter().any(|t| t.contains("softwares")),
+      "should warn for missing softwares series"
+    );
+    // app has a project so its dir exists — no warning for app
+    assert!(
+      !series_codes.iter().any(|t| t.contains("app")),
+      "should NOT warn for app which has projects"
+    );
   }
 }
