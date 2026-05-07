@@ -9,6 +9,8 @@ use crate::domain::plugin_shared::{
   FilePathKind, McpServerConfig, PromptKind, RelativePath, SkillChildDoc, SkillMcpConfig,
   SkillPrompt, SkillResource, SkillResourceEncoding, SkillYAMLFrontMatter,
 };
+use std::sync::LazyLock;
+
 use crate::repositories::prompt_artifact::{
   assert_no_residual_module_syntax, read_prompt_artifact,
 };
@@ -35,8 +37,13 @@ struct CategoryDescriptionFiles {
   compiled_path: Option<PathBuf>,
 }
 
+// Fixes #184: compile regexes once via LazyLock instead of per-call
+static MDX_REFERENCE_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"(!?\[)([^\]]*?)(\]\()([^)]+)(\))").unwrap()
+});
+
 fn transform_mdx_references_to_md(content: &str) -> String {
-  let re = regex_lite::Regex::new(r"(!?\[)([^\]]*?)(\]\()([^)]+)(\))").unwrap();
+  let re = &*MDX_REFERENCE_REGEX;
   re.replace_all(content, |caps: &regex_lite::Captures| {
     let prefix = &caps[1];
     let text = caps[2].replace(".mdx", ".md");
@@ -54,9 +61,13 @@ fn transform_mdx_references_to_md(content: &str) -> String {
   .into_owned()
 }
 
+// Fixes #184: compile regex once via LazyLock
+static SKILL_FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok()
+});
+
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
-  let front_matter_regex =
-    regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
+  let front_matter_regex = SKILL_FRONT_MATTER_REGEX.as_ref();
   if let Some(re) = front_matter_regex
     && let Some(caps) = re.captures(raw_mdx)
   {
@@ -69,18 +80,38 @@ fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   (None, None)
 }
 
+// Fixes #184: compile regexes once via LazyLock
+static EXPORT_DEFAULT_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").unwrap()
+});
+static SKILL_DESC_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"description\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
+});
+static NAME_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"name\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
+});
+static DISPLAY_NAME_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"displayName\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
+});
+static KEYWORDS_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"keywords\s*:\s*\[([^\]]+)\]").unwrap()
+});
+static AUTHOR_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"author\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
+});
+static VERSION_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"version\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
+});
+
 fn extract_skill_metadata_from_export(content: &str) -> Value {
   let mut metadata = serde_json::Map::new();
 
-  let export_default_regex = regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").unwrap();
-  let object_content = match export_default_regex.captures(content) {
+  let object_content = match EXPORT_DEFAULT_REGEX.captures(content) {
     Some(caps) => caps.get(1).map(|m| m.as_str()).unwrap_or(""),
     None => return Value::Object(metadata),
   };
 
-  let description_regex =
-    regex_lite::Regex::new(r#"description\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = description_regex.captures(object_content)
+  if let Some(caps) = SKILL_DESC_REGEX.captures(object_content)
     && let Some(m) = caps.get(1)
   {
     metadata.insert(
@@ -89,16 +120,13 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
     );
   }
 
-  let name_regex = regex_lite::Regex::new(r#"name\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = name_regex.captures(object_content)
+  if let Some(caps) = NAME_REGEX.captures(object_content)
     && let Some(m) = caps.get(1)
   {
     metadata.insert("name".to_string(), Value::String(m.as_str().to_string()));
   }
 
-  let display_name_regex =
-    regex_lite::Regex::new(r#"displayName\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = display_name_regex.captures(object_content)
+  if let Some(caps) = DISPLAY_NAME_REGEX.captures(object_content)
     && let Some(m) = caps.get(1)
   {
     metadata.insert(
@@ -107,8 +135,7 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
     );
   }
 
-  let keywords_regex = regex_lite::Regex::new(r"keywords\s*:\s*\[([^\]]+)\]").unwrap();
-  if let Some(caps) = keywords_regex.captures(object_content)
+  if let Some(caps) = KEYWORDS_REGEX.captures(object_content)
     && let Some(m) = caps.get(1)
   {
     let keywords: Vec<Value> = m
@@ -124,15 +151,13 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
     metadata.insert("keywords".to_string(), Value::Array(keywords));
   }
 
-  let author_regex = regex_lite::Regex::new(r#"author\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = author_regex.captures(object_content)
+  if let Some(caps) = AUTHOR_REGEX.captures(object_content)
     && let Some(m) = caps.get(1)
   {
     metadata.insert("author".to_string(), Value::String(m.as_str().to_string()));
   }
 
-  let version_regex = regex_lite::Regex::new(r#"version\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = version_regex.captures(object_content)
+  if let Some(caps) = VERSION_REGEX.captures(object_content)
     && let Some(m) = caps.get(1)
   {
     metadata.insert("version".to_string(), Value::String(m.as_str().to_string()));
@@ -141,11 +166,21 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
   Value::Object(metadata)
 }
 
-fn extract_description_from_exports(content: &str) -> Option<String> {
-  let default_description_regex =
-    regex_lite::Regex::new(r#"description\s*:\s*['"`]([^'"`]+)['"`]"#).ok()?;
+// Fixes #184: compile regexes once via LazyLock
+static DEFAULT_DESC_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"description\s*:\s*['"`]([^'"`]+)['"`]"#).ok()
+});
+static DESC_EXPORT_DEFAULT_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").ok()
+});
+static NAMED_EXPORT_DESC_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r#"export\s+(?:const|let)\s+description\s*=\s*['"`]([^'"`]+)['"`]"#).ok()
+});
 
-  let export_default_regex = regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").ok()?;
+fn extract_description_from_exports(content: &str) -> Option<String> {
+  let default_description_regex = DEFAULT_DESC_REGEX.as_ref()?;
+
+  let export_default_regex = DESC_EXPORT_DEFAULT_REGEX.as_ref()?;
   if let Some(caps) = export_default_regex.captures(content)
     && let Some(object_content) = caps.get(1)
     && let Some(desc_caps) = default_description_regex.captures(object_content.as_str())
@@ -154,18 +189,20 @@ fn extract_description_from_exports(content: &str) -> Option<String> {
     return Some(description.as_str().trim().to_string());
   }
 
-  let named_export_regex =
-    regex_lite::Regex::new(r#"export\s+(?:const|let)\s+description\s*=\s*['"`]([^'"`]+)['"`]"#)
-      .ok()?;
+  let named_export_regex = NAMED_EXPORT_DESC_REGEX.as_ref()?;
   named_export_regex
     .captures(content)
     .and_then(|caps| caps.get(1))
     .map(|description| description.as_str().trim().to_string())
 }
 
+// Fixes #184: compile regex once via LazyLock
+static STRIP_FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"(?s)^---\r?\n.*?\r?\n---(?:(?:\r?\n){1,2}|$)").ok()
+});
+
 fn strip_leading_front_matter(content: &str) -> &str {
-  let front_matter_regex =
-    regex_lite::Regex::new(r"(?s)^---\r?\n.*?\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
+  let front_matter_regex = STRIP_FRONT_MATTER_REGEX.as_ref();
   if let Some(re) = front_matter_regex
     && let Some(matched) = re.find(content)
   {
@@ -174,13 +211,19 @@ fn strip_leading_front_matter(content: &str) -> &str {
   content
 }
 
-fn strip_leading_export_statements(content: &str) -> String {
-  let export_default_regex =
-    regex_lite::Regex::new(r"(?s)^\s*export\s+default\s*\{[\s\S]*?\}\s*;?\s*").ok();
-  let named_export_regex = regex_lite::Regex::new(
+// Fixes #184: compile regexes once via LazyLock
+static STRIP_EXPORT_DEFAULT_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"(?s)^\s*export\s+default\s*\{[\s\S]*?\}\s*;?\s*").ok()
+});
+static STRIP_NAMED_EXPORT_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(
     r#"(?m)^\s*export\s+(?:const|let)\s+description\s*=\s*['"`][^'"`]+['"`]\s*;?\s*$\n?"#,
-  )
-  .ok();
+  ).ok()
+});
+
+fn strip_leading_export_statements(content: &str) -> String {
+  let export_default_regex = STRIP_EXPORT_DEFAULT_REGEX.as_ref();
+  let named_export_regex = STRIP_NAMED_EXPORT_REGEX.as_ref();
 
   let without_default = if let Some(re) = export_default_regex {
     re.replace(content, "").into_owned()

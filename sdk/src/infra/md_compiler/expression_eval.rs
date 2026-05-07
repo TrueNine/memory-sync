@@ -304,7 +304,8 @@ pub fn evaluate_interpolations(text: &str, scope: &EvaluationScope) -> String {
     let mut matched = false;
 
     while j < text.len() {
-      let c = text[j..].chars().next().unwrap();
+      // Fixes #183: use let-else instead of unwrap() for safer char iteration
+      let Some(c) = text[j..].chars().next() else { break; };
       match c {
         '\'' if !in_double_quote && !in_backtick => in_single_quote = !in_single_quote,
         '"' if !in_single_quote && !in_backtick => in_double_quote = !in_double_quote,
