@@ -35,7 +35,9 @@ function parseConfig(raw: string): ConfigData {
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
       return parsed as ConfigData
     }
-  } catch { /* empty */ }
+  } catch (err) {
+    console.error('[ConfigPage] parseConfig: invalid JSON, falling back to empty object', err)
+  }
   return {}
 }
 
