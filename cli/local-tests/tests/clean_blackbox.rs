@@ -38,6 +38,8 @@ impl IsolatedCleanFixture {
     fs::create_dir_all(memory_sync_dir.join(".github")).unwrap();
     fs::create_dir_all(&knowladge_dir).unwrap();
     fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+    init_git_repo(&memory_sync_dir);
+    init_git_repo(&knowladge_dir);
 
     // issue local-tests-clean-isolation: clean black-box tests must own their
     // workspace fixture so scope assertions do not depend on the host machine.
@@ -92,6 +94,23 @@ impl IsolatedCleanFixture {
   fn aindex_agents_path(&self) -> PathBuf {
     self.aindex_dir.join("AGENTS.md")
   }
+}
+
+fn init_git_repo(project_dir: &Path) {
+  let output = std::process::Command::new("git")
+    .arg("init")
+    .arg("--quiet")
+    .current_dir(project_dir)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+
+  assert!(
+    output.status.success(),
+    "git init should succeed in {}\nstdout:\n{}\nstderr:\n{}",
+    project_dir.display(),
+    String::from_utf8_lossy(&output.stdout),
+    String::from_utf8_lossy(&output.stderr)
+  );
 }
 
 fn write_prompt_sources(aindex_dir: &Path, aindex_project_dir: &Path) {

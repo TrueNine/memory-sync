@@ -49,6 +49,7 @@ impl IsolatedOpencodeFixture {
     )
     .unwrap();
     fs::create_dir_all(aindex_dir.join("skills").join("plain-skill")).unwrap();
+    init_git_repo(&project_dir);
 
     // issue local-tests-opencode-isolation: opencode local tests must validate
     // generated output in a temp HOME/workspace instead of the host machine.
@@ -133,6 +134,23 @@ impl IsolatedOpencodeFixture {
   pub fn project_skills_dir(&self) -> PathBuf {
     self.project_opencode_dir().join("skills")
   }
+}
+
+fn init_git_repo(project_dir: &Path) {
+  let output = std::process::Command::new("git")
+    .arg("init")
+    .arg("--quiet")
+    .current_dir(project_dir)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+
+  assert!(
+    output.status.success(),
+    "git init should succeed in {}\nstdout:\n{}\nstderr:\n{}",
+    project_dir.display(),
+    String::from_utf8_lossy(&output.stdout),
+    String::from_utf8_lossy(&output.stderr)
+  );
 }
 
 #[allow(dead_code)]

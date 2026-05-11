@@ -221,6 +221,37 @@ fn local_opencode_clean_removes_files() {
 }
 
 #[test]
+fn local_opencode_clean_removes_legacy_opencode_directories_recursively() {
+  let fixture = IsolatedOpencodeFixture::new();
+
+  let legacy_file = fixture
+    .project_dir
+    .join(".github")
+    .join(".opencode")
+    .join("legacy")
+    .join("note.md");
+  fs::create_dir_all(legacy_file.parent().unwrap()).unwrap();
+  fs::write(&legacy_file, "# legacy\n").unwrap();
+  assert!(
+    legacy_file.is_file(),
+    "legacy nested .opencode file should exist before clean"
+  );
+
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean removes legacy .opencode directories");
+
+  assert!(
+    !fixture
+      .project_dir
+      .join(".github")
+      .join(".opencode")
+      .exists(),
+    "legacy nested .opencode directory should be removed during clean"
+  );
+}
+
+#[test]
 fn local_opencode_dry_run_does_not_write() {
   let fixture = IsolatedOpencodeFixture::new();
 

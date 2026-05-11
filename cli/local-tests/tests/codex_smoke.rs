@@ -35,6 +35,7 @@ impl IsolatedCodexFixture {
     fs::create_dir_all(temp_home.join(".aindex")).unwrap();
     fs::create_dir_all(project_dir.join(".github")).unwrap();
     fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+    init_git_repo(&project_dir);
     fs::create_dir_all(aindex_dir.join("commands")).unwrap();
     fs::create_dir_all(aindex_dir.join("subagents").join("qa")).unwrap();
     fs::create_dir_all(
@@ -102,6 +103,10 @@ impl IsolatedCodexFixture {
     self.project_dir.join(".codex")
   }
 
+  fn child_codex_path(&self) -> PathBuf {
+    self.project_dir.join(".github").join(".codex")
+  }
+
   fn project_agents_dir(&self) -> PathBuf {
     self.project_codex_dir().join("agents")
   }
@@ -109,6 +114,23 @@ impl IsolatedCodexFixture {
   fn project_skills_dir(&self) -> PathBuf {
     self.project_codex_dir().join("skills")
   }
+}
+
+fn init_git_repo(project_dir: &Path) {
+  let output = std::process::Command::new("git")
+    .arg("init")
+    .arg("--quiet")
+    .current_dir(project_dir)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+
+  assert!(
+    output.status.success(),
+    "git init should succeed in {}\nstdout:\n{}\nstderr:\n{}",
+    project_dir.display(),
+    String::from_utf8_lossy(&output.stdout),
+    String::from_utf8_lossy(&output.stderr)
+  );
 }
 
 fn write_codex_config(temp_home: &Path, workspace_dir: &Path) {
@@ -633,6 +655,26 @@ fn local_codex_clean_removes_files() {
   assert!(
     !fixture.global_codex_dir().join("prompts").exists(),
     "~/.codex/prompts should be removed after clean"
+  );
+}
+
+#[test]
+fn local_codex_clean_removes_legacy_codex_files_recursively() {
+  let fixture = IsolatedCodexFixture::new();
+
+  fs::write(fixture.child_codex_path(), "legacy codex file\n").unwrap();
+  assert!(
+    fixture.child_codex_path().is_file(),
+    "legacy nested .codex file should exist before clean"
+  );
+
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean removes legacy nested .codex file");
+
+  assert!(
+    !fixture.child_codex_path().exists(),
+    "legacy nested .codex file should be removed during clean"
   );
 }
 
