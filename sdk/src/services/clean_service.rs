@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::json;
@@ -69,9 +70,25 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
     })),
   );
 
+  let project_scope = resolve_project_scope(&cwd, &workspace_dir);
+
+  if let Some(scope) = project_scope.as_ref() {
+    logger.info(
+      "Project scope resolved",
+      Some(json!({
+        "scope": scope.to_string_lossy().to_string(),
+      })),
+    );
+  }
+
   let discover_span = logger.span("cleanup.discover").enter();
   let (output_map, cleanup_map) = build_output_map(&context, enabled_plugins, &logger)?;
-  let mut snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map, &cleanup_map)?;
+  let mut snapshot = build_cleanup_snapshot(
+    &workspace_dir_str,
+    &output_map,
+    &cleanup_map,
+    project_scope.as_deref(),
+  )?;
   discover_span.exit();
 
   logger.info(
@@ -83,14 +100,8 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   );
 
   // 根据 cwd 限制清理作用域
-  if let Some(scope) = resolve_project_scope(&cwd, &workspace_dir) {
-    logger.info(
-      "Project scope resolved",
-      Some(json!({
-        "scope": scope.to_string_lossy().to_string(),
-      })),
-    );
-    snapshot = filter_snapshot_by_scope(snapshot, &scope, &workspace_dir);
+  if let Some(scope) = project_scope.as_ref() {
+    snapshot = filter_snapshot_by_scope(snapshot, scope, &workspace_dir);
   }
 
   if options.dry_run.unwrap_or(false) {
@@ -502,6 +513,7 @@ fn build_cleanup_snapshot(
   workspace_dir: &str,
   output_map: &HashMap<String, Vec<String>>,
   cleanup_map: &HashMap<String, CleanupDeclarationsDto>,
+  residual_scan_scope: Option<&Path>,
 ) -> Result<CleanupSnapshot, CliError> {
   let mut plugin_snapshots = Vec::new();
 
@@ -574,6 +586,25 @@ fn build_cleanup_snapshot(
     },
   });
 
+  push_legacy_adaptor_residual_cleanup(
+    &mut plugin_snapshots,
+    residual_scan_scope.unwrap_or_else(|| Path::new(workspace_dir)),
+    "TraeOutputAdaptor",
+    &[".trae", ".trae-cn"],
+  );
+  push_legacy_adaptor_residual_cleanup(
+    &mut plugin_snapshots,
+    residual_scan_scope.unwrap_or_else(|| Path::new(workspace_dir)),
+    "OpencodeCLIOutputAdaptor",
+    &[".opencode"],
+  );
+  push_legacy_adaptor_residual_cleanup(
+    &mut plugin_snapshots,
+    residual_scan_scope.unwrap_or_else(|| Path::new(workspace_dir)),
+    "CodexCLIOutputAdaptor",
+    &[".codex"],
+  );
+
   Ok(CleanupSnapshot {
     workspace_dir: workspace_dir.to_string(),
     aindex_dir: Some(
@@ -586,6 +617,82 @@ fn build_cleanup_snapshot(
     plugin_snapshots,
     empty_dir_exclude_globs: Vec::new(),
   })
+}
+
+fn push_legacy_adaptor_residual_cleanup(
+  plugin_snapshots: &mut Vec<PluginCleanupSnapshotDto>,
+  scan_root: &Path,
+  plugin_name: &str,
+  basenames: &[&str],
+) {
+  if !plugin_snapshots
+    .iter()
+    .any(|snapshot| snapshot.plugin_name == plugin_name)
+  {
+    return;
+  }
+
+  let mut delete = Vec::new();
+  collect_legacy_adaptor_residual_targets(scan_root, basenames, &mut delete);
+  if delete.is_empty() {
+    return;
+  }
+
+  plugin_snapshots.push(PluginCleanupSnapshotDto {
+    plugin_name: format!("{plugin_name}:legacy-residuals"),
+    outputs: Vec::new(),
+    cleanup: CleanupDeclarationsDto {
+      delete,
+      protect: Vec::new(),
+      exclude_scan_globs: Vec::new(),
+    },
+  });
+}
+
+fn collect_legacy_adaptor_residual_targets(
+  dir: &Path,
+  basenames: &[&str],
+  delete: &mut Vec<CleanupTargetDto>,
+) {
+  let Ok(entries) = fs::read_dir(dir) else {
+    return;
+  };
+
+  for entry in entries.flatten() {
+    let path = entry.path();
+    let basename = path
+      .file_name()
+      .and_then(|name| name.to_str())
+      .unwrap_or("");
+
+    if basenames.contains(&basename) {
+      let kind = if path.is_dir() {
+        CleanupTargetKindDto::Directory
+      } else {
+        CleanupTargetKindDto::File
+      };
+      delete.push(CleanupTargetDto {
+        path: path.to_string_lossy().into_owned(),
+        kind,
+        exclude_basenames: Vec::new(),
+        protection_mode: None,
+        scope: None,
+        label: Some("delete.legacyAdaptorResidual".to_string()),
+      });
+      continue;
+    }
+
+    if path.is_dir() && !should_skip_legacy_residual_scan_dir(basename) {
+      collect_legacy_adaptor_residual_targets(&path, basenames, delete);
+    }
+  }
+}
+
+fn should_skip_legacy_residual_scan_dir(basename: &str) -> bool {
+  matches!(
+    basename,
+    ".git" | "node_modules" | "target" | ".next" | ".turbo" | ".pnpm-store" | ".yarn"
+  )
 }
 
 fn discover_project_roots(workspace_dir: &str) -> Vec<String> {
@@ -782,7 +889,7 @@ mod tests {
     );
 
     let cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
-    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map);
+    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map, None);
     assert!(snapshot.is_ok());
     let snapshot = snapshot.unwrap();
     assert_eq!(snapshot.plugin_snapshots.len(), 2);
@@ -797,7 +904,7 @@ mod tests {
     let output_map = HashMap::new();
     let cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
 
-    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map).unwrap();
+    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map, None).unwrap();
     assert!(snapshot.aindex_dir.is_some());
     assert!(snapshot.aindex_dir.unwrap().contains("aindex"));
   }
@@ -823,7 +930,7 @@ mod tests {
       },
     );
 
-    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &cleanup_map).unwrap();
+    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &cleanup_map, None).unwrap();
 
     let agents_snapshot = snapshot
       .plugin_snapshots
@@ -868,7 +975,7 @@ mod tests {
       },
     );
 
-    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &cleanup_map).unwrap();
+    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &cleanup_map, None).unwrap();
 
     let names: Vec<_> = snapshot
       .plugin_snapshots
@@ -882,6 +989,114 @@ mod tests {
     assert!(
       names.contains(&"DisabledPlugin"),
       "snapshot should include plugin from cleanup_map"
+    );
+  }
+
+  #[test]
+  fn clean_snapshot_adds_legacy_adaptor_residuals_to_matching_adaptor() {
+    let temp_dir = TempDir::new().unwrap();
+    let ws = temp_dir.path();
+    let codex_file = ws.join("project-a").join(".codex");
+    let trae_dir = ws.join("project-b").join(".trae").join("legacy");
+    let opencode_dir = ws.join("project-c").join(".opencode").join("legacy");
+    std::fs::create_dir_all(codex_file.parent().unwrap()).unwrap();
+    std::fs::write(&codex_file, "legacy").unwrap();
+    std::fs::create_dir_all(&trae_dir).unwrap();
+    std::fs::create_dir_all(&opencode_dir).unwrap();
+
+    let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+    cleanup_map.insert(
+      "CodexCLIOutputAdaptor".to_string(),
+      CleanupDeclarationsDto::default(),
+    );
+    cleanup_map.insert(
+      "TraeOutputAdaptor".to_string(),
+      CleanupDeclarationsDto::default(),
+    );
+
+    let snapshot =
+      build_cleanup_snapshot(&ws.to_string_lossy(), &HashMap::new(), &cleanup_map, None).unwrap();
+
+    let codex_residuals = snapshot
+      .plugin_snapshots
+      .iter()
+      .find(|snapshot| snapshot.plugin_name == "CodexCLIOutputAdaptor:legacy-residuals")
+      .expect("codex legacy residual snapshot should be present");
+    assert!(
+      codex_residuals
+        .cleanup
+        .delete
+        .iter()
+        .any(|target| target.path == codex_file.to_string_lossy()
+          && target.kind == CleanupTargetKindDto::File)
+    );
+
+    let trae_residuals = snapshot
+      .plugin_snapshots
+      .iter()
+      .find(|snapshot| snapshot.plugin_name == "TraeOutputAdaptor:legacy-residuals")
+      .expect("trae legacy residual snapshot should be present");
+    assert!(
+      trae_residuals
+        .cleanup
+        .delete
+        .iter()
+        .any(
+          |target| target.path == ws.join("project-b").join(".trae").to_string_lossy()
+            && target.kind == CleanupTargetKindDto::Directory
+        )
+    );
+
+    assert!(
+      snapshot
+        .plugin_snapshots
+        .iter()
+        .all(|snapshot| snapshot.plugin_name != "OpencodeCLIOutputAdaptor:legacy-residuals"),
+      "disabled opencode adaptor should not receive residual cleanup"
+    );
+  }
+
+  #[test]
+  fn clean_snapshot_limits_legacy_residual_scan_to_scope() {
+    let temp_dir = TempDir::new().unwrap();
+    let ws = temp_dir.path();
+    let in_scope = ws.join("project-a").join(".opencode");
+    let out_of_scope = ws.join("project-b").join(".opencode");
+    std::fs::create_dir_all(in_scope.join("legacy")).unwrap();
+    std::fs::create_dir_all(out_of_scope.join("legacy")).unwrap();
+
+    let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+    cleanup_map.insert(
+      "OpencodeCLIOutputAdaptor".to_string(),
+      CleanupDeclarationsDto::default(),
+    );
+
+    let snapshot = build_cleanup_snapshot(
+      &ws.to_string_lossy(),
+      &HashMap::new(),
+      &cleanup_map,
+      Some(&ws.join("project-a")),
+    )
+    .unwrap();
+
+    let opencode_residuals = snapshot
+      .plugin_snapshots
+      .iter()
+      .find(|snapshot| snapshot.plugin_name == "OpencodeCLIOutputAdaptor:legacy-residuals")
+      .expect("opencode legacy residual snapshot should be present");
+    assert!(
+      opencode_residuals
+        .cleanup
+        .delete
+        .iter()
+        .any(|target| target.path == in_scope.to_string_lossy())
+    );
+    assert!(
+      opencode_residuals
+        .cleanup
+        .delete
+        .iter()
+        .all(|target| target.path != out_of_scope.to_string_lossy())
     );
   }
 
@@ -954,7 +1169,8 @@ mod tests {
       ],
     );
 
-    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &HashMap::new()).unwrap();
+    let snapshot =
+      build_cleanup_snapshot(workspace_dir, &output_map, &HashMap::new(), None).unwrap();
     let filtered = filter_snapshot_by_scope(snapshot, &scope, Path::new(workspace_dir));
 
     let test_plugin = filtered
@@ -982,7 +1198,8 @@ mod tests {
       ],
     );
 
-    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &HashMap::new()).unwrap();
+    let snapshot =
+      build_cleanup_snapshot(workspace_dir, &output_map, &HashMap::new(), None).unwrap();
     let filtered = filter_snapshot_by_scope(snapshot, &scope, Path::new(workspace_dir));
 
     let test_plugin = filtered
@@ -1011,8 +1228,13 @@ mod tests {
     std::fs::create_dir_all(ws.join("project-b")).unwrap();
 
     let scope = ws.join("project-a");
-    let snapshot =
-      build_cleanup_snapshot(&ws.to_string_lossy(), &HashMap::new(), &HashMap::new()).unwrap();
+    let snapshot = build_cleanup_snapshot(
+      &ws.to_string_lossy(),
+      &HashMap::new(),
+      &HashMap::new(),
+      None,
+    )
+    .unwrap();
 
     let filtered = filter_snapshot_by_scope(snapshot, &scope, ws);
 

@@ -534,18 +534,6 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       scope: Some(PROJECT_SCOPE.to_string()),
       label: Some("delete.project.nested.glob".to_string()),
     });
-
-    let config_dir = project_root_dir.join(OPENCODE_PROJECT_CONFIG_DIR);
-    for sub_dir in &["rules", "commands", "agents", "skills"] {
-      delete.push(CleanupTargetDto {
-        path: config_dir.join(sub_dir).to_string_lossy().into_owned(),
-        kind: CleanupTargetKindDto::Directory,
-        exclude_basenames: Vec::new(),
-        protection_mode: None,
-        scope: Some(PROJECT_SCOPE.to_string()),
-        label: Some("delete.directory".to_string()),
-      });
-    }
   }
 
   // Global AGENTS.md cleanup
