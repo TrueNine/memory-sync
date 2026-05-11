@@ -28,3 +28,4 @@ libraries/**/dist/*.node
 **/target/
 !**/Cargo.lock
 output/
+.idea/
