@@ -61,7 +61,7 @@ reqwest = { version = "0.13.3", features = ["blocking", "json"] }
 markdown = "1.0.0"
 
 # Tauri
-tauri = { version = "2.11.0", features = ["tray-icon"] }
+tauri = { version = "2.11.1", features = ["tray-icon"] }
 tauri-build = { version = "2.5.6", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
