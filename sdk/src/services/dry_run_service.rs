@@ -131,28 +131,9 @@ mod tests {
   use tempfile::TempDir;
 
   fn with_home_dir<T>(home_dir: &std::path::Path, callback: impl FnOnce() -> T) -> T {
-    let _guard = match crate::domain::TEST_ENV_LOCK.lock() {
-      Ok(g) => g,
-      Err(error) => error.into_inner(),
-    };
-    let previous_home = std::env::var_os("HOME");
-
-    unsafe {
-      std::env::set_var("HOME", home_dir);
-    }
-
-    let result = callback();
-
-    match previous_home {
-      Some(value) => unsafe {
-        std::env::set_var("HOME", value);
-      },
-      None => unsafe {
-        std::env::remove_var("HOME");
-      },
-    }
-
-    result
+    // #231: keep HOME-mutating service tests on the shared helper so all
+    // modules serialize environment changes through the same guard.
+    crate::domain::with_test_home_dir(home_dir, callback)
   }
 
   fn create_test_config(

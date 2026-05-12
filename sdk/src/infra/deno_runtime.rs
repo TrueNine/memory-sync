@@ -484,13 +484,14 @@ impl TypescriptModuleLoader {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::sync::{LazyLock, Mutex};
   use tempfile::TempDir;
 
-  static ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
-
   fn with_path_removed<T>(f: impl FnOnce() -> T) -> T {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    // #230: PATH mutations must share TEST_ENV_LOCK with HOME-mutating tests
+    // so parallel test runs cannot observe half-restored process environment.
+    let _guard = crate::domain::TEST_ENV_LOCK
+      .lock()
+      .unwrap_or_else(|error| error.into_inner());
     let original = std::env::var_os("PATH");
     unsafe {
       std::env::remove_var("PATH");
@@ -506,7 +507,11 @@ mod tests {
   }
 
   fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    // #230: keep all test env mutations on the crate-wide lock instead of a
+    // deno-runtime-only lock that misses HOME/PATH interactions elsewhere.
+    let _guard = crate::domain::TEST_ENV_LOCK
+      .lock()
+      .unwrap_or_else(|error| error.into_inner());
     let original = std::env::var_os(name);
     unsafe {
       std::env::set_var(name, value);
@@ -703,10 +708,7 @@ console.log(JSON.stringify({
         1,
         "allowedEnv as array should find env var (Fixes #286)"
       );
-      assert_eq!(
-        env_map.get("TNMSD_TEST_VAR_286"),
-        Some(&"abc".to_string())
-      );
+      assert_eq!(env_map.get("TNMSD_TEST_VAR_286"), Some(&"abc".to_string()));
     });
 
     // Case 4: no allowedEnv key at all → empty map (normal)

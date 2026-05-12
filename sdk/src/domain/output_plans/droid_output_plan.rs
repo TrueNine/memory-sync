@@ -806,28 +806,9 @@ mod tests {
   }
 
   fn with_home_dir<T>(home_dir: &std::path::Path, callback: impl FnOnce() -> T) -> T {
-    let _guard = match crate::domain::TEST_ENV_LOCK.lock() {
-      Ok(g) => g,
-      Err(e) => e.into_inner(),
-    };
-    let previous_home = std::env::var_os("HOME");
-
-    unsafe {
-      std::env::set_var("HOME", home_dir);
-    }
-
-    let result = callback();
-
-    match previous_home {
-      Some(value) => unsafe {
-        std::env::set_var("HOME", value);
-      },
-      None => unsafe {
-        std::env::remove_var("HOME");
-      },
-    }
-
-    result
+    // #231: keep HOME-mutating tests on one shared helper so lock and
+    // restore behavior do not drift across output-plan modules.
+    crate::domain::with_test_home_dir(home_dir, callback)
   }
 
   #[test]
