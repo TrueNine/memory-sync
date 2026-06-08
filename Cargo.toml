@@ -40,8 +40,8 @@ tnmsd = { path = "sdk" }
 
 # Serialization
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
-serde_yml = "0.0.12"
+serde_json = { version = "1.0.150", features = ["preserve_order"] }
+serde_yml = "0.0.13"
 
 # CLI
 clap = { version = "4.6.1", features = ["derive"] }
@@ -55,13 +55,13 @@ sha2 = "0.11.0"
 base64 = "0.22.1"
 
 # HTTP
-reqwest = { version = "0.13.3", features = ["blocking", "json"] }
+reqwest = { version = "0.13.4", features = ["blocking", "json"] }
 
 # Markdown / MDX
 markdown = "1.0.0"
 
 # Tauri
-tauri = { version = "2.11.0", features = ["tray-icon"] }
+tauri = { version = "2.11.2", features = ["tray-icon"] }
 tauri-build = { version = "2.5.6", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
@@ -70,7 +70,7 @@ tauri-plugin-updater = "2"
 json5 = "1.3.1"
 
 # Tests
-assert_cmd = "2.1.1"
+assert_cmd = "2.2.2"
 predicates = "3.1.3"
 
 [profile.release]
