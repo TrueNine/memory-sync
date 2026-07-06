@@ -34,10 +34,10 @@ markdown = { workspace = true }
 tempfile = "3.27.0"
 schemars = "1"
 deno_ast = { version = "0.53.2", features = ["emit", "transpiling"] }
-deno_core = "0.400.0"
+deno_core = "0.406.0"
 deno_error = "0.7.1"
 tokio = { version = "1.52.1", features = ["rt-multi-thread", "macros"] }
-git2 = { version = "0.19", default-features = false }
+git2 = { version = "0.21", default-features = false }
 
 [dev-dependencies]
 proptest = "1.11.0"
