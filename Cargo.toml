@@ -41,7 +41,7 @@ tnmsd = { path = "sdk" }
 # Serialization
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
-serde_yml = "0.0.12"
+serde_yml = "0.0.13"
 
 # CLI
 clap = { version = "4.6.1", features = ["derive"] }
