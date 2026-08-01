@@ -2,8 +2,8 @@ import type { FC } from 'react'
 
 import Editor, { type OnMount, loader } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
+import editorWorker from 'monaco-editor/editor/editor.worker?worker'
+import jsonWorker from 'monaco-editor/language/json/json.worker?worker'
 import { useCallback, useRef } from 'react'
 
 import { useFont } from '@/hooks/useFont'
