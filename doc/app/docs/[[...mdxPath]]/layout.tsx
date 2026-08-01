@@ -1,9 +1,33 @@
 import type {ReactNode} from 'react'
-import {Layout, Navbar} from 'nextra-theme-docs'
 import {getPageMap} from 'nextra/page-map'
 import {DocsSectionNav} from '../../../components/docs-section-nav'
 import {isDocSectionName} from '../../../lib/docs-sections'
 import {siteConfig, withBasePath} from '../../../lib/site'
+
+type PageMapItem = {
+  readonly name?: string
+  readonly route?: string
+  readonly title?: string
+  readonly children?: readonly PageMapItem[]
+}
+
+function DocsSidebar({pageMap}: {readonly pageMap: readonly PageMapItem[]}) {
+  return (
+    <nav className="docs-sidebar" aria-label="Documentation">
+      {pageMap.map(item => {
+        if (!item.name || item.route == null) {
+          return null
+        }
+
+        return (
+          <a key={item.route} href={withBasePath(item.route)}>
+            {item.title ?? item.name}
+          </a>
+        )
+      })}
+    </nav>
+  )
+}
 
 export default async function DocsLayout({
   children,
@@ -17,58 +41,38 @@ export default async function DocsLayout({
   const section = firstSegment != null && isDocSectionName(firstSegment)
     ? firstSegment
     : void 0
-  const pageMap = await getPageMap(section ? `/docs/${section}` : '/docs')
+  const pageMap = await getPageMap(section ? `/docs/${section}` : '/docs') as readonly PageMapItem[]
 
   return (
-    <Layout
-      pageMap={pageMap}
-      navbar={(
-        <Navbar
-          className="docs-site-navbar"
-          logoLink={withBasePath('/')}
-          logo={(
-            <div className="docs-brand">
-              <span className="docs-brand-badge">Docs</span>
-              <span className="docs-brand-title">memory-sync</span>
-            </div>
-          )}
-        >
+    <div className="docs-shell">
+      <header className="docs-site-navbar">
+        <a href={withBasePath('/')} className="docs-brand">
+          <span className="docs-brand-badge">Docs</span>
+          <span className="docs-brand-title">memory-sync</span>
+        </a>
+        <div className="docs-navbar-shell">
+          <DocsSectionNav />
           <div className="docs-navbar-shell">
-            <DocsSectionNav />
-            <div className="docs-navbar-actions">
-              <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="docs-navbar-action">
-                GitHub
-              </a>
-            </div>
+            <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="docs-navbar-action">
+              GitHub
+            </a>
           </div>
-        </Navbar>
-      )}
-      docsRepositoryBase={`${siteConfig.docsRepositoryBase}/content`}
-      editLink="在 GitHub 上编辑此页"
-      feedback={{
-        content: '有遗漏或过时信息？提交 issue',
-        link: siteConfig.issueUrl,
-        labels: 'documentation'
-      }}
-      darkMode={false}
-      sidebar={{
-        autoCollapse: false,
-        defaultMenuCollapseLevel: 99,
-        defaultOpen: true,
-        toggleButton: false
-      }}
-      toc={{
-        float: true,
-        title: '本页目录',
-        backToTop: '回到顶部'
-      }}
-      themeSwitch={{
-        dark: '暗色',
-        light: '亮色',
-        system: '系统'
-      }}
-    >
-      {children}
-    </Layout>
+        </div>
+      </header>
+      <div className="docs-content-shell">
+        <DocsSidebar pageMap={pageMap} />
+        <main className="docs-content">
+          {children}
+          <footer className="docs-page-footer">
+            <a href={`${siteConfig.docsRepositoryBase}/content`} target="_blank" rel="noreferrer">
+              在 GitHub 上编辑文档
+            </a>
+            <a href={siteConfig.issueUrl} target="_blank" rel="noreferrer">
+              提交文档 issue
+            </a>
+          </footer>
+        </main>
+      </div>
+    </div>
   )
 }
