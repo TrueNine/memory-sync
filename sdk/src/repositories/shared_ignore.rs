@@ -27,7 +27,6 @@ pub struct AIAgentIgnoreConfigFile {
 const AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS: &[&str] = &[
   ".qoderignore",
   ".cursorignore",
-  ".warpindexignore",
   ".aiignore",
   ".codeignore",
   ".codeiumignore",

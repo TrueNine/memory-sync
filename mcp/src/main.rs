@@ -98,7 +98,7 @@ fn tool_definitions() -> Vec<Value> {
                 "kinds": {"type": "array", "items": {"type": "string", "enum": prompt_kind_enum}},
                 "query": {"type": "string"},
                 "enStatus": {"type": "array", "items": {"type": "string", "enum": status_enum}},
-                "distStatus": {"type": "array", "items": {"type": "string", "enum": status_enum}}
+                // Fixes #227: distStatus removed — handler does not implement it
             }
         }
     }),
@@ -113,7 +113,8 @@ fn tool_definitions() -> Vec<Value> {
                 "workspaceDir": {"type": "string"},
                 "promptId": {"type": "string"}
             },
-            "required": ["promptId"]
+            // Fixes #228: enContent is required by handler
+            "required": ["promptId", "enContent"]
         }
     }),
     json!({
@@ -338,13 +339,30 @@ fn run_stdio_server() {
     let request: Value = match serde_json::from_str(trimmed) {
       Ok(v) => v,
       Err(e) => {
-        eprintln!("JSON parse error: {}", e);
+        tnmsd::infra::logger::sink::write_event(&tnmsd::infra::logger::core::Event {
+          level: tnmsd::infra::logger::LogLevel::Error,
+          namespace: "tnmsm".to_string(),
+          message: serde_json::Value::String(format!("JSON parse error: {e}")),
+          meta: None,
+          span_name: None,
+        });
         continue;
       }
     };
 
     let is_notification = !request.as_object().is_some_and(|m| m.contains_key("id"));
     if is_notification {
+      let method = request
+        .get("method")
+        .and_then(|v| v.as_str())
+        .unwrap_or("<unknown>");
+      tnmsd::infra::logger::sink::write_event(&tnmsd::infra::logger::core::Event {
+        level: tnmsd::infra::logger::LogLevel::Trace,
+        namespace: "tnmsm".to_string(),
+        message: serde_json::Value::String(format!("Unhandled notification: {method}")),
+        meta: None,
+        span_name: None,
+      });
       continue;
     }
 

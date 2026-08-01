@@ -7,9 +7,6 @@ import {DocsCodeBlock} from './components/docs-code-block'
 import {Mermaid} from './components/mermaid'
 import {PackageManagerTabs} from './components/package-manager-tabs'
 
-const docsComponents = getDocsMDXComponents()
-const DocsPre = docsComponents.pre as ((props: MermaidPreProps) => ReactNode) | undefined
-
 type MDXComponents = Record<string, unknown>
 type MermaidPreProps = ComponentPropsWithoutRef<'pre'> & {
   'data-filename'?: string
@@ -120,21 +117,28 @@ function DocsCodeBlockPre(props: MermaidPreProps) {
   )
 }
 
-function MermaidPre(props: MermaidPreProps) {
-  if (props['data-language'] !== 'mermaid' || !DocsPre) {
-    return <DocsCodeBlockPre {...props} />
+function MermaidPre(props: MermaidPreProps & {
+  readonly DocsPre?: (props: MermaidPreProps) => ReactNode
+}) {
+  const {DocsPre, ...preProps} = props
+
+  if (preProps['data-language'] !== 'mermaid' || !DocsPre) {
+    return <DocsCodeBlockPre {...preProps} />
   }
 
-  const chart = normalizeMermaidChart(extractMermaidChart(props.children))
+  const chart = normalizeMermaidChart(extractMermaidChart(preProps.children))
 
   if (!chart) {
-    return <DocsPre {...props} />
+    return <DocsPre {...preProps} />
   }
 
-  return <Mermaid chart={chart} title={props['data-filename']} />
+  return <Mermaid chart={chart} title={preProps['data-filename']} />
 }
 
 export function useMDXComponents(components: MDXComponents = {}): MDXComponents {
+  const docsComponents = getDocsMDXComponents()
+  const DocsPre = docsComponents.pre as ((props: MermaidPreProps) => ReactNode) | undefined
+
   return {
     ...docsComponents,
     blockquote: DocsBlockquote,
@@ -144,7 +148,7 @@ export function useMDXComponents(components: MDXComponents = {}): MDXComponents 
     PackageManagerTabs,
     PlatformGrid,
     SupportMatrix,
-    pre: MermaidPre,
+    pre: (props: MermaidPreProps) => <MermaidPre {...props} DocsPre={DocsPre} />,
     ...components
   }
 }

@@ -33,6 +33,7 @@ impl IsolatedClaudeFixture {
     fs::create_dir_all(temp_home.join(".aindex")).unwrap();
     fs::create_dir_all(project_dir.join(".github")).unwrap();
     fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+    init_git_repo(&project_dir);
 
     // issue local-tests-claude-isolation: claude smoke tests must validate
     // generated CLAUDE.md files in an isolated HOME/workspace fixture.
@@ -104,6 +105,23 @@ impl IsolatedClaudeFixture {
   }
 }
 
+fn init_git_repo(project_dir: &Path) {
+  let output = std::process::Command::new("git")
+    .arg("init")
+    .arg("--quiet")
+    .current_dir(project_dir)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+
+  assert!(
+    output.status.success(),
+    "git init should succeed in {}\nstdout:\n{}\nstderr:\n{}",
+    project_dir.display(),
+    String::from_utf8_lossy(&output.stdout),
+    String::from_utf8_lossy(&output.stderr)
+  );
+}
+
 fn write_claude_config(temp_home: &Path, workspace_dir: &Path, enabled: bool) {
   fs::write(
     temp_home.join(".aindex").join(".tnmsc.json"),
@@ -127,7 +145,6 @@ fn write_claude_config(temp_home: &Path, workspace_dir: &Path, enabled: bool) {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })
@@ -375,7 +392,6 @@ fn regression_isolated_claude_skill_name_and_child_doc_extensions() {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false,
         "codex": false,
         "claudeCode": true,

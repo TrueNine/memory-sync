@@ -8,6 +8,8 @@ use crate::domain::plugin_shared::{
   FilePathKind, Project, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt, PromptKind,
   RelativePath, RootPath, Workspace,
 };
+use std::sync::LazyLock;
+
 use crate::repositories::prompt_artifact::{
   assert_no_residual_module_syntax, read_prompt_artifact,
 };
@@ -26,9 +28,13 @@ const SERIES_NAMES: &[&str] = config::DEFAULT_PROJECT_SERIES;
 const PROJECT_MEMORY_FILE: &str = "agt.mdx";
 const SCAN_SKIP_DIRECTORIES: &[&str] = &["node_modules", ".git"];
 
+// Fixes #185: compile regex once via LazyLock instead of per-call
+static FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
+  regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok()
+});
+
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
-  let front_matter_regex =
-    regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
+  let front_matter_regex = FRONT_MATTER_REGEX.as_ref();
   if let Some(re) = front_matter_regex
     && let Some(caps) = re.captures(raw_mdx)
   {

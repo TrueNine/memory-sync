@@ -37,6 +37,7 @@ impl IsolatedInstallFixture {
     fs::create_dir_all(temp_home.join(".aindex")).unwrap();
     fs::create_dir_all(project_dir.join(".github")).unwrap();
     fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
+    init_git_repo(&project_dir);
     fs::create_dir_all(&commands_dir).unwrap();
     fs::create_dir_all(&subagents_dir).unwrap();
     fs::create_dir_all(skills_dir.join("browser").join("agent-browser")).unwrap();
@@ -93,6 +94,23 @@ impl IsolatedInstallFixture {
   }
 }
 
+fn init_git_repo(project_dir: &Path) {
+  let output = std::process::Command::new("git")
+    .arg("init")
+    .arg("--quiet")
+    .current_dir(project_dir)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+
+  assert!(
+    output.status.success(),
+    "git init should succeed in {}\nstdout:\n{}\nstderr:\n{}",
+    project_dir.display(),
+    String::from_utf8_lossy(&output.stdout),
+    String::from_utf8_lossy(&output.stderr)
+  );
+}
+
 fn write_install_config(temp_home: &Path, workspace_dir: &Path) {
   fs::write(
     temp_home.join(".aindex").join(".tnmsc.json"),
@@ -116,7 +134,6 @@ fn write_install_config(temp_home: &Path, workspace_dir: &Path) {
         "qoder": false,
         "trae": false,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })

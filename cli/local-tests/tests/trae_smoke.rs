@@ -35,6 +35,7 @@ impl IsolatedTraeFixture {
     fs::create_dir_all(project_dir.join("cli")).unwrap();
     fs::create_dir_all(&aindex_project_dir).unwrap();
     fs::create_dir_all(aindex_project_dir.join("cli")).unwrap();
+    init_git_repo(&project_dir);
 
     // issue local-tests-trae-isolation: trae local tests must validate steering
     // output in a temp HOME/workspace instead of the host project tree.
@@ -91,6 +92,27 @@ impl IsolatedTraeFixture {
       .join("user_rules")
       .join("GLOBAL.md")
   }
+
+  fn legacy_child_trae_dir(&self) -> PathBuf {
+    self.project_dir.join("cli").join(".trae")
+  }
+}
+
+fn init_git_repo(project_dir: &Path) {
+  let output = std::process::Command::new("git")
+    .arg("init")
+    .arg("--quiet")
+    .current_dir(project_dir)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+
+  assert!(
+    output.status.success(),
+    "git init should succeed in {}\nstdout:\n{}\nstderr:\n{}",
+    project_dir.display(),
+    String::from_utf8_lossy(&output.stdout),
+    String::from_utf8_lossy(&output.stderr)
+  );
 }
 
 fn write_trae_config(temp_home: &Path, workspace_dir: &Path) {
@@ -116,7 +138,6 @@ fn write_trae_config(temp_home: &Path, workspace_dir: &Path) {
         "qoder": false,
         "trae": true,
         "traeCn": false,
-        "warp": false,
         "windsurf": false
       }
     })
@@ -258,6 +279,31 @@ fn local_trae_cn_cleaned_for_compatibility() {
   assert!(
     !fixture.steering_path().is_file(),
     ".trae/steering/GLOBAL.md should also be removed after clean"
+  );
+}
+
+#[test]
+fn local_trae_clean_removes_legacy_trae_directories_recursively() {
+  let fixture = IsolatedTraeFixture::new();
+
+  let legacy_file = fixture
+    .legacy_child_trae_dir()
+    .join("legacy")
+    .join("note.md");
+  fs::create_dir_all(legacy_file.parent().unwrap()).unwrap();
+  fs::write(&legacy_file, "# legacy\n").unwrap();
+  assert!(
+    legacy_file.is_file(),
+    "legacy nested .trae file should exist before clean"
+  );
+
+  fixture
+    .clean()
+    .assert_success("isolated tnmsc clean removes legacy .trae directories");
+
+  assert!(
+    !fixture.legacy_child_trae_dir().exists(),
+    "legacy nested .trae directory should be removed during clean"
   );
 }
 

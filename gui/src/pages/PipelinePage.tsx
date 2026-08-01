@@ -5,19 +5,24 @@ import { Eye, Play } from 'lucide-react'
 
 import type { PluginExecutionResult } from '@/api/bridge'
 import { listAdaptors } from '@/api/bridge'
+import { useToast } from '@/components/Toaster'
 import { usePipeline } from '@/hooks/usePipeline'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 const PipelinePage: FC = () => {
   const { t } = useI18n()
+  const { toast } = useToast()
   const { status, install, dryRun, reset } = usePipeline()
   const [plugins, setPlugins] = useState<readonly PluginExecutionResult[]>([])
 
   const cwd = '.'
 
   useEffect(() => {
-    listAdaptors(cwd).then(setPlugins).catch(() => {})
+    listAdaptors(cwd).then(setPlugins).catch((err) => {
+      console.error('[PipelinePage] listAdaptors failed:', err)
+      toast(t('plugins.loadFailed'))
+    })
   }, [])
 
   return (

@@ -1,6 +1,6 @@
 [package]
 name = "tnmsg"
-version = "2026.10503.119"
+version = "2026.10801.0"
 description = "Memory Sync desktop GUI application"
 authors.workspace = true
 edition.workspace = true
@@ -25,4 +25,4 @@ dirs = { workspace = true }
 tnmsd = { workspace = true }
 
 [dev-dependencies]
-proptest = "1.10.0"
+proptest = "1.11.0"

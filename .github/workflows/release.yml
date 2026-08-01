@@ -533,7 +533,7 @@ jobs:
           fi
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: v${{ needs.validate-version.outputs.version }}
           name: v${{ needs.validate-version.outputs.version }}

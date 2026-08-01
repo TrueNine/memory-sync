@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 
 use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 use serde_json::json;
@@ -228,6 +229,9 @@ fn dedupe_and_compile_rules(rules: &[ProtectedRuleDto]) -> Vec<CompiledProtected
   for rule in rules {
     let compiled = compile_rule(rule);
     compiled_by_key.insert(
+      // #366: include protection mode in the dedupe key so direct and
+      // recursive declarations for the same path keep their distinct guard
+      // semantics instead of one mode overwriting the other.
       format!(
         "{}:{}",
         match compiled.protection_mode {
@@ -325,6 +329,7 @@ fn detect_glob_scan_root(pattern: &str) -> PathBuf {
 struct GlobGroup {
   scan_root: PathBuf,
   pattern_indices: Vec<usize>,
+  matcher: GlobSet,
 }
 
 /// Metadata associated with each glob pattern for result fan-out.
@@ -332,7 +337,7 @@ struct GlobGroup {
 struct GlobTargetMetadata {
   is_protected: bool,
   target_index: usize,
-  exclude_basenames: Vec<String>,
+  exclude_basenames: Arc<Vec<String>>,
 }
 
 type GlobMatchResults = Vec<(usize, Vec<String>)>;
@@ -346,6 +351,9 @@ struct BatchedGlobPlanner {
   groups: Vec<GlobGroup>,
   normalized_patterns: Vec<String>,
   metadata: Vec<GlobTargetMetadata>,
+  /// Cache for resolve_absolute_path results keyed by raw pattern string.
+  /// Fixes #263: avoids re-resolving the same path prefix for every pattern.
+  path_cache: HashMap<String, PathBuf>,
 }
 
 impl BatchedGlobPlanner {
@@ -355,6 +363,7 @@ impl BatchedGlobPlanner {
       groups: Vec::new(),
       normalized_patterns: Vec::new(),
       metadata: Vec::new(),
+      path_cache: HashMap::new(),
     })
   }
 
@@ -365,37 +374,66 @@ impl BatchedGlobPlanner {
     is_protected: bool,
     target_index: usize,
     exclude_basenames: Vec<String>,
-  ) {
-    let normalized = normalize_glob_pattern(pattern);
+  ) -> Result<(), String> {
+    // Use path_cache to avoid re-resolving the same raw pattern path.
+    // Fixes #263: resolve_absolute_path involves expand_home_path, env::current_dir(), and
+    // normalize_path — all avoidable when multiple patterns share the same prefix.
+    let resolved = self
+      .path_cache
+      .entry(pattern.to_string())
+      .or_insert_with(|| resolve_absolute_path(pattern));
+    let normalized = path_to_glob_string(resolved);
     let pattern_index = self.normalized_patterns.len();
     self.normalized_patterns.push(normalized.clone());
-    self.metadata.push(GlobTargetMetadata {
+    let metadata = GlobTargetMetadata {
       is_protected,
       target_index,
-      exclude_basenames,
-    });
+      // #288: share the basename list through planner metadata instead of
+      // cloning a fresh allocation for each grouped match path.
+      exclude_basenames: Arc::new(exclude_basenames),
+    };
+    self.metadata.push(metadata);
 
     // Non-glob patterns (literal paths) don't need directory scanning
     if !has_glob_magic(&normalized) {
-      return;
+      return Ok(());
     }
 
     let scan_root = detect_glob_scan_root(&normalized);
     let scan_root_str = path_to_string(&scan_root);
 
     // Find or create a group for this scan root
-    if let Some(group) = self
+    if let Some(group_index) = self
       .groups
-      .iter_mut()
-      .find(|g| path_to_string(&g.scan_root) == scan_root_str)
+      .iter()
+      .position(|g| path_to_string(&g.scan_root) == scan_root_str)
     {
-      group.pattern_indices.push(pattern_index);
+      self.groups[group_index].pattern_indices.push(pattern_index);
+      // #264: keep the group's matcher compiled as patterns are added so
+      // execute() can walk with a cached matcher instead of rebuilding it
+      // for every group pass.
+      self.groups[group_index].matcher =
+        self.compile_group_matcher(&self.groups[group_index].pattern_indices)?;
     } else {
       self.groups.push(GlobGroup {
         scan_root,
         pattern_indices: vec![pattern_index],
+        matcher: build_globset(std::slice::from_ref(&normalized))?
+          .ok_or_else(|| "failed to compile cleanup glob batch".to_string())?,
       });
     }
+
+    Ok(())
+  }
+
+  fn compile_group_matcher(&self, pattern_indices: &[usize]) -> Result<GlobSet, String> {
+    let group_patterns: Vec<String> = pattern_indices
+      .iter()
+      .map(|&idx| self.normalized_patterns[idx].clone())
+      .collect();
+
+    build_globset(&group_patterns)?
+      .ok_or_else(|| "failed to compile cleanup glob batch".to_string())
   }
 
   /// Execute the batched glob expansion and fan results back to targets.
@@ -490,15 +528,6 @@ impl BatchedGlobPlanner {
         continue;
       }
 
-      let group_patterns: Vec<String> = group
-        .pattern_indices
-        .iter()
-        .map(|&idx| self.normalized_patterns[idx].clone())
-        .collect();
-
-      let matcher = build_globset(&group_patterns)?
-        .ok_or_else(|| "failed to compile cleanup glob batch".to_string())?;
-
       let walker = WalkDir::new(&group.scan_root)
         .follow_links(false)
         .into_iter()
@@ -540,7 +569,7 @@ impl BatchedGlobPlanner {
         walked_entries += 1;
 
         let candidate = path_to_glob_string(entry.path());
-        let matched_indices = matcher.matches(&candidate);
+        let matched_indices = group.matcher.matches(&candidate);
         if matched_indices.is_empty() {
           continue;
         }
@@ -642,7 +671,7 @@ fn expand_globs(patterns: &[String], ignore_globs: &[String]) -> Result<Vec<Vec<
 
   let mut planner = BatchedGlobPlanner::new(ignore_globs)?;
   for (index, pattern) in patterns.iter().enumerate() {
-    planner.add_pattern(pattern, false, index, Vec::new());
+    planner.add_pattern(pattern, false, index, Vec::new())?;
   }
 
   let (_, delete_results) = planner.execute()?;
@@ -1502,7 +1531,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
       true, // is_protected
       index,
       Vec::new(), // protected globs don't use exclude_basenames
-    );
+    )?;
   }
 
   // Add delete glob targets
@@ -1512,7 +1541,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
       false, // is_delete
       index,
       target.target.exclude_basenames.clone(),
-    );
+    )?;
   }
 
   // Execute the batched glob expansion
@@ -2002,6 +2031,48 @@ mod tests {
         .violations
         .iter()
         .any(|violation| violation.target_path == path_to_string(&recursive_file))
+    );
+  }
+
+  #[test]
+  fn dedupe_keeps_direct_and_recursive_rules_for_same_path() {
+    let temp_dir = tempdir().unwrap();
+    let guarded_dir = temp_dir.path().join("workspace/project-a/cache");
+    fs::create_dir_all(&guarded_dir).unwrap();
+    let path = path_to_string(&guarded_dir);
+
+    let rules = vec![
+      create_protected_rule(
+        &path,
+        ProtectionModeDto::Direct,
+        "direct mode",
+        "test-direct",
+        None,
+      ),
+      create_protected_rule(
+        &path,
+        ProtectionModeDto::Recursive,
+        "recursive mode",
+        "test-recursive",
+        None,
+      ),
+    ];
+
+    let compiled = dedupe_and_compile_rules(&rules);
+
+    // #366: identical paths with different protection modes must both
+    // survive dedupe because direct protects only the path while recursive
+    // also protects descendants.
+    assert_eq!(compiled.len(), 2);
+    assert!(
+      compiled
+        .iter()
+        .any(|rule| rule.protection_mode == ProtectionModeDto::Direct)
+    );
+    assert!(
+      compiled
+        .iter()
+        .any(|rule| rule.protection_mode == ProtectionModeDto::Recursive)
     );
   }
 

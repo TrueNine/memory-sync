@@ -54,7 +54,6 @@ impl IsolatedLoggingInstallFixture {
           "qoder": false,
           "trae": false,
           "traeCn": false,
-          "warp": false,
           "windsurf": false
         }
       })

@@ -560,31 +560,36 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       label: Some("delete.project".to_string()),
     });
 
-    let codex_dir = project_root_dir.join(CODEX_GLOBAL_CONFIG_DIR);
-
-    delete.push(CleanupTargetDto {
-      path: codex_dir
-        .join(CODEX_AGENTS_DIR)
-        .to_string_lossy()
-        .into_owned(),
-      kind: CleanupTargetKindDto::Directory,
-      exclude_basenames: Vec::new(),
-      protection_mode: None,
-      scope: Some(PROJECT_SCOPE.to_string()),
-      label: Some("delete.directory".to_string()),
-    });
-
-    delete.push(CleanupTargetDto {
-      path: codex_dir
-        .join(CODEX_SKILLS_DIR)
-        .to_string_lossy()
-        .into_owned(),
-      kind: CleanupTargetKindDto::Directory,
-      exclude_basenames: Vec::new(),
-      protection_mode: None,
-      scope: Some(PROJECT_SCOPE.to_string()),
-      label: Some("delete.directory".to_string()),
-    });
+    if let Some(prompt_project) = get_project_prompt_output_projects(workspace)
+      .into_iter()
+      .find(|candidate| {
+        resolve_project_root_dir(workspace, candidate)
+          .as_ref()
+          .is_some_and(|candidate_root_dir| candidate_root_dir == &project_root_dir)
+      })
+      && let Some(child_prompts) = prompt_project.child_memory_prompts.as_ref()
+    {
+      for child_prompt in child_prompts {
+        let child_codex_path =
+          resolve_relative_path(&child_prompt.dir).join(CODEX_GLOBAL_CONFIG_DIR);
+        delete.push(CleanupTargetDto {
+          path: child_codex_path.to_string_lossy().into_owned(),
+          kind: CleanupTargetKindDto::Directory,
+          exclude_basenames: Vec::new(),
+          protection_mode: None,
+          scope: Some(PROJECT_SCOPE.to_string()),
+          label: Some("delete.legacyChildCodexDirectory".to_string()),
+        });
+        delete.push(CleanupTargetDto {
+          path: child_codex_path.to_string_lossy().into_owned(),
+          kind: CleanupTargetKindDto::File,
+          exclude_basenames: Vec::new(),
+          protection_mode: None,
+          scope: Some(PROJECT_SCOPE.to_string()),
+          label: Some("delete.legacyChildCodexFile".to_string()),
+        });
+      }
+    }
   }
 
   CleanupDeclarationsDto {

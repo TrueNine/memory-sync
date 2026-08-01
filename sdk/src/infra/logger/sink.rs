@@ -70,13 +70,16 @@ pub fn clear_diagnostics() {
 /// blocked on a slow stdout pipe) can't hang process shutdown indefinitely.
 const _FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
+// Fixes #187: bound the ack wait with _FLUSH_TIMEOUT so a wedged worker
+// can't hang process shutdown indefinitely
 pub fn flush() {
   let (ack_tx, ack_rx) = mpsc::channel();
   if OUTPUT_SINK
     .send(OutputCommand::Flush { ack: ack_tx })
     .is_ok()
   {
-    let _ = ack_rx.recv();
+    // Fixes #187: use recv_timeout instead of recv to avoid infinite block
+    let _ = ack_rx.recv_timeout(_FLUSH_TIMEOUT);
   }
 }
 
@@ -110,14 +113,38 @@ fn write_direct(use_stderr: bool, output: &str) {
 
 fn spawn_output_sink() -> Sender<OutputCommand> {
   let (tx, rx) = mpsc::channel();
-  thread::Builder::new()
+  // Fixes #186: don't panic if thread spawn fails — fall back to direct I/O
+  match thread::Builder::new()
     .name("tnmsd-logger".to_string())
     .spawn(move || output_worker(rx))
-    .expect("failed to spawn logger output worker");
+  {
+    Ok(_) => {}
+    Err(e) => {
+      eprintln!("logger: failed to spawn output worker: {e}");
+    }
+  }
   tx
 }
 
+// Fixes #364: catch panics so a single bad format doesn't kill the logger thread
 fn output_worker(receiver: Receiver<OutputCommand>) {
+  let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    output_worker_inner(receiver);
+  }));
+  if let Err(e) = result {
+    // Attempt to extract a useful message from the panic payload
+    let msg = if let Some(s) = e.downcast_ref::<String>() {
+      s.clone()
+    } else if let Some(s) = e.downcast_ref::<&str>() {
+      s.to_string()
+    } else {
+      "unknown panic".to_string()
+    };
+    eprintln!("logger: output worker panicked: {msg}");
+  }
+}
+
+fn output_worker_inner(receiver: Receiver<OutputCommand>) {
   let stdout = io::stdout();
   let stderr = io::stderr();
   let mut stdout_writer = io::BufWriter::new(stdout);

@@ -20,3 +20,29 @@ pub use plugin_shared::{
 
 #[cfg(test)]
 pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+pub(crate) fn with_test_home_dir<T>(home_dir: &std::path::Path, callback: impl FnOnce() -> T) -> T {
+  let _guard = match TEST_ENV_LOCK.lock() {
+    Ok(g) => g,
+    Err(error) => error.into_inner(),
+  };
+  let previous_home = std::env::var_os("HOME");
+
+  unsafe {
+    std::env::set_var("HOME", home_dir);
+  }
+
+  let result = callback();
+
+  match previous_home {
+    Some(value) => unsafe {
+      std::env::set_var("HOME", value);
+    },
+    None => unsafe {
+      std::env::remove_var("HOME");
+    },
+  }
+
+  result
+}

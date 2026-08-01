@@ -1,25 +1,15 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde_json::json;
 
-use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
-use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
 use crate::infra::logger::create_logger;
 use crate::services::command_diagnostics_service::build_workspace_mismatch_warning;
 use crate::services::common::{
   DefaultPluginKind, EnabledPlugins, collect_context, load_config, resolve_cwd,
   resolve_workspace_dir,
 };
+use crate::services::output_plan::build_output_files;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct PlannedOutputFile {
-  path: String,
-  content: String,
-  encoding: Option<String>,
-}
 
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
   let logger = create_logger(
@@ -85,8 +75,11 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
     })),
   );
 
+  // Fixes #352: use shared build_output_files for plan building (same code path
+  // as install_service).  No write_output_files call — this is the "mock" that
+  // skips all disk writes.
   let output_span = logger.span("output.build").enter();
-  let planned_outputs = build_output_files(&context, enabled_plugins)?;
+  let planned_outputs = build_output_files(&context, enabled_plugins, &logger)?;
   output_span.exit();
 
   let mut files_affected = 0usize;
@@ -132,142 +125,15 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
   })
 }
 
-fn build_output_files(
-  context: &crate::context::OutputContext,
-  enabled_plugins: EnabledPlugins,
-) -> Result<BTreeMap<String, PlannedOutputFile>, CliError> {
-  let mut outputs = BTreeMap::new();
-
-  let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
-  push_base_plans(&mut outputs, &base_plans, enabled_plugins);
-
-  if enabled_plugins.claude_code {
-    let plan =
-      crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.codex {
-    let plan = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.cursor {
-    let plan = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.droid {
-    let plan = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)?;
-    push_droid_output_files(&mut outputs, &plan);
-  }
-  if enabled_plugins.gemini {
-    let plan = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.jetbrains {
-    let plan = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.kiro {
-    let plan = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.opencode {
-    let plan =
-      crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.qoder {
-    let plan = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.trae || enabled_plugins.trae_cn {
-    let plan = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.warp {
-    let plan = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-  if enabled_plugins.windsurf {
-    let plan =
-      crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
-    push_base_output_files(&mut outputs, &plan.output_files);
-  }
-
-  Ok(outputs)
-}
-
-fn push_base_plans(
-  outputs: &mut BTreeMap<String, PlannedOutputFile>,
-  base_plans: &BaseOutputPlansDto,
-  enabled_plugins: EnabledPlugins,
-) {
-  for plan in &base_plans.plugins {
-    if enabled_plugins.is_enabled(&plan.plugin_name) {
-      push_base_output_files(outputs, &plan.output_files);
-    }
-  }
-}
-
-fn push_base_output_files(
-  outputs: &mut BTreeMap<String, PlannedOutputFile>,
-  files: &[BaseOutputFileDeclarationDto],
-) {
-  for file in files {
-    outputs.insert(
-      file.path.clone(),
-      PlannedOutputFile {
-        path: file.path.clone(),
-        content: file.content.clone(),
-        encoding: file.encoding.clone(),
-      },
-    );
-  }
-}
-
-fn push_droid_output_files(
-  outputs: &mut BTreeMap<String, PlannedOutputFile>,
-  plan: &DroidOutputPlanDto,
-) {
-  for file in &plan.output_files {
-    outputs.insert(
-      file.path.clone(),
-      PlannedOutputFile {
-        path: file.path.clone(),
-        content: file.content.clone(),
-        encoding: file.encoding.clone(),
-      },
-    );
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
   use tempfile::TempDir;
 
   fn with_home_dir<T>(home_dir: &std::path::Path, callback: impl FnOnce() -> T) -> T {
-    let _guard = match crate::domain::TEST_ENV_LOCK.lock() {
-      Ok(g) => g,
-      Err(error) => error.into_inner(),
-    };
-    let previous_home = std::env::var_os("HOME");
-
-    unsafe {
-      std::env::set_var("HOME", home_dir);
-    }
-
-    let result = callback();
-
-    match previous_home {
-      Some(value) => unsafe {
-        std::env::set_var("HOME", value);
-      },
-      None => unsafe {
-        std::env::remove_var("HOME");
-      },
-    }
-
-    result
+    // #231: keep HOME-mutating service tests on the shared helper so all
+    // modules serialize environment changes through the same guard.
+    crate::domain::with_test_home_dir(home_dir, callback)
   }
 
   fn create_test_config(

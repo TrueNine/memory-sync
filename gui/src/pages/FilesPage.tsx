@@ -10,6 +10,7 @@ import { ChevronDown, ChevronRight, RefreshCw, Save } from 'lucide-react'
 
 import type { AindexFileEntry } from '@/api/bridge'
 import { listCategoryFiles, readAindexFile, writeAindexFile } from '@/api/bridge'
+import { useToast } from '@/components/Toaster'
 import { useFont } from '@/hooks/useFont'
 import { useTheme } from '@/hooks/useTheme'
 import { useI18n } from '@/i18n'
@@ -276,6 +277,7 @@ const EditorPane: FC<EditorPaneProps> = ({ label, fileName, value, original, onC
 
 const FilesPage: FC = () => {
   const { t } = useI18n()
+  const { toast } = useToast()
   const { resolved } = useTheme()
   const { fontCss } = useFont()
 
@@ -359,7 +361,10 @@ const FilesPage: FC = () => {
         setTranslatedContent(trans)
         setTranslatedOriginal(trans)
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('[FilesPage] handleSelect failed:', err)
+      toast(t('files.loadFailed'))
+    }
   }, [])
 
   const handleToggle = useCallback((path: string) => {
@@ -377,7 +382,10 @@ const FilesPage: FC = () => {
     try {
       await writeAindexFile(cwd, selected.sourcePath, sourceContent)
       setSourceOriginal(sourceContent)
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.error('[FilesPage] handleSaveSource failed:', err)
+      toast(t('files.saveFailed'))
+    } finally {
       setSavingSource(false)
     }
   }, [selected, sourceContent])
@@ -388,7 +396,10 @@ const FilesPage: FC = () => {
     try {
       await writeAindexFile(cwd, selected.translatedPath, translatedContent)
       setTranslatedOriginal(translatedContent)
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.error('[FilesPage] handleSaveTranslated failed:', err)
+      toast(t('files.saveFailed'))
+    } finally {
       setSavingTranslated(false)
     }
   }, [selected, translatedContent])

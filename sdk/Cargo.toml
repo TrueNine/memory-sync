@@ -18,12 +18,12 @@ default = []
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = "2.0.18"
+thiserror = "2.0.19"
 clap = { workspace = true }
 dirs = { workspace = true }
 sha2 = { workspace = true }
-reqwest = { version = "0.13.2", default-features = false, features = ["blocking", "json", "rustls"] }
-globset = "0.4.18"
+reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "json", "rustls"] }
+globset = "0.4.19"
 walkdir = "2.5.0"
 serde_yml = { workspace = true }
 regex-lite = "0.1"
@@ -33,10 +33,11 @@ base64 = { workspace = true }
 markdown = { workspace = true }
 tempfile = "3.27.0"
 schemars = "1"
-deno_ast = { version = "0.53.1", features = ["emit", "transpiling"] }
-deno_core = "0.399.0"
+deno_ast = { version = "0.53.3", features = ["emit", "transpiling"] }
+deno_core = "0.409.0"
 deno_error = "0.7.1"
-tokio = { version = "1.50.0", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros"] }
+git2 = { version = "0.21", default-features = false }
 
 [dev-dependencies]
 proptest = "1.11.0"

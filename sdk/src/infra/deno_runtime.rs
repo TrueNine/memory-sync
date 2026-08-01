@@ -340,10 +340,23 @@ impl Default for DenoRuntime {
 }
 
 fn allowed_environment(context: &serde_json::Value) -> BTreeMap<String, String> {
-  let allowlist = context
-    .get("allowedEnv")
-    .or_else(|| context.get("allowedEnvVars"))
-    .and_then(serde_json::Value::as_array);
+  // Fixes #286: warn when allowedEnv/allowedEnvVars is present but not an array
+  let allow_key = ["allowedEnv", "allowedEnvVars"]
+    .iter()
+    .find(|key| context.get(**key).is_some())
+    .copied();
+
+  let allowlist = allow_key
+    .and_then(|key| {
+      let value = context.get(key).unwrap();
+      if !value.is_array() {
+        eprintln!(
+          "warn: deno_runtime::allowed_environment — `{key}` must be a JSON array of env var names, got {}",
+          serde_json::to_string(value).unwrap_or_else(|_| format!("{value:?}"))
+        );
+      }
+      value.as_array()
+    });
 
   allowlist
     .into_iter()
@@ -471,13 +484,14 @@ impl TypescriptModuleLoader {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::sync::{LazyLock, Mutex};
   use tempfile::TempDir;
 
-  static ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
-
   fn with_path_removed<T>(f: impl FnOnce() -> T) -> T {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    // #230: PATH mutations must share TEST_ENV_LOCK with HOME-mutating tests
+    // so parallel test runs cannot observe half-restored process environment.
+    let _guard = crate::domain::TEST_ENV_LOCK
+      .lock()
+      .unwrap_or_else(|error| error.into_inner());
     let original = std::env::var_os("PATH");
     unsafe {
       std::env::remove_var("PATH");
@@ -493,7 +507,11 @@ mod tests {
   }
 
   fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    // #230: keep all test env mutations on the crate-wide lock instead of a
+    // deno-runtime-only lock that misses HOME/PATH interactions elsewhere.
+    let _guard = crate::domain::TEST_ENV_LOCK
+      .lock()
+      .unwrap_or_else(|error| error.into_inner());
     let original = std::env::var_os(name);
     unsafe {
       std::env::set_var(name, value);
@@ -644,6 +662,61 @@ console.log(JSON.stringify({
         serde_json::json!(["TNMSD_ALLOWED_ENV_FOR_TEST"])
       );
     });
+  }
+
+  #[test]
+  fn regression_286_allowed_environment_warns_on_non_array_value() {
+    // Fixes #286: allowed_environment should warn when allowedEnv/allowedEnvVars
+    // is present but not a JSON array.
+    //
+    // When the config key exists but is not an array (e.g. a string or object),
+    // the function returns an empty map AND emits a warning via eprintln.
+    // The eprintln side-effect cannot be easily asserted in a test, but we
+    // can verify the return value is an empty map (no crash, no silent data loss).
+
+    // Case 1: allowedEnv is a string (wrong type) → should return empty map
+    let context = serde_json::json!({
+      "allowedScriptRoots": ["/tmp"],
+      "allowedEnv": "BAD_STRING"
+    });
+    let env_map = allowed_environment(&context);
+    assert!(
+      env_map.is_empty(),
+      "allowedEnv as string should return empty map, got {env_map:?} (Fixes #286)"
+    );
+
+    // Case 2: allowedEnvVars is a number (wrong type) → should return empty map
+    let context = serde_json::json!({
+      "allowedScriptRoots": ["/tmp"],
+      "allowedEnvVars": 42
+    });
+    let env_map = allowed_environment(&context);
+    assert!(
+      env_map.is_empty(),
+      "allowedEnvVars as number should return empty map, got {env_map:?} (Fixes #286)"
+    );
+
+    // Case 3: allowedEnv is a proper array → normal behavior, no warning
+    with_env_var("TNMSD_TEST_VAR_286", "abc", || {
+      let context = serde_json::json!({
+        "allowedScriptRoots": ["/tmp"],
+        "allowedEnv": ["TNMSD_TEST_VAR_286"]
+      });
+      let env_map = allowed_environment(&context);
+      assert_eq!(
+        env_map.len(),
+        1,
+        "allowedEnv as array should find env var (Fixes #286)"
+      );
+      assert_eq!(env_map.get("TNMSD_TEST_VAR_286"), Some(&"abc".to_string()));
+    });
+
+    // Case 4: no allowedEnv key at all → empty map (normal)
+    let context = serde_json::json!({
+      "allowedScriptRoots": ["/tmp"]
+    });
+    let env_map = allowed_environment(&context);
+    assert!(env_map.is_empty(), "no allowedEnv key returns empty map");
   }
 
   #[test]

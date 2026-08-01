@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import Layout from '@/components/Layout'
 import NotFound from '@/components/NotFound'
 import PageLoading from '@/components/PageLoading'
+import { ToastProvider } from '@/components/Toaster'
 import { useTheme } from '@/hooks/useTheme'
 import { I18nContext, useI18nState } from '@/i18n'
 
@@ -22,11 +23,13 @@ function RootComponent() {
 
   return (
     <I18nContext.Provider value={i18n}>
-      <Layout>
-        <Suspense fallback={<PageLoading />}>
-          <Outlet />
-        </Suspense>
-      </Layout>
+      <ToastProvider>
+        <Layout>
+          <Suspense fallback={<PageLoading />}>
+            <Outlet />
+          </Suspense>
+        </Layout>
+      </ToastProvider>
     </I18nContext.Provider>
   )
 }
