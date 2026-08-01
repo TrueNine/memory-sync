@@ -9,37 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as PipelineRouteImport } from './routes/pipeline'
-import { Route as LogsRouteImport } from './routes/logs'
-import { Route as FilesRouteImport } from './routes/files'
-import { Route as ConfigRouteImport } from './routes/config'
-import { Route as AdaptorsRouteImport } from './routes/adaptors'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdaptorsRouteImport } from './routes/adaptors'
+import { Route as ConfigRouteImport } from './routes/config'
+import { Route as FilesRouteImport } from './routes/files'
+import { Route as LogsRouteImport } from './routes/logs'
+import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as SettingsRouteImport } from './routes/settings'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PipelineRoute = PipelineRouteImport.update({
-  id: '/pipeline',
-  path: '/pipeline',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LogsRoute = LogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FilesRoute = FilesRouteImport.update({
-  id: '/files',
-  path: '/files',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigRoute = ConfigRouteImport.update({
-  id: '/config',
-  path: '/config',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdaptorsRoute = AdaptorsRouteImport.update({
@@ -47,9 +27,29 @@ const AdaptorsRoute = AdaptorsRouteImport.update({
   path: '/adaptors',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ConfigRoute = ConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FilesRoute = FilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelineRoute = PipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -123,39 +123,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pipeline': {
-      id: '/pipeline'
-      path: '/pipeline'
-      fullPath: '/pipeline'
-      preLoaderRoute: typeof PipelineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/logs': {
-      id: '/logs'
-      path: '/logs'
-      fullPath: '/logs'
-      preLoaderRoute: typeof LogsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/files': {
-      id: '/files'
-      path: '/files'
-      fullPath: '/files'
-      preLoaderRoute: typeof FilesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/config': {
-      id: '/config'
-      path: '/config'
-      fullPath: '/config'
-      preLoaderRoute: typeof ConfigRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/adaptors': {
@@ -165,11 +137,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdaptorsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/config': {
+      id: '/config'
+      path: '/config'
+      fullPath: '/config'
+      preLoaderRoute: typeof ConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/files': {
+      id: '/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof FilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipeline': {
+      id: '/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof PipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

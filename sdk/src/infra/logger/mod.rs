@@ -204,8 +204,12 @@ mod tests {
     };
     sink::buffer_diagnostic(&record);
     let drained = drain_diagnostics();
-    assert_eq!(drained.len(), 1);
-    assert_eq!(drained[0].code, "BUF_TEST");
+    // Parallel tests may also write into the process-global buffer between
+    // clear/buffer/drain; assert our record is present rather than exclusive.
+    assert!(
+      drained.iter().any(|d| d.code == "BUF_TEST"),
+      "expected BUF_TEST in drained diagnostics, got: {drained:?}"
+    );
   }
 
   #[test]

@@ -43,7 +43,7 @@
   "simple-git-hooks": {
     "pre-commit": "pnpm tsx .githooks/sync-versions.ts"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.18.0",
   "devDependencies": {
     "tsx": "catalog:",
     "typescript": "catalog:"

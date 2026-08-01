@@ -685,7 +685,7 @@ mod tests {
       "subagent mode should always be emitted, got:\n{result}"
     );
     assert!(
-      result.contains("color: '#0000FF'"),
+      result.contains("color: '#0000FF'") || result.contains("color: \"#0000FF\""),
       "named color 'blue' should be converted to hex, got:\n{result}"
     );
     assert!(
@@ -713,7 +713,7 @@ mod tests {
       "subagent mode should always be emitted, got:\n{result}"
     );
     assert!(
-      result.contains("color: '#0000FF'"),
+      result.contains("color: '#0000FF'") || result.contains("color: \"#0000FF\""),
       "valid hex color must be preserved in output, got:\n{result}"
     );
   }
