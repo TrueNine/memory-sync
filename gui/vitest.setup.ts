@@ -18,6 +18,10 @@ vi.mock('@monaco-editor/react', () => ({
   },
 }))
 
-vi.mock('monaco-editor/esm/vs/editor/editor.worker?worker', () => ({
+vi.mock('monaco-editor/editor/editor.worker?worker', () => ({
+  default: class MockWorker {},
+}))
+
+vi.mock('monaco-editor/language/json/json.worker?worker', () => ({
   default: class MockWorker {},
 }))
