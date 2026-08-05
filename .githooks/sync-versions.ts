@@ -33,6 +33,7 @@ const IGNORED_DIRECTORIES = new Set([
   'coverage',
   'dist',
   'node_modules',
+  'obsidian-plugin',
   'target',
 ])
 const CALVER_VERSION_REGEX = /^\d{4}\.(?:0|1\d{2}(?:\d{2})?)\.(?:0|1\d{2}(?:\d{2}(?:\d{2})?)?)$/u
@@ -76,24 +77,22 @@ function syncObsidianReleaseMetadata(
   const rootVersionsPath = resolve(rootDir, 'versions.json')
   const manifest = readJsonFile(pluginManifestPath)
   const minAppVersion = manifest.minAppVersion
+  const pluginVersion = manifest.version
 
   if (manifest.id !== 'tnmso' || typeof minAppVersion !== 'string' || minAppVersion.trim() === '') {
     throw new Error('TNMSO manifest must define id=tnmso and a non-empty minAppVersion')
   }
-
-  const updatedManifest = {...manifest, version: targetVersion}
-  writeJsonFileIfChanged(pluginManifestPath, updatedManifest, changedPaths)
-  writeJsonFileIfChanged(rootManifestPath, updatedManifest, changedPaths)
-
-  let versions: VersionedJson
-  try {
-    versions = readJsonFile(pluginVersionsPath)
-  } catch {
-    versions = {}
+  if (pluginVersion !== targetVersion) {
+    throw new Error(`TNMSO submodule has version ${String(pluginVersion)}, expected ${targetVersion}; release TNMSO first`)
   }
-  const updatedVersions = {...versions, [targetVersion]: minAppVersion}
-  writeJsonFileIfChanged(pluginVersionsPath, updatedVersions, changedPaths)
-  writeJsonFileIfChanged(rootVersionsPath, updatedVersions, changedPaths)
+
+  const versions = readJsonFile(pluginVersionsPath)
+  if (versions[targetVersion] !== minAppVersion) {
+    throw new Error(`TNMSO versions.json must map ${targetVersion} to ${minAppVersion}`)
+  }
+
+  writeJsonFileIfChanged(rootManifestPath, manifest, changedPaths)
+  writeJsonFileIfChanged(rootVersionsPath, versions, changedPaths)
 }
 
 function discoverFilesByName(baseDir: string, fileName: string): string[] {
@@ -375,6 +374,7 @@ function getStagedVersionCandidates(rootDir: string, rootVersion: string): Map<s
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .filter(filePath => {
+      if (filePath.startsWith('obsidian-plugin/')) return false
       const name = basename(filePath)
       return name === 'package.json' || name === 'Cargo.toml' || name === 'tauri.conf.json'
     })
@@ -493,6 +493,8 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   const target = resolveTargetVersion(rootDir, currentRootVersion, options.requestedVersion)
   const changedPaths = new Set<string>()
 
+  syncObsidianReleaseMetadata(rootDir, target.version, changedPaths)
+
   syncJsonVersion(rootPackagePath, target.version, changedPaths)
 
   const packageJsonPaths = discoverFilesByName(rootDir, 'package.json')
@@ -519,8 +521,6 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   for (const filePath of discoverFilesByName(rootDir, 'tauri.conf.json').sort()) {
     syncJsonVersion(filePath, target.version, changedPaths)
   }
-
-  syncObsidianReleaseMetadata(rootDir, target.version, changedPaths)
 
   stageFiles(rootDir, [...changedPaths].sort())
 
