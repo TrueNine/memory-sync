@@ -436,59 +436,6 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
 
-  build-gui:
-    needs: validate-version
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            tauri-command: pnpm tauri build
-            artifact-path: |
-              target/*/release/bundle/**/*.exe
-              target/*/release/bundle/**/*.msi
-              target/*/release/bundle/**/*.sig
-              target/*/release/bundle/**/*.zip
-              target/release/bundle/**/*.exe
-              target/release/bundle/**/*.msi
-              target/release/bundle/**/*.sig
-              target/release/bundle/**/*.zip
-          - os: ubuntu-24.04
-            tauri-command: pnpm tauri build
-            artifact-path: |
-              target/*/release/bundle/**/*.AppImage
-              target/*/release/bundle/**/*.deb
-              target/*/release/bundle/**/*.rpm
-              target/*/release/bundle/**/*.sig
-              target/release/bundle/**/*.AppImage
-              target/release/bundle/**/*.deb
-              target/release/bundle/**/*.rpm
-              target/release/bundle/**/*.sig
-          - os: macos-14
-            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
-            tauri-command: pnpm tauri build --target universal-apple-darwin
-            artifact-path: |
-              target/*/release/bundle/**/*.dmg
-              target/*/release/bundle/**/*.tar.gz
-              target/*/release/bundle/**/*.sig
-              target/release/bundle/**/*.dmg
-              target/release/bundle/**/*.tar.gz
-              target/release/bundle/**/*.sig
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/build-gui-platform
-        with:
-          tauri-command: ${{ matrix.tauri-command }}
-          artifact-name: gui-${{ matrix.os }}
-          artifact-path: ${{ matrix.artifact-path }}
-          rust-targets: ${{ matrix.rust_targets || '' }}
-          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          version: ${{ needs.validate-version.outputs.version }}
-
   build-obsidian-plugin:
     needs: validate-version
     runs-on: ubuntu-24.04
@@ -520,17 +467,10 @@ jobs:
           if-no-files-found: error
 
   create-github-release:
-    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-gui, build-obsidian-plugin]
+    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-obsidian-plugin]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Download GUI artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: artifacts/gui
-          pattern: gui-*
-          merge-multiple: true
-
       - name: Download CLI archive artifacts
         uses: actions/download-artifact@v8
         with:
@@ -551,32 +491,14 @@ jobs:
           name: obsidian-plugin-release
           path: artifacts/obsidian
 
-      - name: Clean up unnecessary macOS artifacts
-        shell: bash
-        run: |
-          find artifacts/gui -name '*.icns' -delete
-          find artifacts/gui -name 'Info.plist' -delete
-
       - name: Verify release artifacts
         shell: bash
         run: |
           set -euo pipefail
 
-          installer_count=$(find artifacts/gui -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) | wc -l | tr -d ' ')
-          updater_count=$(find artifacts/gui -type f \( -name '*.sig' -o -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           cli_archive_count=$(find artifacts/cli -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           mcp_archive_count=$(find artifacts/mcp -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           obsidian_archive_count=$(find artifacts/obsidian -maxdepth 1 -type f -name 'tnmso-${{ needs.validate-version.outputs.version }}.zip' | wc -l | tr -d ' ')
-
-          if [[ "$installer_count" -eq 0 ]]; then
-            echo "::error::No GUI installer artifacts were downloaded."
-            exit 1
-          fi
-
-          if [[ "$updater_count" -eq 0 ]]; then
-            echo "::error::No GUI updater artifacts were downloaded."
-            exit 1
-          fi
 
           if [[ "$cli_archive_count" -ne 5 ]]; then
             echo "::error::Expected 5 CLI archives, found ${cli_archive_count}."
@@ -600,15 +522,6 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: v${{ needs.validate-version.outputs.version }}
           files: |
-            artifacts/gui/**/*.dmg
-            artifacts/gui/**/*.exe
-            artifacts/gui/**/*.msi
-            artifacts/gui/**/*.AppImage
-            artifacts/gui/**/*.deb
-            artifacts/gui/**/*.rpm
-            artifacts/gui/**/*.sig
-            artifacts/gui/**/*.tar.gz
-            artifacts/gui/**/*.zip
             artifacts/cli/**/*.tar.gz
             artifacts/cli/**/*.zip
             artifacts/mcp/**/*.tar.gz
