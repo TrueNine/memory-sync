@@ -59,7 +59,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/build-gui-platform
         with:
