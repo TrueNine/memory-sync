@@ -57,13 +57,13 @@ function createFixtureRepo(): string {
     private: true
   })
   writeJson(join(rootDir, 'obsidian-plugin', 'package.json'), {
-    name: 'tnmso',
+    name: 'tnmsop',
     version: initialVersion,
     private: true
   })
   const manifest = {
-    id: 'tnmso',
-    name: 'TNMSO Preview',
+    id: 'tnmsop',
+    name: 'TNMSOP',
     version: initialVersion,
     minAppVersion: '1.0.0',
     isDesktopOnly: false
@@ -149,13 +149,13 @@ function createFixtureRepo(): string {
 
 function preparePluginRelease(rootDir: string, nextVersion: string): void {
   writeJson(join(rootDir, 'obsidian-plugin', 'package.json'), {
-    name: 'tnmso',
+    name: 'tnmsop',
     version: nextVersion,
     private: true
   })
   writeJson(join(rootDir, 'obsidian-plugin', 'manifest.json'), {
-    id: 'tnmso',
-    name: 'TNMSO Preview',
+    id: 'tnmsop',
+    name: 'TNMSOP',
     version: nextVersion,
     minAppVersion: '1.0.0',
     isDesktopOnly: false
@@ -302,7 +302,7 @@ describe('sync-versions hook', () => {
     expectSharedVersionSurfaces(rootDir, nextVersion)
   })
 
-  it('requires TNMSO to be released before the system version advances', () => {
+  it('requires TNMSOP to be released before the system version advances', () => {
     const rootDir = createFixtureRepo()
     tempDirs.push(rootDir)
 
@@ -314,7 +314,7 @@ describe('sync-versions hook', () => {
     })
     runGit(rootDir, ['add', 'doc/package.json'])
 
-    expect(() => runSyncVersions({rootDir})).toThrowError(/release TNMSO first/)
+    expect(() => runSyncVersions({rootDir})).toThrowError(/release TNMSOP first/)
   })
 
   it('fails when staged package.json files propose conflicting versions', () => {

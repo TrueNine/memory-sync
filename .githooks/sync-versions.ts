@@ -79,16 +79,16 @@ function syncObsidianReleaseMetadata(
   const minAppVersion = manifest.minAppVersion
   const pluginVersion = manifest.version
 
-  if (manifest.id !== 'tnmso' || typeof minAppVersion !== 'string' || minAppVersion.trim() === '') {
-    throw new Error('TNMSO manifest must define id=tnmso and a non-empty minAppVersion')
+  if (manifest.id !== 'tnmsop' || typeof minAppVersion !== 'string' || minAppVersion.trim() === '') {
+    throw new Error('TNMSOP manifest must define id=tnmsop and a non-empty minAppVersion')
   }
   if (pluginVersion !== targetVersion) {
-    throw new Error(`TNMSO submodule has version ${String(pluginVersion)}, expected ${targetVersion}; release TNMSO first`)
+    throw new Error(`TNMSOP submodule has version ${String(pluginVersion)}, expected ${targetVersion}; release TNMSOP first`)
   }
 
   const versions = readJsonFile(pluginVersionsPath)
   if (versions[targetVersion] !== minAppVersion) {
-    throw new Error(`TNMSO versions.json must map ${targetVersion} to ${minAppVersion}`)
+    throw new Error(`TNMSOP versions.json must map ${targetVersion} to ${minAppVersion}`)
   }
 
   writeJsonFileIfChanged(rootManifestPath, manifest, changedPaths)
