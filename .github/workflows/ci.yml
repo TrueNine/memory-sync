@@ -109,6 +109,9 @@ jobs:
         with:
           cache-key: ci
 
+      - name: Generate Tauri icons
+        run: pnpm -C gui run generate:icons
+
       - name: Lint
         run: cargo run -p xtask -- lint
 
