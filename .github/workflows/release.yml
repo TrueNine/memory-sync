@@ -502,7 +502,7 @@ jobs:
 
           cli_archive_count=$(find artifacts/cli -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           mcp_archive_count=$(find artifacts/mcp -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
-          obsidian_archive_count=$(find artifacts/obsidian -maxdepth 1 -type f -name 'tnmso-${{ needs.validate-version.outputs.version }}.zip' | wc -l | tr -d ' ')
+          obsidian_archive_count=$(find artifacts/obsidian -maxdepth 1 -type f -name 'tnmsop-${{ needs.validate-version.outputs.version }}.zip' | wc -l | tr -d ' ')
 
           if [[ "$cli_archive_count" -ne 5 ]]; then
             echo "::error::Expected 5 CLI archives, found ${cli_archive_count}."
@@ -530,6 +530,6 @@ jobs:
             artifacts/cli/**/*.zip
             artifacts/mcp/**/*.tar.gz
             artifacts/mcp/**/*.zip
-            artifacts/obsidian/tnmso-*.zip
+            artifacts/obsidian/tnmsop-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

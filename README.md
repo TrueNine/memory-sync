@@ -27,11 +27,11 @@ MCP server:
 npm install -g @truenine/memory-sync-mcp
 ```
 
-### TNMSO Preview for Obsidian
+### TNMSOP for Obsidian
 
-TNMSO Preview is maintained in the [`obsidian-plugin/`](obsidian-plugin/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSO Preview Release](https://github.com/TrueNine/tnmso/releases). BRAT users should install `TrueNine/tnmso`.
+TNMSOP is maintained in the [`obsidian-plugin/`](obsidian-plugin/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/tnmsop/releases). BRAT users should install `TrueNine/tnmsop`.
 
-TNMSO Preview shares the memory-sync CalVer version. The plugin is released first with the exact plain `<version>` tag, then memory-sync pins that release through the submodule and publishes its `v<version>` system release.
+TNMSOP shares the memory-sync CalVer version. The plugin is released first with the exact plain `<version>` tag, then memory-sync pins that release through the submodule and publishes its `v<version>` system release.
 
 ## Supported Tools
 
