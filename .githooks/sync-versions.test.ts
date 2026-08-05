@@ -63,7 +63,7 @@ function createFixtureRepo(): string {
   })
   const manifest = {
     id: 'tnmso',
-    name: 'TNMSO',
+    name: 'TNMSO Preview',
     version: initialVersion,
     minAppVersion: '1.0.0',
     isDesktopOnly: false
@@ -147,6 +147,25 @@ function createFixtureRepo(): string {
   return rootDir
 }
 
+function preparePluginRelease(rootDir: string, nextVersion: string): void {
+  writeJson(join(rootDir, 'obsidian-plugin', 'package.json'), {
+    name: 'tnmso',
+    version: nextVersion,
+    private: true
+  })
+  writeJson(join(rootDir, 'obsidian-plugin', 'manifest.json'), {
+    id: 'tnmso',
+    name: 'TNMSO Preview',
+    version: nextVersion,
+    minAppVersion: '1.0.0',
+    isDesktopOnly: false
+  })
+  writeJson(join(rootDir, 'obsidian-plugin', 'versions.json'), {
+    '2026.10324.10015': '1.0.0',
+    [nextVersion]: '1.0.0'
+  })
+}
+
 function expectSharedVersionSurfaces(rootDir: string, nextVersion: string): void {
   expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string, optionalDependencies: Record<string, string>}).toMatchObject({
@@ -198,6 +217,7 @@ describe('sync-versions hook', () => {
     tempDirs.push(rootDir)
 
     const nextVersion = '2026.10324.10314'
+    preparePluginRelease(rootDir, nextVersion)
     writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
       name: '@truenine/memory-sync-cli-darwin-arm64',
       version: nextVersion
@@ -222,9 +242,6 @@ describe('sync-versions hook', () => {
       'gui/src-tauri/tauri.conf.json',
       'mcp/package.json',
       'manifest.json',
-      'obsidian-plugin/manifest.json',
-      'obsidian-plugin/package.json',
-      'obsidian-plugin/versions.json',
       'package.json',
       'versions.json'
     ]))
@@ -235,6 +252,7 @@ describe('sync-versions hook', () => {
     tempDirs.push(rootDir)
 
     const nextVersion = '2026.10324.10316'
+    preparePluginRelease(rootDir, nextVersion)
     writeJson(join(rootDir, 'gui', 'package.json'), {
       name: '@truenine/memory-sync-gui',
       version: nextVersion
@@ -259,9 +277,6 @@ describe('sync-versions hook', () => {
       'gui/src-tauri/tauri.conf.json',
       'mcp/package.json',
       'manifest.json',
-      'obsidian-plugin/manifest.json',
-      'obsidian-plugin/package.json',
-      'obsidian-plugin/versions.json',
       'package.json',
       'versions.json'
     ]))
@@ -272,6 +287,7 @@ describe('sync-versions hook', () => {
     tempDirs.push(rootDir)
 
     const nextVersion = '2026.10324.10318'
+    preparePluginRelease(rootDir, nextVersion)
     writeJson(join(rootDir, 'doc', 'package.json'), {
       name: '@truenine/memory-sync-docs',
       version: nextVersion,
@@ -286,23 +302,19 @@ describe('sync-versions hook', () => {
     expectSharedVersionSurfaces(rootDir, nextVersion)
   })
 
-  it('accepts the TNMSO package version as the staged system version source', () => {
+  it('requires TNMSO to be released before the system version advances', () => {
     const rootDir = createFixtureRepo()
     tempDirs.push(rootDir)
 
     const nextVersion = '2026.10324.10319'
-    writeJson(join(rootDir, 'obsidian-plugin', 'package.json'), {
-      name: 'tnmso',
+    writeJson(join(rootDir, 'doc', 'package.json'), {
+      name: '@truenine/memory-sync-docs',
       version: nextVersion,
       private: true
     })
-    runGit(rootDir, ['add', 'obsidian-plugin/package.json'])
+    runGit(rootDir, ['add', 'doc/package.json'])
 
-    const result = runSyncVersions({rootDir})
-
-    expect(result.targetVersion).toBe(nextVersion)
-    expect(result.versionSource).toBe('obsidian-plugin/package.json')
-    expectSharedVersionSurfaces(rootDir, nextVersion)
+    expect(() => runSyncVersions({rootDir})).toThrowError(/release TNMSO first/)
   })
 
   it('fails when staged package.json files propose conflicting versions', () => {

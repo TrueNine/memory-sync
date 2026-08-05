@@ -41,6 +41,7 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'xtask/**'
             obsidian:
+              - 'obsidian-plugin'
               - 'obsidian-plugin/**'
               - 'manifest.json'
               - 'versions.json'
@@ -58,6 +59,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-bun
         with:
@@ -185,6 +188,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-bun
 
