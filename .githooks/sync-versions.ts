@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Version Sync Script
  * Auto-sync all publishable package versions before commit.
@@ -43,6 +43,57 @@ function readJsonFile(filePath: string): VersionedJson {
 
 function writeJsonFile(filePath: string, value: VersionedJson): void {
   writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf-8')
+}
+
+function writeJsonFileIfChanged(
+  filePath: string,
+  value: VersionedJson,
+  changedPaths: Set<string>,
+): void {
+  let current: VersionedJson | undefined
+  try {
+    current = readJsonFile(filePath)
+  } catch {
+    current = undefined
+  }
+
+  if (current != null && JSON.stringify(current) === JSON.stringify(value)) {
+    return
+  }
+
+  writeJsonFile(filePath, value)
+  changedPaths.add(filePath)
+}
+
+function syncObsidianReleaseMetadata(
+  rootDir: string,
+  targetVersion: string,
+  changedPaths: Set<string>,
+): void {
+  const pluginManifestPath = resolve(rootDir, 'obsidian-plugin', 'manifest.json')
+  const rootManifestPath = resolve(rootDir, 'manifest.json')
+  const pluginVersionsPath = resolve(rootDir, 'obsidian-plugin', 'versions.json')
+  const rootVersionsPath = resolve(rootDir, 'versions.json')
+  const manifest = readJsonFile(pluginManifestPath)
+  const minAppVersion = manifest.minAppVersion
+
+  if (manifest.id !== 'tnmso' || typeof minAppVersion !== 'string' || minAppVersion.trim() === '') {
+    throw new Error('TNMSO manifest must define id=tnmso and a non-empty minAppVersion')
+  }
+
+  const updatedManifest = {...manifest, version: targetVersion}
+  writeJsonFileIfChanged(pluginManifestPath, updatedManifest, changedPaths)
+  writeJsonFileIfChanged(rootManifestPath, updatedManifest, changedPaths)
+
+  let versions: VersionedJson
+  try {
+    versions = readJsonFile(pluginVersionsPath)
+  } catch {
+    versions = {}
+  }
+  const updatedVersions = {...versions, [targetVersion]: minAppVersion}
+  writeJsonFileIfChanged(pluginVersionsPath, updatedVersions, changedPaths)
+  writeJsonFileIfChanged(rootVersionsPath, updatedVersions, changedPaths)
 }
 
 function discoverFilesByName(baseDir: string, fileName: string): string[] {
@@ -468,6 +519,8 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   for (const filePath of discoverFilesByName(rootDir, 'tauri.conf.json').sort()) {
     syncJsonVersion(filePath, target.version, changedPaths)
   }
+
+  syncObsidianReleaseMetadata(rootDir, target.version, changedPaths)
 
   stageFiles(rootDir, [...changedPaths].sort())
 

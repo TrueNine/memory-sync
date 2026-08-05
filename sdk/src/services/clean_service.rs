@@ -25,7 +25,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
     options
       .log_level
       .as_deref()
-      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+      .and_then(crate::infra::logger::LogLevel::from_str_loose),
   );
   let _span = logger.span("command.clean").enter();
 
@@ -160,7 +160,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   } else {
     let execute_span = logger.span("cleanup.execute").enter();
     let result =
-      crate::policy::cleanup::perform_cleanup(snapshot).map_err(|e| CliError::ExecutionError(e))?;
+      crate::policy::cleanup::perform_cleanup(snapshot).map_err(CliError::ExecutionError)?;
     execute_span.exit();
 
     let blocked = !result.violations.is_empty() || !result.conflicts.is_empty();
@@ -328,7 +328,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("ClaudeCodeCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.claude_code {
@@ -344,7 +344,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("CodexCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.codex {
@@ -361,7 +361,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("CursorOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.cursor {
@@ -377,7 +377,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("DroidCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.droid {
@@ -394,7 +394,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("GeminiCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.gemini {
@@ -415,7 +415,7 @@ fn build_output_map(
   if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
     cleanup_map
       .entry("KiroCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.kiro {
@@ -432,7 +432,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("OpencodeCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.opencode {
@@ -448,7 +448,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("QoderIDEPluginOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.qoder {
@@ -463,7 +463,7 @@ fn build_output_map(
   if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
     cleanup_map
       .entry("TraeOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.trae || enabled_plugins.trae_cn {
@@ -479,7 +479,7 @@ fn build_output_map(
     let plan = crate::domain::output_plans::warp_output_plan::build_warp_cleanup(workspace);
     cleanup_map
       .entry("WarpIDEOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.delete.clone());
   }
@@ -488,7 +488,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("WindsurfOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.windsurf {

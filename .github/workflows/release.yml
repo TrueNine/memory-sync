@@ -35,6 +35,10 @@ jobs:
           cache: "false"
           install: "true"
 
+      - uses: ./.github/actions/setup-bun
+        with:
+          install: "false"
+
       - name: Resolve release version
         id: release-version
         shell: bash
@@ -55,7 +59,22 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Validate version surfaces
-        run: pnpm exec tsx scripts/shared/check-version-surfaces.ts "${{ steps.release-version.outputs.version }}"
+        run: bun scripts/shared/check-version-surfaces.ts "${{ steps.release-version.outputs.version }}"
+
+      - name: Validate existing release tag targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --tags
+          for tag in "v${{ steps.release-version.outputs.version }}" "${{ steps.release-version.outputs.version }}"; do
+            if git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
+              tag_commit="$(git rev-list -n 1 "refs/tags/${tag}")"
+              if [[ "$tag_commit" != "${GITHUB_SHA}" ]]; then
+                echo "::error::Existing tag ${tag} points to ${tag_commit}, expected ${GITHUB_SHA}."
+                exit 1
+              fi
+            fi
+          done
 
   build-cli-binaries:
     needs: validate-version
@@ -470,8 +489,38 @@ jobs:
           signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           version: ${{ needs.validate-version.outputs.version }}
 
+  build-obsidian-plugin:
+    needs: validate-version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Test and validate TNMSO
+        working-directory: obsidian-plugin
+        run: |
+          bun test
+          bun run check:type
+          bun run lint
+
+      - name: Build and package TNMSO
+        working-directory: obsidian-plugin
+        run: |
+          bun run build
+          bun run package:release
+          bun run verify:dist
+
+      - name: Upload TNMSO release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: obsidian-plugin-release
+          path: obsidian-plugin/dist/
+          if-no-files-found: error
+
   create-github-release:
-    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-gui]
+    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-gui, build-obsidian-plugin]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -496,6 +545,12 @@ jobs:
           pattern: mcp-archive-*
           merge-multiple: true
 
+      - name: Download TNMSO artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: obsidian-plugin-release
+          path: artifacts/obsidian
+
       - name: Clean up unnecessary macOS artifacts
         shell: bash
         run: |
@@ -511,6 +566,7 @@ jobs:
           updater_count=$(find artifacts/gui -type f \( -name '*.sig' -o -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           cli_archive_count=$(find artifacts/cli -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           mcp_archive_count=$(find artifacts/mcp -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
+          obsidian_archive_count=$(find artifacts/obsidian -maxdepth 1 -type f -name 'tnmso-${{ needs.validate-version.outputs.version }}.zip' | wc -l | tr -d ' ')
 
           if [[ "$installer_count" -eq 0 ]]; then
             echo "::error::No GUI installer artifacts were downloaded."
@@ -532,10 +588,16 @@ jobs:
             exit 1
           fi
 
+          if [[ "$obsidian_archive_count" -ne 1 ]]; then
+            echo "::error::Expected one TNMSO archive, found ${obsidian_archive_count}."
+            exit 1
+          fi
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: v${{ needs.validate-version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           name: v${{ needs.validate-version.outputs.version }}
           files: |
             artifacts/gui/**/*.dmg
@@ -551,5 +613,47 @@ jobs:
             artifacts/cli/**/*.zip
             artifacts/mcp/**/*.tar.gz
             artifacts/mcp/**/*.zip
+            artifacts/obsidian/tnmso-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-obsidian-release:
+    needs: [validate-version, build-obsidian-plugin]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download TNMSO artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: obsidian-plugin-release
+          path: artifacts/obsidian
+
+      - name: Verify Obsidian release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in main.js manifest.json styles.css "tnmso-${{ needs.validate-version.outputs.version }}.zip"; do
+            test -f "artifacts/obsidian/${file}" || {
+              echo "::error::Missing TNMSO release file: ${file}"
+              exit 1
+            }
+          done
+
+      - name: Publish Obsidian release
+        uses: softprops/action-gh-release@v3.0.0
+        with:
+          tag_name: ${{ needs.validate-version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: TNMSO ${{ needs.validate-version.outputs.version }}
+          body: |
+            TNMSO safely previews prompt-focused MDX files as Markdown in Obsidian without evaluating JavaScript.
+
+            Install `main.js`, `manifest.json`, and `styles.css` in `<vault>/.obsidian/plugins/tnmso/`, then reload Obsidian and enable TNMSO.
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/obsidian/main.js
+            artifacts/obsidian/manifest.json
+            artifacts/obsidian/styles.css
+            artifacts/obsidian/tnmso-${{ needs.validate-version.outputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

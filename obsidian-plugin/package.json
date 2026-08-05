@@ -1,0 +1,43 @@
+{
+  "name": "tnmso",
+  "version": "2026.10805.0",
+  "description": "Safe MDX prompt previews for Obsidian.",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "check:type": "tsc --noEmit",
+    "dev": "bun run scripts/build.ts --watch",
+    "lint": "eslint .",
+    "package:release": "bun run scripts/package-release.ts",
+    "test": "bun test",
+    "verify:dist": "bun run scripts/verify-dist.ts"
+  },
+  "dependencies": {
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "1.3.14",
+    "@types/estree": "^1.0.9",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^26.1.2",
+    "esbuild": "^0.25.5",
+    "eslint": "^10.8.0",
+    "eslint-plugin-obsidianmd": "^0.4.0",
+    "fflate": "^0.8.2",
+    "globals": "^17.6.0",
+    "jiti": "2.7.0",
+    "obsidian": "latest",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}

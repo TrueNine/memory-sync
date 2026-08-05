@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
 use crate::infra::logger::Logger;
-use crate::CliError;
 
 /// Shared output file descriptor used by both install and dry-run.
 /// Install writes these to disk; dry-run counts them and reports the plan.
@@ -47,8 +47,7 @@ pub(crate) fn build_output_files(
   }
   if enabled_plugins.cursor {
     let plugin_span = logger.span("output.cursor").enter();
-    let plan =
-      crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)?;
+    let plan = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
     plugin_span.exit();
   }
@@ -60,8 +59,7 @@ pub(crate) fn build_output_files(
   }
   if enabled_plugins.gemini {
     let plugin_span = logger.span("output.gemini").enter();
-    let plan =
-      crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)?;
+    let plan = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
     plugin_span.exit();
   }

@@ -93,7 +93,12 @@ fn init_git_repo(project_dir: &Path) {
     .arg("--quiet")
     .current_dir(project_dir)
     .output()
-    .unwrap_or_else(|error| panic!("failed to run git init in {}: {error}", project_dir.display()));
+    .unwrap_or_else(|error| {
+      panic!(
+        "failed to run git init in {}: {error}",
+        project_dir.display()
+      )
+    });
 
   assert!(
     output.status.success(),

@@ -11,6 +11,7 @@ A rat carries even its own memories when moving. `memory-sync` is that kind of t
 - Auto-write configs for each tool: AGENTS.md, Claude Code, Codex CLI, Cursor, Windsurf, Qoder, Trae, Warp, JetBrains AI, etc.
 - Manage derived artifacts: prompt outputs, skills exports organized as `skills/<skill-category>/<skill>/`, README-class outputs
 - Multiple entry points: `tnmsc` CLI, private SDK, MCP stdio server, Tauri GUI
+- Obsidian integration: TNMSO opens `.mdx` as native Markdown and safely previews static prompt syntax
 - Fine-grained write-scope control (`outputScopes`, `cleanupProtection`)
 - Source and derivations are auditable — no silent source mutations, no hidden residuals
 - Memories follow the person, not the project — no leakage
@@ -25,6 +26,12 @@ MCP server:
 ```sh
 npm install -g @truenine/memory-sync-mcp
 ```
+
+### TNMSO for Obsidian
+
+TNMSO is the Obsidian plugin in [`obsidian-plugin/`](obsidian-plugin/README.md). Download `main.js`, `manifest.json`, and `styles.css` from the GitHub Release tagged with the exact CalVer version, then install them under `<vault>/.obsidian/plugins/tnmso/`. BRAT users can install `TrueNine/memory-sync` for beta testing.
+
+TNMSO shares the repository version. System releases use `v<version>` tags; Obsidian releases use the matching plain `<version>` tag because the community plugin updater requires the tag and manifest version to be identical.
 
 ## Supported Tools
 

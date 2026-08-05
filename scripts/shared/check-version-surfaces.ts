@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 import {readFileSync, readdirSync} from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -62,6 +62,21 @@ function checkJsonVersion(relativePath: string): void {
   ensure(version === expectedVersion, `${relativePath} has version ${String(version)}, expected ${expectedVersion}`)
 }
 
+function checkObsidianReleaseMetadata(): void {
+  const pluginManifest = readJson('obsidian-plugin/manifest.json')
+  const rootManifest = readJson('manifest.json')
+  const pluginVersions = readJson('obsidian-plugin/versions.json')
+  const rootVersions = readJson('versions.json')
+  const minAppVersion = pluginManifest.minAppVersion
+
+  ensure(pluginManifest.id === 'tnmso', 'obsidian-plugin/manifest.json must use id=tnmso')
+  ensure(pluginManifest.version === expectedVersion, `obsidian-plugin/manifest.json expected version ${expectedVersion}`)
+  ensure(typeof minAppVersion === 'string' && minAppVersion !== '', 'TNMSO minAppVersion is required')
+  ensure(JSON.stringify(rootManifest) === JSON.stringify(pluginManifest), 'Root manifest.json must mirror the TNMSO manifest')
+  ensure(pluginVersions[expectedVersion] === minAppVersion, `obsidian-plugin/versions.json must map ${expectedVersion} to ${String(minAppVersion)}`)
+  ensure(JSON.stringify(rootVersions) === JSON.stringify(pluginVersions), 'Root versions.json must mirror TNMSO versions.json')
+}
+
 function checkWorkspaceCargoVersion(relativePath: string, sectionName: string, key = 'version'): void {
   const value = extractTomlValue(readText(relativePath), sectionName, key)
   ensure(value === expectedVersion, `${relativePath} has ${sectionName}.${key}=${String(value)}, expected ${expectedVersion}`)
@@ -100,7 +115,9 @@ try {
   checkJsonVersion('mcp/package.json')
   checkJsonVersion('gui/package.json')
   checkJsonVersion('doc/package.json')
+  checkJsonVersion('obsidian-plugin/package.json')
   checkJsonVersion('gui/src-tauri/tauri.conf.json')
+  checkObsidianReleaseMetadata()
 
   for (const entry of readdirSync(path.join(rootDir, 'cli', 'npm'), {withFileTypes: true})) {
     if (!entry.isDirectory()) continue
