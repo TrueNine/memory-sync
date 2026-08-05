@@ -38,9 +38,8 @@ struct CategoryDescriptionFiles {
 }
 
 // Fixes #184: compile regexes once via LazyLock instead of per-call
-static MDX_REFERENCE_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"(!?\[)([^\]]*?)(\]\()([^)]+)(\))").unwrap()
-});
+static MDX_REFERENCE_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r"(!?\[)([^\]]*?)(\]\()([^)]+)(\))").unwrap());
 
 fn transform_mdx_references_to_md(content: &str) -> String {
   let re = &*MDX_REFERENCE_REGEX;
@@ -62,9 +61,8 @@ fn transform_mdx_references_to_md(content: &str) -> String {
 }
 
 // Fixes #184: compile regex once via LazyLock
-static SKILL_FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok()
-});
+static SKILL_FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> =
+  LazyLock::new(|| regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok());
 
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   let front_matter_regex = SKILL_FRONT_MATTER_REGEX.as_ref();
@@ -81,27 +79,20 @@ fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
 }
 
 // Fixes #184: compile regexes once via LazyLock
-static EXPORT_DEFAULT_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").unwrap()
-});
-static SKILL_DESC_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r#"description\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
-});
-static NAME_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r#"name\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
-});
-static DISPLAY_NAME_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r#"displayName\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
-});
-static KEYWORDS_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"keywords\s*:\s*\[([^\]]+)\]").unwrap()
-});
-static AUTHOR_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r#"author\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
-});
-static VERSION_REGEX: LazyLock<regex_lite::Regex> = LazyLock::new(|| {
-  regex_lite::Regex::new(r#"version\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap()
-});
+static EXPORT_DEFAULT_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").unwrap());
+static SKILL_DESC_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r#"description\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap());
+static NAME_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r#"name\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap());
+static DISPLAY_NAME_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r#"displayName\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap());
+static KEYWORDS_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r"keywords\s*:\s*\[([^\]]+)\]").unwrap());
+static AUTHOR_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r#"author\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap());
+static VERSION_REGEX: LazyLock<regex_lite::Regex> =
+  LazyLock::new(|| regex_lite::Regex::new(r#"version\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap());
 
 fn extract_skill_metadata_from_export(content: &str) -> Value {
   let mut metadata = serde_json::Map::new();
@@ -167,12 +158,10 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
 }
 
 // Fixes #184: compile regexes once via LazyLock
-static DEFAULT_DESC_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
-  regex_lite::Regex::new(r#"description\s*:\s*['"`]([^'"`]+)['"`]"#).ok()
-});
-static DESC_EXPORT_DEFAULT_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").ok()
-});
+static DEFAULT_DESC_REGEX: LazyLock<Option<regex_lite::Regex>> =
+  LazyLock::new(|| regex_lite::Regex::new(r#"description\s*:\s*['"`]([^'"`]+)['"`]"#).ok());
+static DESC_EXPORT_DEFAULT_REGEX: LazyLock<Option<regex_lite::Regex>> =
+  LazyLock::new(|| regex_lite::Regex::new(r"export\s+default\s*\{([\s\S]*?)\}").ok());
 static NAMED_EXPORT_DESC_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
   regex_lite::Regex::new(r#"export\s+(?:const|let)\s+description\s*=\s*['"`]([^'"`]+)['"`]"#).ok()
 });
@@ -197,9 +186,8 @@ fn extract_description_from_exports(content: &str) -> Option<String> {
 }
 
 // Fixes #184: compile regex once via LazyLock
-static STRIP_FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"(?s)^---\r?\n.*?\r?\n---(?:(?:\r?\n){1,2}|$)").ok()
-});
+static STRIP_FRONT_MATTER_REGEX: LazyLock<Option<regex_lite::Regex>> =
+  LazyLock::new(|| regex_lite::Regex::new(r"(?s)^---\r?\n.*?\r?\n---(?:(?:\r?\n){1,2}|$)").ok());
 
 fn strip_leading_front_matter(content: &str) -> &str {
   let front_matter_regex = STRIP_FRONT_MATTER_REGEX.as_ref();
@@ -212,13 +200,13 @@ fn strip_leading_front_matter(content: &str) -> &str {
 }
 
 // Fixes #184: compile regexes once via LazyLock
-static STRIP_EXPORT_DEFAULT_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
-  regex_lite::Regex::new(r"(?s)^\s*export\s+default\s*\{[\s\S]*?\}\s*;?\s*").ok()
-});
+static STRIP_EXPORT_DEFAULT_REGEX: LazyLock<Option<regex_lite::Regex>> =
+  LazyLock::new(|| regex_lite::Regex::new(r"(?s)^\s*export\s+default\s*\{[\s\S]*?\}\s*;?\s*").ok());
 static STRIP_NAMED_EXPORT_REGEX: LazyLock<Option<regex_lite::Regex>> = LazyLock::new(|| {
   regex_lite::Regex::new(
     r#"(?m)^\s*export\s+(?:const|let)\s+description\s*=\s*['"`][^'"`]+['"`]\s*;?\s*$\n?"#,
-  ).ok()
+  )
+  .ok()
 });
 
 fn strip_leading_export_statements(content: &str) -> String {

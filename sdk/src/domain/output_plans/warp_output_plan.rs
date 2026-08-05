@@ -118,12 +118,14 @@ mod tests {
       .collect::<Vec<_>>();
 
     assert!(delete_paths.contains(&workspace_dir.join("WARP.md").to_string_lossy().as_ref()));
-    assert!(delete_paths.contains(
-      &workspace_dir
-        .join("project-a")
-        .join("WARP.md")
-        .to_string_lossy()
-        .as_ref()
-    ));
+    assert!(
+      delete_paths.contains(
+        &workspace_dir
+          .join("project-a")
+          .join("WARP.md")
+          .to_string_lossy()
+          .as_ref()
+      )
+    );
   }
 }

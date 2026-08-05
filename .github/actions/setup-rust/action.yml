@@ -26,7 +26,7 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ inputs.rust-version }}
-        components: rustfmt
+        components: rustfmt,clippy
         targets: ${{ inputs.targets }}
 
     - name: Cache cargo

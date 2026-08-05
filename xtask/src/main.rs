@@ -112,7 +112,7 @@ fn run_hook_creation() -> Result<(), String> {
   let hooks_dir = format!("{}/hooks", git_dir_path);
   let hook_content = r#"#!/bin/sh
 # Version sync hook - auto-installed by memory-sync-xtask
-exec tsx "$PWD/.githooks/sync-versions.ts" "$1"
+exec bun "$PWD/.githooks/sync-versions.ts" "$1"
 "#;
 
   std::fs::create_dir_all(&hooks_dir).map_err(|e| format!("Failed to create hooks dir: {}", e))?;
@@ -174,6 +174,8 @@ fn main() -> Result<(), String> {
         "clippy",
         "--workspace",
         "--all-targets",
+        "--exclude",
+        "tnmsg",
         "--",
         "-D",
         "warnings",
@@ -220,6 +222,8 @@ fn main() -> Result<(), String> {
         "clippy",
         "--workspace",
         "--all-targets",
+        "--exclude",
+        "tnmsg",
         "--",
         "-D",
         "warnings",

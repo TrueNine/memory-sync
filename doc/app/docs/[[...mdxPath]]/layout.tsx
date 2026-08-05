@@ -4,7 +4,7 @@ import {DocsSectionNav} from '../../../components/docs-section-nav'
 import {isDocSectionName} from '../../../lib/docs-sections'
 import {siteConfig, withBasePath} from '../../../lib/site'
 
-type PageMapItem = {
+interface PageMapItem {
   readonly name?: string
   readonly route?: string
   readonly title?: string
@@ -15,7 +15,7 @@ function DocsSidebar({pageMap}: {readonly pageMap: readonly PageMapItem[]}) {
   return (
     <nav className="docs-sidebar" aria-label="Documentation">
       {pageMap.map(item => {
-        if (!item.name || item.route == null) {
+        if (item.name == null || item.name === '' || item.route == null) {
           return null
         }
 
@@ -41,7 +41,7 @@ export default async function DocsLayout({
   const section = firstSegment != null && isDocSectionName(firstSegment)
     ? firstSegment
     : void 0
-  const pageMap = await getPageMap(section ? `/docs/${section}` : '/docs') as readonly PageMapItem[]
+  const pageMap = await getPageMap(section != null ? `/docs/${section}` : '/docs') as readonly PageMapItem[]
 
   return (
     <div className="docs-shell">

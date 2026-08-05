@@ -2,7 +2,7 @@ import {execFileSync} from 'node:child_process'
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, describe, expect, it} from 'bun:test'
 import {runSyncVersions} from './sync-versions'
 
 function writeJson(filePath: string, value: Record<string, unknown>): void {
@@ -56,6 +56,22 @@ function createFixtureRepo(): string {
     version: initialVersion,
     private: true
   })
+  writeJson(join(rootDir, 'obsidian-plugin', 'package.json'), {
+    name: 'tnmso',
+    version: initialVersion,
+    private: true
+  })
+  const manifest = {
+    id: 'tnmso',
+    name: 'TNMSO',
+    version: initialVersion,
+    minAppVersion: '1.0.0',
+    isDesktopOnly: false
+  }
+  writeJson(join(rootDir, 'obsidian-plugin', 'manifest.json'), manifest)
+  writeJson(join(rootDir, 'manifest.json'), manifest)
+  writeJson(join(rootDir, 'obsidian-plugin', 'versions.json'), {[initialVersion]: '1.0.0'})
+  writeJson(join(rootDir, 'versions.json'), {[initialVersion]: '1.0.0'})
   writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
     name: '@truenine/memory-sync-cli-darwin-arm64',
     version: initialVersion
@@ -149,6 +165,14 @@ function expectSharedVersionSurfaces(rootDir: string, nextVersion: string): void
   })
   expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'doc', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'obsidian-plugin', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  const pluginManifest = JSON.parse(readFileSync(join(rootDir, 'obsidian-plugin', 'manifest.json'), 'utf-8')) as {version: string, minAppVersion: string}
+  expect(pluginManifest).toMatchObject({version: nextVersion, minAppVersion: '1.0.0'})
+  expect(JSON.parse(readFileSync(join(rootDir, 'manifest.json'), 'utf-8'))).toEqual(pluginManifest)
+  expect(JSON.parse(readFileSync(join(rootDir, 'obsidian-plugin', 'versions.json'), 'utf-8'))).toMatchObject({[nextVersion]: '1.0.0'})
+  expect(JSON.parse(readFileSync(join(rootDir, 'versions.json'), 'utf-8'))).toEqual(
+    JSON.parse(readFileSync(join(rootDir, 'obsidian-plugin', 'versions.json'), 'utf-8'))
+  )
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'linux-x64-gnu', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
@@ -197,7 +221,12 @@ describe('sync-versions hook', () => {
       'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
       'mcp/package.json',
-      'package.json'
+      'manifest.json',
+      'obsidian-plugin/manifest.json',
+      'obsidian-plugin/package.json',
+      'obsidian-plugin/versions.json',
+      'package.json',
+      'versions.json'
     ]))
   })
 
@@ -229,7 +258,12 @@ describe('sync-versions hook', () => {
       'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
       'mcp/package.json',
-      'package.json'
+      'manifest.json',
+      'obsidian-plugin/manifest.json',
+      'obsidian-plugin/package.json',
+      'obsidian-plugin/versions.json',
+      'package.json',
+      'versions.json'
     ]))
   })
 
@@ -249,6 +283,25 @@ describe('sync-versions hook', () => {
 
     expect(result.targetVersion).toBe(nextVersion)
     expect(result.versionSource).toBe('doc/package.json')
+    expectSharedVersionSurfaces(rootDir, nextVersion)
+  })
+
+  it('accepts the TNMSO package version as the staged system version source', () => {
+    const rootDir = createFixtureRepo()
+    tempDirs.push(rootDir)
+
+    const nextVersion = '2026.10324.10319'
+    writeJson(join(rootDir, 'obsidian-plugin', 'package.json'), {
+      name: 'tnmso',
+      version: nextVersion,
+      private: true
+    })
+    runGit(rootDir, ['add', 'obsidian-plugin/package.json'])
+
+    const result = runSyncVersions({rootDir})
+
+    expect(result.targetVersion).toBe(nextVersion)
+    expect(result.versionSource).toBe('obsidian-plugin/package.json')
     expectSharedVersionSurfaces(rootDir, nextVersion)
   })
 

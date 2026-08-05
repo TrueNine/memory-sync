@@ -25,7 +25,7 @@ pub(crate) fn install(
     options
       .log_level
       .as_deref()
-      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+      .and_then(crate::infra::logger::LogLevel::from_str_loose),
   );
   let _span = logger.span("command.install").enter();
 

@@ -1,0 +1,39 @@
+.tnmso-status {
+  align-items: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  min-height: 24px;
+  min-width: 24px;
+  justify-content: center;
+}
+
+.tnmso-status:hover,
+.tnmso-status:focus-visible,
+.tnmso-status--enabled {
+  color: var(--interactive-accent);
+}
+
+.tnmso-status--warning,
+.tnmso-setting-error {
+  color: var(--text-warning);
+}
+
+.tnmso-status--off {
+  color: var(--text-faint);
+}
+
+.tnmso-status--hidden {
+  display: none;
+}
+
+.tnmso-scope-control,
+.tnmso-scope-control textarea {
+  width: min(100%, 520px);
+}
+
+.tnmso-scope-control textarea {
+  font-family: var(--font-monospace);
+  min-height: 160px;
+  resize: vertical;
+}

@@ -215,11 +215,9 @@ mod regression_tests {
       crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(&context)
         .unwrap();
     assert!(
-      claude_plan
-        .output_files
-        .iter()
-        .any(|file| file.path == format!("{project_root}/CLAUDE.md")
-          && file.content == "project root"),
+      claude_plan.output_files.iter().any(
+        |file| file.path == format!("{project_root}/CLAUDE.md") && file.content == "project root"
+      ),
       "claude project CLAUDE.md must keep project memory when AgentsOutputAdaptor is active"
     );
     assert!(
@@ -245,8 +243,7 @@ mod regression_tests {
         .unwrap();
     assert!(
       opencode_plan.output_files.iter().any(|file| {
-        file.path == format!("{project_root}/.opencode/AGENTS.md")
-          && file.content == "project root"
+        file.path == format!("{project_root}/.opencode/AGENTS.md") && file.content == "project root"
       }),
       "opencode project AGENTS.md must keep project memory when AgentsOutputAdaptor is active"
     );
@@ -269,11 +266,9 @@ mod regression_tests {
     let codex_plan =
       crate::domain::output_plans::codex_output_plan::build_codex_output_plan(&context).unwrap();
     assert!(
-      codex_plan
-        .output_files
-        .iter()
-        .any(|file| file.path == format!("{project_root}/AGENTS.md")
-          && file.content == "project root"),
+      codex_plan.output_files.iter().any(
+        |file| file.path == format!("{project_root}/AGENTS.md") && file.content == "project root"
+      ),
       "codex project AGENTS.md must keep project memory when AgentsOutputAdaptor is active"
     );
     assert!(

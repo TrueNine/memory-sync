@@ -722,7 +722,8 @@ fn build_cleanup(workspace: &Workspace, _context: &OutputContext) -> CleanupDecl
       resolve_project_root_dir(workspace, candidate)
         .as_ref()
         .is_some_and(|candidate_root_dir| candidate_root_dir == &project_root_dir)
-    }) && let Some(child_prompts) = prompt_project.child_memory_prompts.as_ref() {
+    }) && let Some(child_prompts) = prompt_project.child_memory_prompts.as_ref()
+    {
       for child_prompt in child_prompts {
         delete.push(CleanupTargetDto {
           path: resolve_relative_path(&child_prompt.dir)
