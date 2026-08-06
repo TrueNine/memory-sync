@@ -1,7 +1,7 @@
 # memory-sync
 
 <p align="center">
-  <img src="doc/app/icon.svg" alt="memory-sync icon">
+  <img src="doc/app/icon.svg" alt="memory-sync icon" width="256">
 </p>
 
 A rat carries even its own memories when moving. `memory-sync` is that kind of tool-rat: expecting no platform charity, relying on no single IDE's privileged interface — it搬运-fetches, disassembles, and reassembles every config, prompt, and memory file it can read.
