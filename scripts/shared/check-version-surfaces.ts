@@ -63,17 +63,17 @@ function checkJsonVersion(relativePath: string): void {
 }
 
 function checkObsidianReleaseMetadata(): void {
-  const pluginManifest = readJson('obsidian-plugin/manifest.json')
+  const pluginManifest = readJson('tnmsop/manifest.json')
   const rootManifest = readJson('manifest.json')
-  const pluginVersions = readJson('obsidian-plugin/versions.json')
+  const pluginVersions = readJson('tnmsop/versions.json')
   const rootVersions = readJson('versions.json')
   const minAppVersion = pluginManifest.minAppVersion
 
-  ensure(pluginManifest.id === 'tnmsop', 'obsidian-plugin/manifest.json must use id=tnmsop')
-  ensure(pluginManifest.version === expectedVersion, `obsidian-plugin/manifest.json expected version ${expectedVersion}`)
+  ensure(pluginManifest.id === 'tnmsop', 'tnmsop/manifest.json must use id=tnmsop')
+  ensure(pluginManifest.version === expectedVersion, `tnmsop/manifest.json expected version ${expectedVersion}`)
   ensure(typeof minAppVersion === 'string' && minAppVersion !== '', 'TNMSOP minAppVersion is required')
   ensure(JSON.stringify(rootManifest) === JSON.stringify(pluginManifest), 'Root manifest.json must mirror the TNMSOP manifest')
-  ensure(pluginVersions[expectedVersion] === minAppVersion, `obsidian-plugin/versions.json must map ${expectedVersion} to ${String(minAppVersion)}`)
+  ensure(pluginVersions[expectedVersion] === minAppVersion, `tnmsop/versions.json must map ${expectedVersion} to ${String(minAppVersion)}`)
   ensure(JSON.stringify(rootVersions) === JSON.stringify(pluginVersions), 'Root versions.json must mirror TNMSOP versions.json')
 }
 
@@ -115,7 +115,7 @@ try {
   checkJsonVersion('mcp/package.json')
   checkJsonVersion('gui/package.json')
   checkJsonVersion('doc/package.json')
-  checkJsonVersion('obsidian-plugin/package.json')
+  checkJsonVersion('tnmsop/package.json')
   checkJsonVersion('gui/src-tauri/tauri.conf.json')
   checkObsidianReleaseMetadata()
 

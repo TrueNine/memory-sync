@@ -33,7 +33,7 @@ const IGNORED_DIRECTORIES = new Set([
   'coverage',
   'dist',
   'node_modules',
-  'obsidian-plugin',
+  'tnmsop',
   'target',
 ])
 const CALVER_VERSION_REGEX = /^\d{4}\.(?:0|1\d{2}(?:\d{2})?)\.(?:0|1\d{2}(?:\d{2}(?:\d{2})?)?)$/u
@@ -71,9 +71,9 @@ function syncObsidianReleaseMetadata(
   targetVersion: string,
   changedPaths: Set<string>,
 ): void {
-  const pluginManifestPath = resolve(rootDir, 'obsidian-plugin', 'manifest.json')
+  const pluginManifestPath = resolve(rootDir, 'tnmsop', 'manifest.json')
   const rootManifestPath = resolve(rootDir, 'manifest.json')
-  const pluginVersionsPath = resolve(rootDir, 'obsidian-plugin', 'versions.json')
+  const pluginVersionsPath = resolve(rootDir, 'tnmsop', 'versions.json')
   const rootVersionsPath = resolve(rootDir, 'versions.json')
   const manifest = readJsonFile(pluginManifestPath)
   const minAppVersion = manifest.minAppVersion
@@ -374,7 +374,7 @@ function getStagedVersionCandidates(rootDir: string, rootVersion: string): Map<s
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .filter(filePath => {
-      if (filePath.startsWith('obsidian-plugin/')) return false
+      if (filePath.startsWith('tnmsop/')) return false
       const name = basename(filePath)
       return name === 'package.json' || name === 'Cargo.toml' || name === 'tauri.conf.json'
     })

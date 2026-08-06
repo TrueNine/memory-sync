@@ -438,7 +438,7 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
 
-  build-obsidian-plugin:
+  build-tnmsop:
     needs: validate-version
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -449,29 +449,29 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Test and validate TNMSO
-        working-directory: obsidian-plugin
+      - name: Test and validate TNMSOP
+        working-directory: tnmsop
         run: |
           bun test
           bun run check:type
           bun run lint
 
-      - name: Build and package TNMSO
-        working-directory: obsidian-plugin
+      - name: Build and package TNMSOP
+        working-directory: tnmsop
         run: |
           bun run build
           bun run package:release
           bun run verify:dist
 
-      - name: Upload TNMSO release artifact
+      - name: Upload TNMSOP release artifact
         uses: actions/upload-artifact@v7
         with:
-          name: obsidian-plugin-release
-          path: obsidian-plugin/dist/
+          name: tnmsop-release
+          path: tnmsop/dist/
           if-no-files-found: error
 
   create-github-release:
-    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-obsidian-plugin]
+    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-tnmsop]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -489,10 +489,10 @@ jobs:
           pattern: mcp-archive-*
           merge-multiple: true
 
-      - name: Download TNMSO artifacts
+      - name: Download TNMSOP artifacts
         uses: actions/download-artifact@v8
         with:
-          name: obsidian-plugin-release
+          name: tnmsop-release
           path: artifacts/obsidian
 
       - name: Verify release artifacts
@@ -515,7 +515,7 @@ jobs:
           fi
 
           if [[ "$obsidian_archive_count" -ne 1 ]]; then
-            echo "::error::Expected one TNMSO archive, found ${obsidian_archive_count}."
+            echo "::error::Expected one TNMSOP archive, found ${obsidian_archive_count}."
             exit 1
           fi
 

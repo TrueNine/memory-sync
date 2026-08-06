@@ -41,8 +41,8 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'xtask/**'
             obsidian:
-              - 'obsidian-plugin'
-              - 'obsidian-plugin/**'
+              - 'tnmsop'
+              - 'tnmsop/**'
               - 'manifest.json'
               - 'versions.json'
               - '.githooks/sync-versions.ts'
@@ -179,7 +179,7 @@ jobs:
       - name: Build docs
         run: pnpm -C doc run build
 
-  obsidian-plugin-check:
+  tnmsop-check:
     needs: changes
     if: |
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
@@ -193,21 +193,21 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Test TNMSO
+      - name: Test TNMSOP
         run: bun test
-        working-directory: obsidian-plugin
+        working-directory: tnmsop
 
-      - name: Typecheck TNMSO
+      - name: Typecheck TNMSOP
         run: bun run check:type
-        working-directory: obsidian-plugin
+        working-directory: tnmsop
 
-      - name: Lint TNMSO
+      - name: Lint TNMSOP
         run: bun run lint
-        working-directory: obsidian-plugin
+        working-directory: tnmsop
 
-      - name: Build and package TNMSO
+      - name: Build and package TNMSOP
         run: |
           bun run build
           bun run package:release
           bun run verify:dist
-        working-directory: obsidian-plugin
+        working-directory: tnmsop

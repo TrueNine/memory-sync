@@ -1,3 +1,4 @@
-[submodule "obsidian-plugin"]
-	path = obsidian-plugin
+[submodule "tnmsop"]
+	path = tnmsop
+	branch = main
 	url = https://github.com/TrueNine/tnmsop.git

@@ -13,7 +13,7 @@ A rat carries even its own memories when moving. `memory-sync` is that kind of t
 - Auto-write configs for each tool: AGENTS.md, Claude Code, Codex CLI, Cursor, Windsurf, Qoder, Trae, Warp, JetBrains AI, etc.
 - Manage derived artifacts: prompt outputs, skills exports organized as `skills/<skill-category>/<skill>/`, README-class outputs
 - Multiple entry points: `tnmsc` CLI, private SDK, MCP stdio server, Tauri GUI
-- Obsidian integration: TNMSO opens `.mdx` as native Markdown and safely previews static prompt syntax
+- Obsidian integration: TNMSOP opens `.mdx` as native Markdown and safely previews static prompt syntax
 - Fine-grained write-scope control (`outputScopes`, `cleanupProtection`)
 - Source and derivations are auditable — no silent source mutations, no hidden residuals
 - Memories follow the person, not the project — no leakage
@@ -31,7 +31,7 @@ npm install -g @truenine/memory-sync-mcp
 
 ### TNMSOP for Obsidian
 
-TNMSOP is maintained in the [`obsidian-plugin/`](obsidian-plugin/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/tnmsop/releases). BRAT users should install `TrueNine/tnmsop`.
+TNMSOP is maintained in the [`tnmsop/`](tnmsop/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/tnmsop/releases). BRAT users should install `TrueNine/tnmsop`.
 
 TNMSOP shares the memory-sync CalVer version. The plugin is released first with the exact plain `<version>` tag, then memory-sync pins that release through the submodule and publishes its `v<version>` system release.
 
