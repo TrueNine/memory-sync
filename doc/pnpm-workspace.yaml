@@ -9,6 +9,11 @@ allowBuilds:
 verifyDepsBeforeRun: false
 strictDepBuilds: false
 
+packageExtensions:
+  twoslash@0.3.9:
+    dependencies:
+      typescript: 6.0.3
+
 catalog:
   '@theguild/remark-mermaid': ^0.3.0
   '@truenine/eslint10-config': ^2026.10411.10025

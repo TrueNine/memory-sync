@@ -11,6 +11,11 @@ allowBuilds:
 verifyDepsBeforeRun: false
 strictDepBuilds: false
 
+packageExtensions:
+  twoslash@0.3.9:
+    dependencies:
+      typescript: 6.0.3
+
 catalog:
   "@antfu/eslint-config": ^9.2.0
   "@clack/prompts": ^1.7.0

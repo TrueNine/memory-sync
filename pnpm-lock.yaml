@@ -130,6 +130,8 @@ catalogs:
       specifier: ^2.9.0
       version: 2.9.0
 
+packageExtensionsChecksum: sha256-kqDyViMUwG0vkQh5Ds2sKQEOZl/8617HyUtl7jgUPNo=
+
 importers:
 
   .:
