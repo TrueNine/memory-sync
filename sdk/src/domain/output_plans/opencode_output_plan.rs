@@ -879,10 +879,10 @@ mod tests {
     };
 
     let plan = build_opencode_output_plan(&context).unwrap();
-    let skill_paths: Vec<&str> = plan
+    let skill_paths: Vec<String> = plan
       .output_files
       .iter()
-      .map(|f| f.path.as_str())
+      .map(|f| f.path.replace('\\', "/"))
       .filter(|p| p.contains(".opencode/skills/test-skill"))
       .collect();
 
@@ -919,7 +919,7 @@ mod tests {
     let binary_resource = plan
       .output_files
       .iter()
-      .find(|file| file.path.ends_with("assets/blob.bin"))
+      .find(|file| file.path.replace('\\', "/").ends_with("assets/blob.bin"))
       .unwrap();
     assert_eq!(binary_resource.encoding.as_deref(), Some("base64"));
   }
@@ -961,6 +961,7 @@ mod tests {
       .find(|file| {
         file
           .path
+          .replace('\\', "/")
           .contains(".opencode/skills/dev-tools-reverse-engineering/SKILL.md")
       })
       .unwrap();

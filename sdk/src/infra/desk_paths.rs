@@ -268,12 +268,15 @@ fn delete_path(path: impl AsRef<Path>) -> io::Result<bool> {
   if metadata.file_type().is_symlink() {
     #[cfg(windows)]
     {
-      return fs::metadata(&path)
+      let is_directory = fs::metadata(&path)
         .map(|resolved| resolved.is_dir())
-        .unwrap_or(false)
-        .then(|| fs::remove_dir(&path).or_else(|_| fs::remove_file(&path)))
-        .unwrap_or_else(|| fs::remove_file(&path).or_else(|_| fs::remove_dir(&path)))
-        .map(|_| true);
+        .unwrap_or(false);
+      return if is_directory {
+        fs::remove_dir(&path).or_else(|_| fs::remove_file(&path))
+      } else {
+        fs::remove_file(&path).or_else(|_| fs::remove_dir(&path))
+      }
+      .map(|_| true);
     }
     #[cfg(not(windows))]
     {

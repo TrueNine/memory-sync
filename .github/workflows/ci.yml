@@ -96,7 +96,7 @@ jobs:
         run: cargo test -p tnmsc-local-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
 
       - name: MCP packaging smoke
-        run: cargo test -p tnmsm-local-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
+        run: cargo test -p tnmsm packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
 
   gui-smoke:
     needs: changes

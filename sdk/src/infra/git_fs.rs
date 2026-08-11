@@ -13,7 +13,15 @@ pub fn resolve_git_info_dir(project_dir: &Path) -> Option<PathBuf> {
   Some(repo.path().join("info"))
 }
 
-const SKIP_DIRS: &[&str] = &[".git", "node_modules", ".turbo", "dist", "build", "out", ".cache"];
+const SKIP_DIRS: &[&str] = &[
+  ".git",
+  "node_modules",
+  ".turbo",
+  "dist",
+  "build",
+  "out",
+  ".cache",
+];
 
 /// Walks the filesystem tree under `root_dir` up to `max_depth` deep and returns
 /// all directories that contain a valid git repository (excluding the root itself).
@@ -77,7 +85,12 @@ mod tests {
     let dot_git = tmp.path().join(".git");
 
     let result = resolve_git_info_dir(tmp.path());
-    assert_eq!(result, Some(dot_git.join("info")), "regular repo: {:?}", result);
+    assert_eq!(
+      result,
+      Some(dot_git.join("info")),
+      "regular repo: {:?}",
+      result
+    );
   }
 
   #[test]
@@ -115,7 +128,11 @@ mod tests {
     fs::write(&dot_git, "gitdir: ../worktrees/feature/.git\n").unwrap();
 
     let result = resolve_git_info_dir(&sub_dir);
-    assert!(result.is_some(), "relative gitlink should resolve: {:?}", result);
+    assert!(
+      result.is_some(),
+      "relative gitlink should resolve: {:?}",
+      result
+    );
     let result_path = result.unwrap();
     assert_eq!(
       result_path.file_name().unwrap().to_string_lossy(),
@@ -157,7 +174,10 @@ mod tests {
     let _repo = git2::Repository::init(root).unwrap();
 
     let result = find_all_git_repos(root, 5);
-    assert!(result.is_empty(), "root should be excluded even when it is a repo: {result:?}");
+    assert!(
+      result.is_empty(),
+      "root should be excluded even when it is a repo: {result:?}"
+    );
   }
 
   #[test]
@@ -170,7 +190,10 @@ mod tests {
     let _repo = git2::Repository::init(&node_modules).unwrap();
 
     let result = find_all_git_repos(root, 5);
-    assert!(result.is_empty(), "repos inside SKIP_DIRS should not be found: {result:?}");
+    assert!(
+      result.is_empty(),
+      "repos inside SKIP_DIRS should not be found: {result:?}"
+    );
   }
 
   #[test]
@@ -183,7 +206,10 @@ mod tests {
     let _repo = git2::Repository::init(&deep).unwrap();
 
     let result = find_all_git_repos(root, 3);
-    assert!(result.is_empty(), "depth 3 should not find depth 4 repo: {result:?}");
+    assert!(
+      result.is_empty(),
+      "depth 3 should not find depth 4 repo: {result:?}"
+    );
 
     let result = find_all_git_repos(root, 4);
     assert_eq!(result.len(), 1, "depth 4 should find repo");
