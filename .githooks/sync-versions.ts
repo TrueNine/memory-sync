@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Version Sync Script
  * Auto-sync all publishable package versions before commit.
@@ -33,6 +33,7 @@ const IGNORED_DIRECTORIES = new Set([
   'coverage',
   'dist',
   'node_modules',
+  'obsidian-plugin',
   'target',
 ])
 const CALVER_VERSION_REGEX = /^\d{4}\.(?:0|1\d{2}(?:\d{2})?)\.(?:0|1\d{2}(?:\d{2}(?:\d{2})?)?)$/u
@@ -43,6 +44,55 @@ function readJsonFile(filePath: string): VersionedJson {
 
 function writeJsonFile(filePath: string, value: VersionedJson): void {
   writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf-8')
+}
+
+function writeJsonFileIfChanged(
+  filePath: string,
+  value: VersionedJson,
+  changedPaths: Set<string>,
+): void {
+  let current: VersionedJson | undefined
+  try {
+    current = readJsonFile(filePath)
+  } catch {
+    current = undefined
+  }
+
+  if (current != null && JSON.stringify(current) === JSON.stringify(value)) {
+    return
+  }
+
+  writeJsonFile(filePath, value)
+  changedPaths.add(filePath)
+}
+
+function syncObsidianReleaseMetadata(
+  rootDir: string,
+  targetVersion: string,
+  changedPaths: Set<string>,
+): void {
+  const pluginManifestPath = resolve(rootDir, 'obsidian-plugin', 'manifest.json')
+  const rootManifestPath = resolve(rootDir, 'manifest.json')
+  const pluginVersionsPath = resolve(rootDir, 'obsidian-plugin', 'versions.json')
+  const rootVersionsPath = resolve(rootDir, 'versions.json')
+  const manifest = readJsonFile(pluginManifestPath)
+  const minAppVersion = manifest.minAppVersion
+  const pluginVersion = manifest.version
+
+  if (manifest.id !== 'tnmsop' || typeof minAppVersion !== 'string' || minAppVersion.trim() === '') {
+    throw new Error('TNMSOP manifest must define id=tnmsop and a non-empty minAppVersion')
+  }
+  if (pluginVersion !== targetVersion) {
+    throw new Error(`TNMSOP submodule has version ${String(pluginVersion)}, expected ${targetVersion}; release TNMSOP first`)
+  }
+
+  const versions = readJsonFile(pluginVersionsPath)
+  if (versions[targetVersion] !== minAppVersion) {
+    throw new Error(`TNMSOP versions.json must map ${targetVersion} to ${minAppVersion}`)
+  }
+
+  writeJsonFileIfChanged(rootManifestPath, manifest, changedPaths)
+  writeJsonFileIfChanged(rootVersionsPath, versions, changedPaths)
 }
 
 function discoverFilesByName(baseDir: string, fileName: string): string[] {
@@ -324,6 +374,7 @@ function getStagedVersionCandidates(rootDir: string, rootVersion: string): Map<s
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .filter(filePath => {
+      if (filePath.startsWith('obsidian-plugin/')) return false
       const name = basename(filePath)
       return name === 'package.json' || name === 'Cargo.toml' || name === 'tauri.conf.json'
     })
@@ -441,6 +492,8 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
 
   const target = resolveTargetVersion(rootDir, currentRootVersion, options.requestedVersion)
   const changedPaths = new Set<string>()
+
+  syncObsidianReleaseMetadata(rootDir, target.version, changedPaths)
 
   syncJsonVersion(rootPackagePath, target.version, changedPaths)
 

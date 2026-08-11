@@ -1,0 +1,3 @@
+[submodule "obsidian-plugin"]
+	path = obsidian-plugin
+	url = https://github.com/TrueNine/tnmsop.git

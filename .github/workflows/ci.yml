@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
-      gui: ${{ steps.filter.outputs.gui }}
+      obsidian: ${{ steps.filter.outputs.obsidian }}
     steps:
       - uses: actions/checkout@v6
 
@@ -40,16 +40,40 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'xtask/**'
-            gui:
-              - 'gui/**'
-              - '.github/actions/build-gui-platform/action.yml'
-              - '.github/actions/setup-tauri/action.yml'
+            obsidian:
+              - 'obsidian-plugin'
+              - 'obsidian-plugin/**'
+              - 'manifest.json'
+              - 'versions.json'
+              - '.githooks/sync-versions.ts'
+              - '.githooks/sync-versions.test.ts'
+              - 'scripts/shared/check-version-surfaces.ts'
+              - '.github/actions/setup-bun/action.yml'
               - '.github/workflows/ci.yml'
               - '.github/workflows/release.yml'
               - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'xtask/**'
+
+  version-surfaces:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-bun
+        with:
+          install: "false"
+
+      - name: Test version synchronization
+        run: bun test ./.githooks/sync-versions.test.ts
+
+      - name: Validate current version surfaces
+        shell: bash
+        run: |
+          version="$(bun -e 'console.log(require("./package.json").version)')"
+          bun scripts/shared/check-version-surfaces.ts "$version"
 
   validate-monorepo:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -93,38 +117,41 @@ jobs:
         run: cargo build --release -p tnmsc -p tnmsm
 
       - name: CLI packaging smoke
-        run: cargo test -p tnmsc-local-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
+        shell: bash
+        run: |
+          set -euo pipefail
+          target/release/tnmsc assemble-npm --profile release
+
+          pack_dir="$(mktemp -d)"
+          prefix_dir="$(mktemp -d)"
+          trap 'rm -rf "$pack_dir" "$prefix_dir"' EXIT
+          pnpm -C cli/npm/linux-x64-gnu pack --pack-destination "$pack_dir"
+          pnpm -C cli pack --pack-destination "$pack_dir"
+
+          platform_tarballs=("$pack_dir"/truenine-memory-sync-cli-linux-x64-gnu-*.tgz)
+          main_tarballs=("$pack_dir"/truenine-memory-sync-cli-[0-9]*.tgz)
+          npm install --global --prefix "$prefix_dir" "${platform_tarballs[0]}" "${main_tarballs[0]}" --ignore-scripts
+          "$prefix_dir/bin/tnmsc" help >"$pack_dir/tnmsc-help.txt"
+          grep -q 'install' "$pack_dir/tnmsc-help.txt"
 
       - name: MCP packaging smoke
-        run: cargo test -p tnmsm packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
-
-  gui-smoke:
-    needs: changes
-    if: |
-      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
-      needs.changes.outputs.gui == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - name: Read GUI version
-        id: gui-version
+        shell: bash
         run: |
-          version="$(node -p 'require("./gui/package.json").version')"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          target/release/tnmsm assemble-npm --profile release
 
-      - uses: ./.github/actions/setup-tauri
-        with:
-          version: ${{ steps.gui-version.outputs.version }}
+          pack_dir="$(mktemp -d)"
+          prefix_dir="$(mktemp -d)"
+          trap 'rm -rf "$pack_dir" "$prefix_dir"' EXIT
+          pnpm -C mcp/npm/linux-x64-gnu pack --pack-destination "$pack_dir"
+          pnpm -C mcp pack --pack-destination "$pack_dir"
 
-      - name: Build GUI
-        run: cargo run -p xtask -- gui-build
-
-      - name: Test GUI
-        run: pnpm -C gui test
+          platform_tarballs=("$pack_dir"/truenine-memory-sync-mcp-linux-x64-gnu-*.tgz)
+          main_tarballs=("$pack_dir"/truenine-memory-sync-mcp-[0-9]*.tgz)
+          npm install --global --prefix "$prefix_dir" "${platform_tarballs[0]}" "${main_tarballs[0]}" --ignore-scripts
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            | "$prefix_dir/bin/tnmsm" >"$pack_dir/tnmsm-initialize.json"
+          grep -q '"jsonrpc":"2.0"' "$pack_dir/tnmsm-initialize.json"
 
   docs-check:
     needs: changes
@@ -151,3 +178,36 @@ jobs:
 
       - name: Build docs
         run: pnpm -C doc run build
+
+  obsidian-plugin-check:
+    needs: changes
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
+      needs.changes.outputs.obsidian == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Test TNMSO
+        run: bun test
+        working-directory: obsidian-plugin
+
+      - name: Typecheck TNMSO
+        run: bun run check:type
+        working-directory: obsidian-plugin
+
+      - name: Lint TNMSO
+        run: bun run lint
+        working-directory: obsidian-plugin
+
+      - name: Build and package TNMSO
+        run: |
+          bun run build
+          bun run package:release
+          bun run verify:dist
+        working-directory: obsidian-plugin

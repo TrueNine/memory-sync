@@ -1,0 +1,10 @@
+{
+  "id": "tnmsop",
+  "name": "TNMSOP",
+  "version": "2026.10805.0",
+  "minAppVersion": "1.13.4",
+  "description": "Preview prompt-focused MDX files safely as Markdown.",
+  "author": "TrueNine",
+  "authorUrl": "https://github.com/TrueNine",
+  "isDesktopOnly": false
+}

@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync",
-  "version": "2026.10801.0",
+  "version": "2026.10805.0",
   "description": "Cross-AI-tool prompt synchronisation toolkit (CLI + Tauri desktop GUI) — one ruleset, multi-target adaptation. Monorepo powered by pnpm + Turbo.",
   "license": "AGPL-3.0-only",
   "keywords": [
@@ -41,7 +41,7 @@
     "rust": ">= 1.88.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm tsx .githooks/sync-versions.ts"
+    "pre-commit": "bun .githooks/sync-versions.ts"
   },
   "packageManager": "pnpm@11.18.0",
   "devDependencies": {
