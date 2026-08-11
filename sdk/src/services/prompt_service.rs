@@ -1267,12 +1267,14 @@ mod tests {
       skill
         .paths
         .zh
+        .replace('\\', "/")
         .ends_with("aindex/skills/tools/demo/skill.src.mdx")
     );
     assert!(
       skill
         .paths
         .en
+        .replace('\\', "/")
         .ends_with("aindex/skills/tools/demo/skill.mdx")
     );
 
@@ -1283,12 +1285,14 @@ mod tests {
       child
         .paths
         .zh
+        .replace('\\', "/")
         .ends_with("aindex/skills/tools/demo/guides/setup.src.mdx")
     );
     assert!(
       child
         .paths
         .en
+        .replace('\\', "/")
         .ends_with("aindex/skills/tools/demo/guides/setup.mdx")
     );
   }

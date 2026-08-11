@@ -18,6 +18,7 @@ const ZED_PLUGIN_NAME: &str = "ZedIDEConfigOutputAdaptor";
 const README_PLUGIN_NAME: &str = "ReadmeMdConfigFileOutputAdaptor";
 
 const PROJECT_SCOPE: &str = "project";
+const WORKSPACE_SCOPE: &str = "workspace";
 const PROJECT_MEMORY_FILE: &str = "AGENTS.md";
 const IDEA_DIR: &str = ".idea";
 const CODE_STYLES_DIR: &str = "codeStyles";
@@ -114,6 +115,15 @@ fn build_agents_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
   let mut delete = Vec::new();
   let mut seen_files = std::collections::HashSet::new();
 
+  push_unique_cleanup_file(
+    &mut delete,
+    &mut seen_files,
+    crate::domain::config::resolve_workspace_aindex_dir(&workspace.directory.path)
+      .join(PROJECT_MEMORY_FILE),
+    WORKSPACE_SCOPE,
+    "delete.promptSourceRoot",
+  );
+
   for project in get_agents_cleanup_projects(workspace) {
     let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
       continue;
@@ -129,6 +139,7 @@ fn build_agents_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       &mut delete,
       &mut seen_files,
       project_root_dir.join(PROJECT_MEMORY_FILE),
+      PROJECT_SCOPE,
       "delete.project",
     );
 
@@ -138,6 +149,7 @@ fn build_agents_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
           &mut delete,
           &mut seen_files,
           resolve_relative_path(&child_prompt.dir).join(PROJECT_MEMORY_FILE),
+          PROJECT_SCOPE,
           "delete.project.child",
         );
       }
@@ -566,6 +578,7 @@ fn push_unique_cleanup_file(
   delete: &mut Vec<CleanupTargetDto>,
   seen_files: &mut std::collections::HashSet<String>,
   path: PathBuf,
+  scope: &str,
   label: &str,
 ) {
   let path_string = path.to_string_lossy().into_owned();
@@ -578,7 +591,7 @@ fn push_unique_cleanup_file(
     kind: CleanupTargetKindDto::File,
     exclude_basenames: Vec::new(),
     protection_mode: None,
-    scope: Some(PROJECT_SCOPE.to_string()),
+    scope: Some(scope.to_string()),
     label: Some(label.to_string()),
   });
 }
@@ -588,7 +601,7 @@ fn push_unique_path(
   seen_paths: &mut std::collections::HashSet<String>,
   path: PathBuf,
 ) {
-  let path_string = path.to_string_lossy().into_owned();
+  let path_string = normalize_path(&path).to_string_lossy().into_owned();
   if !seen_paths.insert(path_string.clone()) {
     return;
   }
@@ -753,6 +766,33 @@ mod tests {
       .iter()
       .find(|plan| plan.plugin_name == plugin_name)
       .unwrap_or_else(|| panic!("expected plugin plan for {plugin_name}"))
+  }
+
+  #[test]
+  fn builds_agents_cleanup_for_reserved_prompt_source_root_without_project_entry() {
+    let temp_dir = TempDir::new().unwrap();
+    let workspace_dir = workspace_root(&temp_dir);
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new(&workspace_dir),
+        projects: vec![create_project(&workspace_dir, "project-a")],
+      }),
+      ..OutputContext::default()
+    };
+
+    let plans = build_base_output_plans(&context).unwrap();
+    let agents_plan = find_plan(&plans, AGENTS_PLUGIN_NAME);
+    let prompt_source_agents =
+      crate::domain::config::resolve_workspace_aindex_dir(&workspace_dir).join(PROJECT_MEMORY_FILE);
+
+    assert!(
+      agents_plan
+        .cleanup
+        .delete
+        .iter()
+        .any(|target| Path::new(&target.path) == prompt_source_agents),
+      "Agents cleanup must explicitly include the reserved prompt-source root"
+    );
   }
 
   #[test]
@@ -929,7 +969,8 @@ mod tests {
           .join("exclude")
           .to_string_lossy()
           .as_ref()
-      )
+      ),
+      "workspace exclude missing from {output_paths:?}"
     );
     assert!(
       output_paths.contains(

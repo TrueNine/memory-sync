@@ -277,6 +277,9 @@ fn filter_snapshot_by_scope(
       }
     });
     plugin_snapshot.cleanup.delete.retain(|target| {
+      if target.scope.as_deref() == Some("workspace") {
+        return false;
+      }
       if is_path_under_directory(&target.path, workspace_dir) {
         is_path_under_directory(&target.path, scope)
       } else {

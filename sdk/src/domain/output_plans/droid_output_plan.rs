@@ -1170,10 +1170,10 @@ mod tests {
     };
 
     let plan = build_droid_output_plan(&context).unwrap();
-    let skill_paths: Vec<&str> = plan
+    let skill_paths: Vec<String> = plan
       .output_files
       .iter()
-      .map(|f| f.path.as_str())
+      .map(|f| f.path.replace('\\', "/"))
       .filter(|p| p.contains(".factory/skills/test-skill"))
       .collect();
 
@@ -1239,6 +1239,7 @@ mod tests {
       .find(|file| {
         file
           .path
+          .replace('\\', "/")
           .contains(".factory/skills/tools-test-skill/SKILL.md")
       })
       .unwrap();

@@ -24,6 +24,10 @@ mod regression_tests {
     ProjectRootMemoryPrompt, PromptKind, RelativePath, RootPath, Workspace,
   };
 
+  fn normalize_test_path(path: &str) -> String {
+    path.replace('\\', "/")
+  }
+
   #[test]
   fn resolve_effective_home_dir_is_not_redefined_in_each_output_plan() {
     // 修复 #378：把 5 份重复的 `resolve_effective_home_dir()` 收口到公共 helper，
@@ -150,9 +154,13 @@ mod regression_tests {
     let cursor_plan =
       crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(&context).unwrap();
     assert!(
-      cursor_plan.output_files.iter().any(
-        |file| file.path == format!("{child_dir}/.cursorrules") && file.content == "child memory"
-      ),
+      cursor_plan
+        .output_files
+        .iter()
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{child_dir}/.cursorrules")
+            && file.content == "child memory"
+        ),
       "cursor output plan must emit child .cursorrules files"
     );
 
@@ -163,8 +171,10 @@ mod regression_tests {
       windsurf_plan
         .output_files
         .iter()
-        .any(|file| file.path == format!("{child_dir}/.windsurfrules")
-          && file.content == "child memory"),
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{child_dir}/.windsurfrules")
+            && file.content == "child memory"
+        ),
       "windsurf output plan must emit child .windsurfrules files"
     );
 
@@ -172,7 +182,7 @@ mod regression_tests {
       crate::domain::output_plans::trae_output_plan::build_trae_output_plan(&context).unwrap();
     assert!(
       trae_plan.output_files.iter().any(|file| {
-        file.path == format!("{child_dir}/.trae/steering/GLOBAL.md")
+        normalize_test_path(&file.path) == format!("{child_dir}/.trae/steering/GLOBAL.md")
           && file.content == "child memory"
       }),
       "trae output plan must emit child steering files"
@@ -183,7 +193,8 @@ mod regression_tests {
         .unwrap();
     assert!(
       opencode_plan.output_files.iter().any(|file| {
-        file.path == format!("{child_dir}/.opencode/AGENTS.md") && file.content == "child memory"
+        normalize_test_path(&file.path) == format!("{child_dir}/.opencode/AGENTS.md")
+          && file.content == "child memory"
       }),
       "opencode output plan must emit child AGENTS files"
     );
@@ -194,7 +205,10 @@ mod regression_tests {
       codex_plan
         .output_files
         .iter()
-        .any(|file| file.path == format!("{child_dir}/AGENTS.md") && file.content == "child memory"),
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{child_dir}/AGENTS.md")
+            && file.content == "child memory"
+        ),
       "codex output plan must emit child AGENTS files"
     );
   }
@@ -215,26 +229,34 @@ mod regression_tests {
       crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(&context)
         .unwrap();
     assert!(
-      claude_plan.output_files.iter().any(
-        |file| file.path == format!("{project_root}/CLAUDE.md") && file.content == "project root"
-      ),
+      claude_plan
+        .output_files
+        .iter()
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{project_root}/CLAUDE.md")
+            && file.content == "project root"
+        ),
       "claude project CLAUDE.md must keep project memory when AgentsOutputAdaptor is active"
     );
     assert!(
       claude_plan
         .output_files
         .iter()
-        .any(|file| file.path.ends_with("/.claude/CLAUDE.md")
-          && file.scope.as_deref() == Some("global")
-          && file.content == "global memory"),
+        .any(
+          |file| normalize_test_path(&file.path).ends_with("/.claude/CLAUDE.md")
+            && file.scope.as_deref() == Some("global")
+            && file.content == "global memory"
+        ),
       "claude global CLAUDE.md must receive global memory"
     );
     assert!(
       !claude_plan
         .output_files
         .iter()
-        .any(|file| file.path == format!("{project_root}/CLAUDE.md")
-          && file.content.contains("global memory")),
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{project_root}/CLAUDE.md")
+            && file.content.contains("global memory")
+        ),
       "claude project CLAUDE.md must not receive global memory"
     );
 
@@ -243,13 +265,14 @@ mod regression_tests {
         .unwrap();
     assert!(
       opencode_plan.output_files.iter().any(|file| {
-        file.path == format!("{project_root}/.opencode/AGENTS.md") && file.content == "project root"
+        normalize_test_path(&file.path) == format!("{project_root}/.opencode/AGENTS.md")
+          && file.content == "project root"
       }),
       "opencode project AGENTS.md must keep project memory when AgentsOutputAdaptor is active"
     );
     assert!(
       opencode_plan.output_files.iter().any(|file| {
-        file.path.ends_with("/.config/opencode/AGENTS.md")
+        normalize_test_path(&file.path).ends_with("/.config/opencode/AGENTS.md")
           && file.scope.as_deref() == Some("global")
           && file.content == "global memory"
       }),
@@ -257,7 +280,7 @@ mod regression_tests {
     );
     assert!(
       !opencode_plan.output_files.iter().any(|file| {
-        file.path == format!("{project_root}/.opencode/AGENTS.md")
+        normalize_test_path(&file.path) == format!("{project_root}/.opencode/AGENTS.md")
           && file.content.contains("global memory")
       }),
       "opencode project AGENTS.md must not receive global memory"
@@ -266,26 +289,34 @@ mod regression_tests {
     let codex_plan =
       crate::domain::output_plans::codex_output_plan::build_codex_output_plan(&context).unwrap();
     assert!(
-      codex_plan.output_files.iter().any(
-        |file| file.path == format!("{project_root}/AGENTS.md") && file.content == "project root"
-      ),
+      codex_plan
+        .output_files
+        .iter()
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{project_root}/AGENTS.md")
+            && file.content == "project root"
+        ),
       "codex project AGENTS.md must keep project memory when AgentsOutputAdaptor is active"
     );
     assert!(
       codex_plan
         .output_files
         .iter()
-        .any(|file| file.path.ends_with("/.codex/AGENTS.md")
-          && file.scope.as_deref() == Some("global")
-          && file.content == "global memory"),
+        .any(
+          |file| normalize_test_path(&file.path).ends_with("/.codex/AGENTS.md")
+            && file.scope.as_deref() == Some("global")
+            && file.content == "global memory"
+        ),
       "codex global AGENTS.md must receive global memory"
     );
     assert!(
       !codex_plan
         .output_files
         .iter()
-        .any(|file| file.path == format!("{project_root}/AGENTS.md")
-          && file.content.contains("global memory")),
+        .any(
+          |file| normalize_test_path(&file.path) == format!("{project_root}/AGENTS.md")
+            && file.content.contains("global memory")
+        ),
       "codex project AGENTS.md must not receive global memory"
     );
   }

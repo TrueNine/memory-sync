@@ -1,25 +1,90 @@
-//! Dry-run 可观测性测试：验证 dry-run 命令输出足够的可观测信息。
+//! Dry-run observability tests for isolated local fixtures.
+
+use std::fs;
+use std::path::PathBuf;
 
 use tnmsc_local_tests::LocalTestRunner;
 
-/// Verify that `--trace` dry-run outputs all major spans:
-/// config.load, context.collect, output.build.
+struct IsolatedLoggingDryRunFixture {
+  runner: LocalTestRunner,
+  temp_home: PathBuf,
+  project_dir: PathBuf,
+}
+
+impl IsolatedLoggingDryRunFixture {
+  fn new() -> Self {
+    let temp_root = std::env::temp_dir().join(format!(
+      "tnmsc-local-logging-dry-run-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+    ));
+    let temp_home = temp_root.join("home");
+    let workspace_dir = temp_root.join("workspace");
+    let project_dir = workspace_dir.join("memory-sync");
+    let aindex_dir = workspace_dir.join("aindex");
+
+    fs::create_dir_all(temp_home.join(".aindex")).unwrap();
+    fs::create_dir_all(&project_dir).unwrap();
+    fs::create_dir_all(&aindex_dir).unwrap();
+    fs::write(
+      temp_home.join(".aindex").join(".tnmsc.json"),
+      serde_json::json!({
+        "workspaceDir": workspace_dir.to_string_lossy(),
+        "plugins": {
+          "agentsMd": false,
+          "git": false,
+          "readme": false,
+          "vscode": false,
+          "zed": false,
+          "jetbrains": false,
+          "jetbrainsCodeStyle": false,
+          "claudeCode": true,
+          "codex": false,
+          "cursor": false,
+          "droid": false,
+          "gemini": false,
+          "kiro": false,
+          "opencode": false,
+          "qoder": false,
+          "trae": false,
+          "traeCn": false,
+          "windsurf": false
+        }
+      })
+      .to_string(),
+    )
+    .unwrap();
+    fs::write(aindex_dir.join("workspace.mdx"), "# Workspace memory\n").unwrap();
+
+    Self {
+      runner: LocalTestRunner::with_cwd(&project_dir),
+      temp_home,
+      project_dir,
+    }
+  }
+
+  fn run(&self, args: &[&str]) -> tnmsc_local_tests::CommandResult {
+    let temp_home = self.temp_home.to_string_lossy().into_owned();
+    self
+      .runner
+      .run_at_with_env(&self.project_dir, args, &[("HOME", &temp_home)])
+  }
+}
+
 #[test]
 fn dry_run_outputs_key_spans_and_events() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedLoggingDryRunFixture::new();
+  let result = fixture.run(&["--trace", "dry-run"]);
+  result.assert_success("isolated tnmsc --trace dry-run");
 
-  let result = runner.run(&["--trace", "dry-run"]);
-  result.assert_success("tnmsc --trace dry-run");
-
-  // 验证顶层事件
   assert!(
     result.stdout.contains("### Running dry-run"),
     "dry-run should output 'Running dry-run'. stdout:\n{}",
     result.stdout
   );
-
-  // 验证主要 Span
   assert!(
     result.stdout.contains("### config.load started"),
     "dry-run should output 'config.load' span. stdout:\n{}",
@@ -37,16 +102,12 @@ fn dry_run_outputs_key_spans_and_events() {
   );
 }
 
-/// Verify that `--info` dry-run outputs a plan summary (what files would be written).
 #[test]
 fn dry_run_outputs_plan_preview() {
-  let runner = LocalTestRunner::new();
-  runner.assert_project_ready();
+  let fixture = IsolatedLoggingDryRunFixture::new();
+  let result = fixture.run(&["--info", "dry-run"]);
+  result.assert_success("isolated tnmsc --info dry-run");
 
-  let result = runner.run(&["--info", "dry-run"]);
-  result.assert_success("tnmsc --info dry-run");
-
-  // Info 级别应该输出计划摘要
   assert!(
     result.stdout.contains("Planned") || result.stdout.contains("No files needed updates"),
     "dry-run should output plan summary. stdout:\n{}",
