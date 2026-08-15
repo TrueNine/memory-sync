@@ -450,14 +450,14 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Test and validate TNMSOP
-        working-directory: tnmsop
+        working-directory: croessweave-obsidian-plugin
         run: |
           bun test
           bun run check:type
           bun run lint
 
       - name: Build and package TNMSOP
-        working-directory: tnmsop
+        working-directory: croessweave-obsidian-plugin
         run: |
           bun run build
           bun run package:release
@@ -467,7 +467,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: tnmsop-release
-          path: tnmsop/dist/
+          path: croessweave-obsidian-plugin/dist/
           if-no-files-found: error
 
   create-github-release:

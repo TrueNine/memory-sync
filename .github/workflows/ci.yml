@@ -42,7 +42,7 @@ jobs:
               - 'xtask/**'
             obsidian:
               - 'tnmsop'
-              - 'tnmsop/**'
+              - 'croessweave-obsidian-plugin/**'
               - 'manifest.json'
               - 'versions.json'
               - '.githooks/sync-versions.ts'
@@ -195,19 +195,19 @@ jobs:
 
       - name: Test TNMSOP
         run: bun test
-        working-directory: tnmsop
+        working-directory: croessweave-obsidian-plugin
 
       - name: Typecheck TNMSOP
         run: bun run check:type
-        working-directory: tnmsop
+        working-directory: croessweave-obsidian-plugin
 
       - name: Lint TNMSOP
         run: bun run lint
-        working-directory: tnmsop
+        working-directory: croessweave-obsidian-plugin
 
       - name: Build and package TNMSOP
         run: |
           bun run build
           bun run package:release
           bun run verify:dist
-        working-directory: tnmsop
+        working-directory: croessweave-obsidian-plugin

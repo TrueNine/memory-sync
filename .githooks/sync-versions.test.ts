@@ -56,7 +56,7 @@ function createFixtureRepo(): string {
     version: initialVersion,
     private: true
   })
-  writeJson(join(rootDir, 'tnmsop', 'package.json'), {
+  writeJson(join(rootDir, 'croessweave-obsidian-plugin', 'package.json'), {
     name: 'tnmsop',
     version: initialVersion,
     private: true
@@ -68,9 +68,9 @@ function createFixtureRepo(): string {
     minAppVersion: '1.0.0',
     isDesktopOnly: false
   }
-  writeJson(join(rootDir, 'tnmsop', 'manifest.json'), manifest)
+  writeJson(join(rootDir, 'croessweave-obsidian-plugin', 'manifest.json'), manifest)
   writeJson(join(rootDir, 'manifest.json'), manifest)
-  writeJson(join(rootDir, 'tnmsop', 'versions.json'), {[initialVersion]: '1.0.0'})
+  writeJson(join(rootDir, 'croessweave-obsidian-plugin', 'versions.json'), {[initialVersion]: '1.0.0'})
   writeJson(join(rootDir, 'versions.json'), {[initialVersion]: '1.0.0'})
   writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
     name: '@truenine/croessweave-cli-darwin-arm64',
@@ -148,19 +148,19 @@ function createFixtureRepo(): string {
 }
 
 function preparePluginRelease(rootDir: string, nextVersion: string): void {
-  writeJson(join(rootDir, 'tnmsop', 'package.json'), {
+  writeJson(join(rootDir, 'croessweave-obsidian-plugin', 'package.json'), {
     name: 'tnmsop',
     version: nextVersion,
     private: true
   })
-  writeJson(join(rootDir, 'tnmsop', 'manifest.json'), {
+  writeJson(join(rootDir, 'croessweave-obsidian-plugin', 'manifest.json'), {
     id: 'tnmsop',
     name: 'TNMSOP',
     version: nextVersion,
     minAppVersion: '1.0.0',
     isDesktopOnly: false
   })
-  writeJson(join(rootDir, 'tnmsop', 'versions.json'), {
+  writeJson(join(rootDir, 'croessweave-obsidian-plugin', 'versions.json'), {
     '2026.10324.10015': '1.0.0',
     [nextVersion]: '1.0.0'
   })
@@ -184,13 +184,13 @@ function expectSharedVersionSurfaces(rootDir: string, nextVersion: string): void
   })
   expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'doc', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-  expect(JSON.parse(readFileSync(join(rootDir, 'tnmsop', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-  const pluginManifest = JSON.parse(readFileSync(join(rootDir, 'tnmsop', 'manifest.json'), 'utf-8')) as {version: string, minAppVersion: string}
+  expect(JSON.parse(readFileSync(join(rootDir, 'croessweave-obsidian-plugin', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  const pluginManifest = JSON.parse(readFileSync(join(rootDir, 'croessweave-obsidian-plugin', 'manifest.json'), 'utf-8')) as {version: string, minAppVersion: string}
   expect(pluginManifest).toMatchObject({version: nextVersion, minAppVersion: '1.0.0'})
   expect(JSON.parse(readFileSync(join(rootDir, 'manifest.json'), 'utf-8'))).toEqual(pluginManifest)
-  expect(JSON.parse(readFileSync(join(rootDir, 'tnmsop', 'versions.json'), 'utf-8'))).toMatchObject({[nextVersion]: '1.0.0'})
+  expect(JSON.parse(readFileSync(join(rootDir, 'croessweave-obsidian-plugin', 'versions.json'), 'utf-8'))).toMatchObject({[nextVersion]: '1.0.0'})
   expect(JSON.parse(readFileSync(join(rootDir, 'versions.json'), 'utf-8'))).toEqual(
-    JSON.parse(readFileSync(join(rootDir, 'tnmsop', 'versions.json'), 'utf-8'))
+    JSON.parse(readFileSync(join(rootDir, 'croessweave-obsidian-plugin', 'versions.json'), 'utf-8'))
   )
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'linux-x64-gnu', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})

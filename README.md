@@ -31,7 +31,7 @@ npm install -g @truenine/croessweave-mcp
 
 ### TNMSOP for Obsidian
 
-TNMSOP is maintained in the [`tnmsop/`](tnmsop/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/tnmsop/releases). BRAT users should install `TrueNine/tnmsop`.
+TNMSOP is maintained in the [`croessweave-obsidian-plugin/`](croessweave-obsidian-plugin/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/croessweave-obsidian-plugin/releases). BRAT users should install `TrueNine/croessweave-obsidian-plugin`.
 
 TNMSOP shares the croessweave CalVer version. The plugin is released first with the exact plain `<version>` tag, then croessweave pins that release through the submodule and publishes its `v<version>` system release.
 

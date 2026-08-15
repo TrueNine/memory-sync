@@ -13,7 +13,7 @@ inputs:
   working-directory:
     description: Directory containing bun.lock
     required: false
-    default: tnmsop
+    default: croessweave-obsidian-plugin
 
 runs:
   using: composite
