@@ -267,7 +267,7 @@ function syncInternalDependencyVersions(json: VersionedJson, targetVersion: stri
     }
 
     for (const [name, value] of Object.entries(deps as Record<string, unknown>)) {
-      if (!name.startsWith('@truenine/memory-sync-')) {
+      if (!name.startsWith('@truenine/croessweave-')) {
         continue
       }
 

@@ -1,5 +1,5 @@
 {
-  "name": "@truenine/memory-sync-mcp-linux-x64-gnu",
+  "name": "@truenine/croessweave-mcp-linux-x64-gnu",
   "version": "2026.10806.0",
   "description": "tnmsm native binary for Linux x64 (glibc)",
   "author": "TrueNine",

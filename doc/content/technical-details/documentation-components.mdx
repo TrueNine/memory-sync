@@ -12,7 +12,7 @@ status: stable
 ## 1. 多工具能力矩阵
 
 <FeatureMatrix
-  title="memory-sync 能力矩阵"
+  title="croessweave 能力矩阵"
   description="当你想用一张表展示 CLI、MCP、GUI 和文档站分别负责什么时，这个组件会很有用。"
   items={[
     {
@@ -28,7 +28,7 @@ status: stable
       summary: "向外暴露 prompt 管理能力。",
       status: { label: "稳定 API", tone: "stable" },
       capabilities: ["列出 prompts", "读取 source / dist", "更新 zh/en source", "写回翻译产物"],
-      surfaces: ["memory-sync-mcp stdio server", "MCP 客户端集成"],
+      surfaces: ["croessweave-mcp stdio server", "MCP 客户端集成"],
       notes: "它复用 CLI 侧 prompt service，不应该再发明另一套 schema。",
     },
     {
@@ -155,7 +155,7 @@ status: stable
 `PackageManagerTabs` 仍然适合“同一个包名，不同包管理器命令”的场景。现在 CLI 主包会自动解析并安装对应的平台 native 子包，所以安装页更适合直接展示统一主包命令，再额外说明 Linux musl/Alpine 这类暂不支持的环境。
 
 ```mdx
-npm install -g @truenine/memory-sync-cli
+npm install -g @truenine/croessweave-cli
 
 > Linux musl / Alpine is not covered by the published npm native binaries yet.
 ```

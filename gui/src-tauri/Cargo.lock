@@ -1773,7 +1773,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "memory-sync-gui"
+name = "croessweave-gui"
 version = "2026.10412.11551"
 dependencies = [
  "dirs",

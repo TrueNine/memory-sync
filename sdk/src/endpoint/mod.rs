@@ -40,7 +40,7 @@ pub fn load_config(cwd: &Path) -> Result<config::MergedConfigResult, SdkError> {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MemorySyncCommandOptions {
+pub struct CroessweaveCommandOptions {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub cwd: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -55,7 +55,7 @@ pub struct MemorySyncCommandOptions {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MemorySyncCommandResult {
+pub struct CroessweaveCommandResult {
   pub success: bool,
   pub files_affected: i32,
   pub dirs_affected: i32,

@@ -17,7 +17,7 @@ fn local_dry_run_does_not_write_project_files() {
 
   assert!(
     !runner.file_exists("CLAUDE.md"),
-    "~/workspace/memory-sync/CLAUDE.md should not exist before dry-run"
+    "~/workspace/croessweave/CLAUDE.md should not exist before dry-run"
   );
 
   // dry-run 不应写入文件
@@ -26,6 +26,6 @@ fn local_dry_run_does_not_write_project_files() {
 
   assert!(
     !runner.file_exists("CLAUDE.md"),
-    "~/workspace/memory-sync/CLAUDE.md should not be created by dry-run"
+    "~/workspace/croessweave/CLAUDE.md should not be created by dry-run"
   );
 }

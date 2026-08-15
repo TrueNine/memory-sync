@@ -13,7 +13,7 @@ use tnmsd::{
 
 use cli::{Cli, ResolvedCommand, resolve_command};
 
-const SERVER_NAME: &str = "@truenine/memory-sync-mcp";
+const SERVER_NAME: &str = "@truenine/croessweave-mcp";
 const PROTOCOL_VERSION: &str = "2024-11-05";
 
 fn build_service_options(args: &Value) -> PromptServiceOptions {

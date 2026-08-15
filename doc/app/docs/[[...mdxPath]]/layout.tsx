@@ -48,7 +48,7 @@ export default async function DocsLayout({
       <header className="docs-site-navbar">
         <a href={withBasePath('/')} className="docs-brand">
           <span className="docs-brand-badge">Docs</span>
-          <span className="docs-brand-title">memory-sync</span>
+          <span className="docs-brand-title">croessweave</span>
         </a>
         <div className="docs-navbar-shell">
           <DocsSectionNav />

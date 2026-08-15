@@ -736,7 +736,7 @@ mod tests {
       content: content.to_string(),
       length: content.len(),
       dir: create_relative_path(target_root, relative_dir),
-      project_name: "memory-sync".to_string(),
+      project_name: "croessweave".to_string(),
       target_dir: create_relative_path(target_root, relative_dir),
       is_root: relative_dir == ".",
       file_kind: file_kind.to_string(),
@@ -956,7 +956,7 @@ mod tests {
     };
     let workspace_dir = workspace_root(&temp_dir);
     let aindex_public = Path::new(&workspace_dir).join("aindex").join("public");
-    let memory_sync_root = Path::new(&workspace_dir).join("memory-sync");
+    let croessweave_root = Path::new(&workspace_dir).join("croessweave");
 
     let context = OutputContext {
       workspace: Some(Workspace {
@@ -966,7 +966,7 @@ mod tests {
             is_prompt_source_project: Some(true),
             ..create_project(&workspace_dir, "aindex")
           },
-          create_project(&workspace_dir, "memory-sync"),
+          create_project(&workspace_dir, "croessweave"),
         ],
       }),
       editor_config_files: Some(vec![create_ide_config(
@@ -1021,13 +1021,13 @@ mod tests {
       ]),
       readme_prompts: Some(vec![
         create_readme_prompt(
-          &memory_sync_root.to_string_lossy(),
+          &croessweave_root.to_string_lossy(),
           ".",
           "Readme",
           "# README\n",
         ),
         create_readme_prompt(
-          &memory_sync_root.to_string_lossy(),
+          &croessweave_root.to_string_lossy(),
           ".",
           "CodeOfConduct",
           "# COC\n",
@@ -1053,7 +1053,7 @@ mod tests {
     assert!(vscode_plan.output_files.iter().any(|entry| {
       entry.path
         == Path::new(&workspace_dir)
-          .join("memory-sync")
+          .join("croessweave")
           .join(".vscode")
           .join("extensions.json")
           .to_string_lossy()
@@ -1073,7 +1073,7 @@ mod tests {
     assert!(jetbrains_plan.output_files.iter().any(|entry| {
       entry.path
         == Path::new(&workspace_dir)
-          .join("memory-sync")
+          .join("croessweave")
           .join(".idea")
           .join("codeStyles")
           .join("Project.xml")
@@ -1089,18 +1089,18 @@ mod tests {
 
     let readme_plan = find_plan(&plans, README_PLUGIN_NAME);
     assert!(readme_plan.output_files.iter().any(|entry| {
-      entry.path == memory_sync_root.join("README.md").to_string_lossy()
+      entry.path == croessweave_root.join("README.md").to_string_lossy()
         && entry.content == "# README\n"
     }));
     assert!(readme_plan.output_files.iter().any(|entry| {
       entry.path
-        == memory_sync_root
+        == croessweave_root
           .join("CODE_OF_CONDUCT.md")
           .to_string_lossy()
         && entry.content == "# COC\n"
     }));
     assert!(readme_plan.output_files.iter().any(|entry| {
-      entry.path == memory_sync_root.join(".editorconfig").to_string_lossy()
+      entry.path == croessweave_root.join(".editorconfig").to_string_lossy()
         && entry.content == "root = true\n"
     }));
   }

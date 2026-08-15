@@ -28,31 +28,31 @@ function createFixtureRepo(): string {
   const initialVersion = '2026.10324.10015'
 
   writeJson(join(rootDir, 'package.json'), {
-    name: '@truenine/memory-sync',
+    name: '@truenine/croessweave',
     version: initialVersion
   })
   writeJson(join(rootDir, 'cli', 'package.json'), {
-    name: '@truenine/memory-sync-cli',
+    name: '@truenine/croessweave-cli',
     version: initialVersion,
     optionalDependencies: {
-      '@truenine/memory-sync-cli-darwin-arm64': initialVersion,
-      '@truenine/memory-sync-cli-linux-x64-gnu': initialVersion
+      '@truenine/croessweave-cli-darwin-arm64': initialVersion,
+      '@truenine/croessweave-cli-linux-x64-gnu': initialVersion
     }
   })
   writeJson(join(rootDir, 'mcp', 'package.json'), {
-    name: '@truenine/memory-sync-mcp',
+    name: '@truenine/croessweave-mcp',
     version: initialVersion,
     optionalDependencies: {
-      '@truenine/memory-sync-mcp-darwin-arm64': initialVersion,
-      '@truenine/memory-sync-mcp-linux-x64-gnu': initialVersion
+      '@truenine/croessweave-mcp-darwin-arm64': initialVersion,
+      '@truenine/croessweave-mcp-linux-x64-gnu': initialVersion
     }
   })
   writeJson(join(rootDir, 'gui', 'package.json'), {
-    name: '@truenine/memory-sync-gui',
+    name: '@truenine/croessweave-gui',
     version: initialVersion
   })
   writeJson(join(rootDir, 'doc', 'package.json'), {
-    name: '@truenine/memory-sync-docs',
+    name: '@truenine/croessweave-docs',
     version: initialVersion,
     private: true
   })
@@ -73,11 +73,11 @@ function createFixtureRepo(): string {
   writeJson(join(rootDir, 'tnmsop', 'versions.json'), {[initialVersion]: '1.0.0'})
   writeJson(join(rootDir, 'versions.json'), {[initialVersion]: '1.0.0'})
   writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
-    name: '@truenine/memory-sync-cli-darwin-arm64',
+    name: '@truenine/croessweave-cli-darwin-arm64',
     version: initialVersion
   })
   writeJson(join(rootDir, 'cli', 'npm', 'linux-x64-gnu', 'package.json'), {
-    name: '@truenine/memory-sync-cli-linux-x64-gnu',
+    name: '@truenine/croessweave-cli-linux-x64-gnu',
     version: initialVersion
   })
 
@@ -109,13 +109,13 @@ function createFixtureRepo(): string {
   ].join('\n'))
   writeText(join(rootDir, 'gui', 'src-tauri', 'Cargo.toml'), [
     '[package]',
-    'name = "memory-sync-gui"',
+    'name = "croessweave-gui"',
     `version = "${initialVersion}"`,
     ''
   ].join('\n'))
   writeJson(join(rootDir, 'gui', 'src-tauri', 'tauri.conf.json'), {
     version: initialVersion,
-    productName: 'Memory Sync'
+    productName: 'Croessweave'
   })
   writeText(join(rootDir, 'Cargo.lock'), [
     'version = 4',
@@ -133,7 +133,7 @@ function createFixtureRepo(): string {
     `version = "${initialVersion}"`,
     '',
     '[[package]]',
-    'name = "memory-sync-gui"',
+    'name = "croessweave-gui"',
     `version = "${initialVersion}"`,
     ''
   ].join('\n'))
@@ -171,15 +171,15 @@ function expectSharedVersionSurfaces(rootDir: string, nextVersion: string): void
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string, optionalDependencies: Record<string, string>}).toMatchObject({
     version: nextVersion,
     optionalDependencies: {
-      '@truenine/memory-sync-cli-darwin-arm64': nextVersion,
-      '@truenine/memory-sync-cli-linux-x64-gnu': nextVersion
+      '@truenine/croessweave-cli-darwin-arm64': nextVersion,
+      '@truenine/croessweave-cli-linux-x64-gnu': nextVersion
     }
   })
   expect(JSON.parse(readFileSync(join(rootDir, 'mcp', 'package.json'), 'utf-8')) as {version: string, optionalDependencies: Record<string, string>}).toMatchObject({
     version: nextVersion,
     optionalDependencies: {
-      '@truenine/memory-sync-mcp-darwin-arm64': nextVersion,
-      '@truenine/memory-sync-mcp-linux-x64-gnu': nextVersion
+      '@truenine/croessweave-mcp-darwin-arm64': nextVersion,
+      '@truenine/croessweave-mcp-linux-x64-gnu': nextVersion
     }
   })
   expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
@@ -219,7 +219,7 @@ describe('sync-versions hook', () => {
     const nextVersion = '2026.10324.10314'
     preparePluginRelease(rootDir, nextVersion)
     writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
-      name: '@truenine/memory-sync-cli-darwin-arm64',
+      name: '@truenine/croessweave-cli-darwin-arm64',
       version: nextVersion
     })
     runGit(rootDir, ['add', 'cli/npm/darwin-arm64/package.json'])
@@ -254,7 +254,7 @@ describe('sync-versions hook', () => {
     const nextVersion = '2026.10324.10316'
     preparePluginRelease(rootDir, nextVersion)
     writeJson(join(rootDir, 'gui', 'package.json'), {
-      name: '@truenine/memory-sync-gui',
+      name: '@truenine/croessweave-gui',
       version: nextVersion
     })
     runGit(rootDir, ['add', 'gui/package.json'])
@@ -289,7 +289,7 @@ describe('sync-versions hook', () => {
     const nextVersion = '2026.10324.10318'
     preparePluginRelease(rootDir, nextVersion)
     writeJson(join(rootDir, 'doc', 'package.json'), {
-      name: '@truenine/memory-sync-docs',
+      name: '@truenine/croessweave-docs',
       version: nextVersion,
       private: true
     })
@@ -308,7 +308,7 @@ describe('sync-versions hook', () => {
 
     const nextVersion = '2026.10324.10319'
     writeJson(join(rootDir, 'doc', 'package.json'), {
-      name: '@truenine/memory-sync-docs',
+      name: '@truenine/croessweave-docs',
       version: nextVersion,
       private: true
     })
@@ -322,11 +322,11 @@ describe('sync-versions hook', () => {
     tempDirs.push(rootDir)
 
     writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
-      name: '@truenine/memory-sync-cli-darwin-arm64',
+      name: '@truenine/croessweave-cli-darwin-arm64',
       version: '2026.10324.10314'
     })
     writeJson(join(rootDir, 'doc', 'package.json'), {
-      name: '@truenine/memory-sync-docs',
+      name: '@truenine/croessweave-docs',
       version: '2026.10324.10315',
       private: true
     })

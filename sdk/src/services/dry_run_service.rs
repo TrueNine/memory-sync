@@ -9,9 +9,9 @@ use crate::services::common::{
   resolve_workspace_dir,
 };
 use crate::services::output_plan::build_output_files;
-use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
+use crate::{CliError, CroessweaveCommandOptions, CroessweaveCommandResult};
 
-pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
+pub fn dry_run(options: CroessweaveCommandOptions) -> Result<CroessweaveCommandResult, CliError> {
   let logger = create_logger(
     "dry_run",
     options
@@ -115,7 +115,7 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
     ))
   };
 
-  Ok(MemorySyncCommandResult {
+  Ok(CroessweaveCommandResult {
     success: true,
     files_affected: files_affected as i32,
     dirs_affected: dirs_affected as i32,
@@ -163,7 +163,7 @@ mod tests {
     with_home_dir(temp_dir.path(), || {
       create_test_config(temp_dir.path(), temp_dir.path()).unwrap();
 
-      let options = MemorySyncCommandOptions {
+      let options = CroessweaveCommandOptions {
         cwd: Some(temp_dir.path().to_string_lossy().to_string()),
         load_user_config: Some(true),
         dry_run: Some(true),
@@ -188,7 +188,7 @@ mod tests {
     with_home_dir(temp_dir.path(), || {
       create_test_config(temp_dir.path(), temp_dir.path()).unwrap();
 
-      let options = MemorySyncCommandOptions {
+      let options = CroessweaveCommandOptions {
         cwd: Some(temp_dir.path().to_string_lossy().to_string()),
         load_user_config: Some(true),
         dry_run: Some(true),

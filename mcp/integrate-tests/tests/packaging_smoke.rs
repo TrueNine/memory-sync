@@ -57,7 +57,7 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
   for expected in [
     "\"jsonrpc\":\"2.0\"",
     "\"protocolVersion\":\"2024-11-05\"",
-    "\"name\":\"@truenine/memory-sync-mcp\"",
+    "\"name\":\"@truenine/croessweave-mcp\"",
   ] {
     assert!(
       initialize.stdout.contains(expected),
@@ -68,8 +68,8 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
 
   container.exec_success(
     r#"
-MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-mcp/package.json' -print -quit)"
-PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-mcp-linux-x64-gnu/package.json' -print -quit)"
+MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/croessweave-mcp/package.json' -print -quit)"
+PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/croessweave-mcp-linux-x64-gnu/package.json' -print -quit)"
 test -n "$MAIN_PACKAGE_JSON"
 test -n "$PLATFORM_PACKAGE_JSON"
 test -f "$(dirname "$MAIN_PACKAGE_JSON")/bin/tnmsm.js"

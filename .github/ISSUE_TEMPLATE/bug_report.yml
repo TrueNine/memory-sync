@@ -1,5 +1,5 @@
 name: Bug Report
-description: File a bug report for memory-sync (tnmsc CLI / GUI)
+description: File a bug report for croessweave (tnmsc CLI / GUI)
 labels: ["pending-triage"]
 body:
   - type: markdown
@@ -7,9 +7,9 @@ body:
       value: |
         ## Before you open this issue
 
-        **Please ensure you're using the latest version of memory-sync.** Run `tnmsc --version` (CLI) or check the GUI about screen.
+        **Please ensure you're using the latest version of croessweave.** Run `tnmsc --version` (CLI) or check the GUI about screen.
 
-        **Check if your issue is already known.** [Search existing issues](https://github.com/TrueNine/memory-sync/issues?q=is%3Aissue) before opening a new one. If found, subscribe and comment there for updates.
+        **Check if your issue is already known.** [Search existing issues](https://github.com/TrueNine/croessweave/issues?q=is%3Aissue) before opening a new one. If found, subscribe and comment there for updates.
 
         Thank you for helping keep the issue tracker organized.
 
@@ -34,7 +34,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: memory-sync version
+      label: croessweave version
       description: CLI run `tnmsc --version`; GUI check About
       placeholder: "e.g., 2026.10125.0"
     validations:

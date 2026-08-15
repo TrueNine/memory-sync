@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation and setup guide
-    url: https://memory-sync-docs.vercel.app/docs
+    url: https://croessweave-docs.vercel.app/docs
     about: Read the docs and setup references before opening a support issue.
   - name: Security policy
-    url: https://github.com/TrueNine/memory-sync/security/policy
+    url: https://github.com/TrueNine/croessweave/security/policy
     about: Report vulnerabilities through the security policy instead of opening a public issue.

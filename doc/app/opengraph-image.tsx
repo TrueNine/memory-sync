@@ -1,6 +1,6 @@
 import {ImageResponse} from 'next/og'
 
-export const alt = 'memory-sync 文档'
+export const alt = 'croessweave 文档'
 export const size = {
   width: 1200,
   height: 630
@@ -34,7 +34,7 @@ export default function OpenGraphImage() {
         >
           <div style={{fontSize: 24, letterSpacing: 4}}>RUST-FIRST / TOOL-RAT DOCS</div>
           <div style={{display: 'flex', flexDirection: 'column', gap: 18}}>
-            <div style={{fontSize: 84, fontWeight: 900}}>memory-sync</div>
+            <div style={{fontSize: 84, fontWeight: 900}}>croessweave</div>
             <div style={{fontSize: 32, maxWidth: 920}}>
               为多 AI 工具同步规则、命令、技能与记忆的中文优先文档站
             </div>

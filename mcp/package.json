@@ -1,13 +1,13 @@
 {
-  "name": "@truenine/memory-sync-mcp",
+  "name": "@truenine/croessweave-mcp",
   "version": "2026.10806.0",
-  "description": "TrueNine Memory Sync MCP metadata package",
+  "description": "TrueNine Croessweave MCP metadata package",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
-  "homepage": "https://github.com/TrueNine/memory-sync",
+  "homepage": "https://github.com/TrueNine/croessweave",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "url": "git+https://github.com/TrueNine/croessweave.git",
     "directory": "mcp"
   },
   "bin": {
@@ -32,10 +32,10 @@
     "test": "cargo test --manifest-path Cargo.toml"
   },
   "optionalDependencies": {
-    "@truenine/memory-sync-mcp-darwin-arm64": "2026.10806.0",
-    "@truenine/memory-sync-mcp-darwin-x64": "2026.10806.0",
-    "@truenine/memory-sync-mcp-linux-arm64-gnu": "2026.10806.0",
-    "@truenine/memory-sync-mcp-linux-x64-gnu": "2026.10806.0",
-    "@truenine/memory-sync-mcp-win32-x64-msvc": "2026.10806.0"
+    "@truenine/croessweave-mcp-darwin-arm64": "2026.10806.0",
+    "@truenine/croessweave-mcp-darwin-x64": "2026.10806.0",
+    "@truenine/croessweave-mcp-linux-arm64-gnu": "2026.10806.0",
+    "@truenine/croessweave-mcp-linux-x64-gnu": "2026.10806.0",
+    "@truenine/croessweave-mcp-win32-x64-msvc": "2026.10806.0"
   }
 }

@@ -12,7 +12,7 @@ struct RenderedCommandResult {
 }
 
 fn render_result(
-  result: Result<tnmsd::MemorySyncCommandResult, tnmsd::CliError>,
+  result: Result<tnmsd::CroessweaveCommandResult, tnmsd::CliError>,
 ) -> RenderedCommandResult {
   match result {
     Ok(r) => {
@@ -168,7 +168,7 @@ fn log_command_start(logger: &Logger, command_name: &str) {
 fn log_command_finish(
   logger: &Logger,
   command_name: &str,
-  result: &Result<tnmsd::MemorySyncCommandResult, tnmsd::CliError>,
+  result: &Result<tnmsd::CroessweaveCommandResult, tnmsd::CliError>,
 ) {
   match result {
     Ok(command_result) => {
@@ -200,9 +200,9 @@ fn log_command_finish(
 fn run_command(
   command_name: &str,
   operation: impl FnOnce(
-    tnmsd::MemorySyncCommandOptions,
-  ) -> Result<tnmsd::MemorySyncCommandResult, tnmsd::CliError>,
-  options: tnmsd::MemorySyncCommandOptions,
+    tnmsd::CroessweaveCommandOptions,
+  ) -> Result<tnmsd::CroessweaveCommandResult, tnmsd::CliError>,
+  options: tnmsd::CroessweaveCommandOptions,
 ) -> ExitCode {
   let logger = create_logger("pipeline", None);
   log_command_start(&logger, command_name);
@@ -230,7 +230,7 @@ pub fn install() -> ExitCode {
   run_command(
     "install",
     tnmsd::install,
-    tnmsd::MemorySyncCommandOptions::default(),
+    tnmsd::CroessweaveCommandOptions::default(),
   )
 }
 
@@ -238,7 +238,7 @@ pub fn dry_run() -> ExitCode {
   run_command(
     "dry-run",
     tnmsd::dry_run,
-    tnmsd::MemorySyncCommandOptions::default(),
+    tnmsd::CroessweaveCommandOptions::default(),
   )
 }
 
@@ -246,12 +246,12 @@ pub fn clean() -> ExitCode {
   run_command(
     "clean",
     tnmsd::clean,
-    tnmsd::MemorySyncCommandOptions::default(),
+    tnmsd::CroessweaveCommandOptions::default(),
   )
 }
 
 pub fn dry_run_clean() -> ExitCode {
-  let options = tnmsd::MemorySyncCommandOptions {
+  let options = tnmsd::CroessweaveCommandOptions {
     dry_run: Some(true),
     ..Default::default()
   };
@@ -266,7 +266,7 @@ mod tests {
 
   #[test]
   fn render_result_prints_success_message_to_stdout() {
-    let rendered = render_result(Ok(tnmsd::MemorySyncCommandResult {
+    let rendered = render_result(Ok(tnmsd::CroessweaveCommandResult {
       success: true,
       files_affected: 1,
       dirs_affected: 0,
@@ -287,7 +287,7 @@ mod tests {
 
   #[test]
   fn render_result_formats_workspace_mismatch_warning() {
-    let rendered = render_result(Ok(tnmsd::MemorySyncCommandResult {
+    let rendered = render_result(Ok(tnmsd::CroessweaveCommandResult {
       success: true,
       files_affected: 0,
       dirs_affected: 0,
@@ -295,7 +295,7 @@ mod tests {
       warnings: vec![json!({
         "type": "workspace_mismatch",
         "message": "Current directory is outside configured workspaceDir. tnmsc will operate on the configured workspace instead of the current directory.",
-        "currentDir": "C:/workspace/memory-sync",
+        "currentDir": "C:/workspace/croessweave",
         "workspaceDir": "C:/temp/demo",
         "configSources": ["C:/Users/truen/.aindex/.tnmsc.json"]
       })],
@@ -306,7 +306,7 @@ mod tests {
       rendered.stderr_lines,
       vec![
         "Warning: Current directory is outside configured workspaceDir. tnmsc will operate on the configured workspace instead of the current directory.".to_string(),
-        "  currentDir: C:/workspace/memory-sync".to_string(),
+        "  currentDir: C:/workspace/croessweave".to_string(),
         "  workspaceDir: C:/temp/demo".to_string(),
         "  configSources: C:/Users/truen/.aindex/.tnmsc.json".to_string(),
       ]
@@ -315,7 +315,7 @@ mod tests {
 
   #[test]
   fn render_result_formats_path_errors() {
-    let rendered = render_result(Ok(tnmsd::MemorySyncCommandResult {
+    let rendered = render_result(Ok(tnmsd::CroessweaveCommandResult {
       success: false,
       files_affected: 0,
       dirs_affected: 0,

@@ -1,11 +1,11 @@
 name: Feature Request
-description: Suggest an idea for memory-sync (tnmsc CLI / GUI)
+description: Suggest an idea for croessweave (tnmsc CLI / GUI)
 labels: ["pending-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Before submitting, please [search and confirm](https://github.com/TrueNine/memory-sync/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc) that the idea does not yet exist. Duplicate requests may be closed.
+        Before submitting, please [search and confirm](https://github.com/TrueNine/croessweave/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc) that the idea does not yet exist. Duplicate requests may be closed.
 
         ---
   - type: checkboxes

@@ -46,7 +46,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-filter: "@truenine/memory-sync-docs..."
+          install-filter: "@truenine/croessweave-docs..."
 
       - name: Validate docs content
         run: pnpm -C doc run validate:content
@@ -74,7 +74,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-filter: "@truenine/memory-sync-docs..."
+          install-filter: "@truenine/croessweave-docs..."
 
       - name: Preflight Vercel secrets
         shell: bash

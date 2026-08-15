@@ -128,8 +128,8 @@ jobs:
           pnpm -C cli/npm/linux-x64-gnu pack --pack-destination "$pack_dir"
           pnpm -C cli pack --pack-destination "$pack_dir"
 
-          platform_tarballs=("$pack_dir"/truenine-memory-sync-cli-linux-x64-gnu-*.tgz)
-          main_tarballs=("$pack_dir"/truenine-memory-sync-cli-[0-9]*.tgz)
+          platform_tarballs=("$pack_dir"/truenine-croessweave-cli-linux-x64-gnu-*.tgz)
+          main_tarballs=("$pack_dir"/truenine-croessweave-cli-[0-9]*.tgz)
           npm install --global --prefix "$prefix_dir" "${platform_tarballs[0]}" "${main_tarballs[0]}" --ignore-scripts
           "$prefix_dir/bin/tnmsc" help >"$pack_dir/tnmsc-help.txt"
           grep -q 'install' "$pack_dir/tnmsc-help.txt"
@@ -146,8 +146,8 @@ jobs:
           pnpm -C mcp/npm/linux-x64-gnu pack --pack-destination "$pack_dir"
           pnpm -C mcp pack --pack-destination "$pack_dir"
 
-          platform_tarballs=("$pack_dir"/truenine-memory-sync-mcp-linux-x64-gnu-*.tgz)
-          main_tarballs=("$pack_dir"/truenine-memory-sync-mcp-[0-9]*.tgz)
+          platform_tarballs=("$pack_dir"/truenine-croessweave-mcp-linux-x64-gnu-*.tgz)
+          main_tarballs=("$pack_dir"/truenine-croessweave-mcp-[0-9]*.tgz)
           npm install --global --prefix "$prefix_dir" "${platform_tarballs[0]}" "${main_tarballs[0]}" --ignore-scripts
           printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
             | "$prefix_dir/bin/tnmsm" >"$pack_dir/tnmsm-initialize.json"
@@ -165,7 +165,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-filter: "@truenine/memory-sync-docs..."
+          install-filter: "@truenine/croessweave-docs..."
 
       - name: Validate docs content
         run: pnpm -C doc run validate:content

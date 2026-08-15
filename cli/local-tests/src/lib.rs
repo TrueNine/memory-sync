@@ -1,7 +1,7 @@
 //! Black-box test infrastructure for the tnmsc CLI.
 //!
 //! Provides `LocalTestRunner` — a test harness that invokes the real compiled
-//! `tnmsc` binary against the actual project directory (`~/workspace/memory-sync/`).
+//! `tnmsc` binary against the actual project directory (`~/workspace/croessweave/`).
 //! Uses cross-process file locking and in-process mutex to serialise access to
 //! the shared project, ensuring test isolation.
 //!
@@ -60,7 +60,7 @@ pub struct LocalTestRunner {
 }
 
 impl LocalTestRunner {
-  /// 默认在 ~/workspace/memory-sync/ 下运行测试。
+  /// 默认在 ~/workspace/croessweave/ 下运行测试。
   /// 若该目录不存在，则回退到当前目录。
   pub fn new() -> Self {
     ensure_binary();
@@ -71,7 +71,7 @@ impl LocalTestRunner {
       .get_or_init(|| Mutex::new(()))
       .lock()
       .unwrap_or_else(|e| e.into_inner());
-    let default_project = home_dir().join("workspace").join("memory-sync");
+    let default_project = home_dir().join("workspace").join("croessweave");
     let cwd = if default_project.is_dir() {
       default_project
     } else {
@@ -215,7 +215,7 @@ impl LocalTestRunner {
   }
 
   /// 在指定的真实项目目录下检查文件是否存在。
-  /// 默认使用当前 cwd（~/workspace/memory-sync/）。
+  /// 默认使用当前 cwd（~/workspace/croessweave/）。
   pub fn file_exists(&self, relative: impl AsRef<Path>) -> bool {
     self.cwd.join(relative).is_file()
   }
@@ -546,7 +546,7 @@ pub fn binary_path() -> PathBuf {
     .join(binary_name)
 }
 
-/// Resolve the workspace root (the memory-sync Cargo workspace directory).
+/// Resolve the workspace root (the croessweave Cargo workspace directory).
 pub fn workspace_root() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     .parent()

@@ -2,7 +2,7 @@
 
 ## Who We Are
 
-The `memory-sync` community is made up of developers surviving in environments of extreme resource inequality. We are rats. We accept that.
+The `croessweave` community is made up of developers surviving in environments of extreme resource inequality. We are rats. We accept that.
 
 ## What We Welcome
 

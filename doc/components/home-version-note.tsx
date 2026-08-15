@@ -1,7 +1,7 @@
 import process from 'node:process'
 
 export function HomeVersionNote() {
-  const version = process.env.NEXT_PUBLIC_MEMORY_SYNC_VERSION
+  const version = process.env.NEXT_PUBLIC_CROESSWEAVE_VERSION
 
   if (version == null || version === '') {
     return null

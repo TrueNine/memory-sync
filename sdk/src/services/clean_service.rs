@@ -14,12 +14,12 @@ use crate::services::common::{
   DefaultPluginKind, EnabledPlugins, collect_context, load_config, resolve_cwd,
   resolve_workspace_dir, strip_unc_prefix,
 };
-use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
+use crate::{CliError, CroessweaveCommandOptions, CroessweaveCommandResult};
 
 type CleanupOutputMap = HashMap<String, Vec<String>>;
 type CleanupDeclarationMap = HashMap<String, CleanupDeclarationsDto>;
 
-pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
+pub fn clean(options: CroessweaveCommandOptions) -> Result<CroessweaveCommandResult, CliError> {
   let logger = create_logger(
     "clean",
     options
@@ -131,7 +131,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
       })),
     );
 
-    Ok(MemorySyncCommandResult {
+    Ok(CroessweaveCommandResult {
       success: plan.conflicts.is_empty() && plan.violations.is_empty(),
       files_affected: plan.files_to_delete.len() as i32,
       dirs_affected: plan.dirs_to_delete.len() as i32 + plan.empty_dirs_to_delete.len() as i32,
@@ -206,7 +206,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
       })),
     );
 
-    Ok(MemorySyncCommandResult {
+    Ok(CroessweaveCommandResult {
       success,
       files_affected: result.deleted_files as i32,
       dirs_affected: result.deleted_dirs as i32,
@@ -760,7 +760,7 @@ mod tests {
     with_home_dir(temp_dir.path(), || {
       create_test_config(temp_dir.path(), temp_dir.path()).unwrap();
 
-      let options = MemorySyncCommandOptions {
+      let options = CroessweaveCommandOptions {
         cwd: Some(temp_dir.path().to_string_lossy().to_string()),
         load_user_config: Some(true),
         dry_run: Some(true),
@@ -784,7 +784,7 @@ mod tests {
     with_home_dir(temp_dir.path(), || {
       create_test_config(temp_dir.path(), temp_dir.path()).unwrap();
 
-      let options = MemorySyncCommandOptions {
+      let options = CroessweaveCommandOptions {
         cwd: Some(temp_dir.path().to_string_lossy().to_string()),
         load_user_config: Some(true),
         dry_run: Some(true),
@@ -1116,9 +1116,9 @@ mod tests {
   #[test]
   fn clean_resolve_project_scope_when_cwd_in_project() {
     let ws = PathBuf::from("/workspace");
-    let cwd = PathBuf::from("/workspace/memory-sync/src");
+    let cwd = PathBuf::from("/workspace/croessweave/src");
     let scope = resolve_project_scope(&cwd, &ws);
-    assert_eq!(scope, Some(PathBuf::from("/workspace/memory-sync")));
+    assert_eq!(scope, Some(PathBuf::from("/workspace/croessweave")));
   }
 
   #[test]

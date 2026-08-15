@@ -11,14 +11,14 @@ import { Callout, Cards, Tabs } from 'nextra/components'
 
 <Callout type="info">
 **包信息**
-- **npm 包名**: `@truenine/memory-sync-sdk`
+- **npm 包名**: `@truenine/croessweave-sdk`
 - **Rust crate**: `tnmsd`
 - **Rust 源码位置**: `sdk/src/native_logger.rs`
 - **TypeScript facade**: `sdk/src/libraries/logger.ts`
 - **核心文件**: `sdk/src/native_logger.rs` (Rust 核心) · `sdk/src/libraries/logger.ts` (TypeScript facade)
 </Callout>
 
-Logger 是一个 **Rust 驱动的 AI 友好型 Markdown 日志库**，专为 memory-sync 运行时设计。它将日志输出格式化为结构化 Markdown（`###` 标题 + 列表），使终端输出对人类可读的同时也能被 AI 工具高效解析。
+Logger 是一个 **Rust 驱动的 AI 友好型 Markdown 日志库**，专为 croessweave 运行时设计。它将日志输出格式化为结构化 Markdown（`###` 标题 + 列表），使终端输出对人类可读的同时也能被 AI 工具高效解析。
 
 ## 核心特性
 
@@ -91,7 +91,7 @@ graph TB
 <Tabs items={['TypeScript', '说明']}>
   <Tabs.Tab>
 ```ts
-import { createLogger } from '@truenine/memory-sync-sdk'
+import { createLogger } from '@truenine/croessweave-sdk'
 
 const logger = createLogger('my-namespace')
 const debugLogger = createLogger('my-namespace', 'debug')
@@ -347,7 +347,7 @@ Logger 的 TypeScript facade 已迁到 `sdk/src/libraries/logger.ts`，该文件
 演示 info、debug、trace 三种普通日志的使用方式：
 
 ```ts
-import { createLogger } from '@truenine/memory-sync-sdk'
+import { createLogger } from '@truenine/croessweave-sdk'
 
 const logger = createLogger('example-app')
 
@@ -376,7 +376,7 @@ logger.trace('进入函数', { fn: 'processRequest', args: ['req', 'res'] })
 演示 error、warn、fatal 三种结构化诊断日志：
 
 ```ts
-import { createLogger } from '@truenine/memory-sync-sdk'
+import { createLogger } from '@truenine/croessweave-sdk'
 
 const logger = createLogger('config-loader')
 
@@ -452,7 +452,7 @@ import {
   clearBufferedDiagnostics,
   drainBufferedDiagnostics,
   flushOutput
-} from '@truenine/memory-sync-sdk'
+} from '@truenine/croessweave-sdk'
 
 // 1. 设置全局级别为 warn — 只显示 error/warn/fatal
 setGlobalLogLevel('warn')

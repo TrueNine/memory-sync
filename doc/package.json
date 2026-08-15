@@ -1,9 +1,9 @@
 {
-  "name": "@truenine/memory-sync-docs",
+  "name": "@truenine/croessweave-docs",
   "version": "2026.10806.0",
   "private": true,
   "packageManager": "pnpm@11.18.0",
-  "description": "Chinese-first manifesto-led documentation site for @truenine/memory-sync.",
+  "description": "Chinese-first manifesto-led documentation site for @truenine/croessweave.",
   "engines": {
     "node": ">=22"
   },

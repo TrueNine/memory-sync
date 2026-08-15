@@ -179,28 +179,28 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             suffix: linux-x64-gnu
             binary: tnmsm
-            archive: memory-sync-mcp-linux-x86_64.tar.gz
+            archive: croessweave-mcp-linux-x86_64.tar.gz
           - os: ubuntu-24.04
             rust_target: aarch64-unknown-linux-gnu
             suffix: linux-arm64-gnu
             binary: tnmsm
-            archive: memory-sync-mcp-linux-aarch64.tar.gz
+            archive: croessweave-mcp-linux-aarch64.tar.gz
             cross: true
           - os: macos-14
             rust_target: aarch64-apple-darwin
             suffix: darwin-arm64
             binary: tnmsm
-            archive: memory-sync-mcp-darwin-aarch64.tar.gz
+            archive: croessweave-mcp-darwin-aarch64.tar.gz
           - os: macos-14
             rust_target: x86_64-apple-darwin
             suffix: darwin-x64
             binary: tnmsm
-            archive: memory-sync-mcp-darwin-x86_64.tar.gz
+            archive: croessweave-mcp-darwin-x86_64.tar.gz
           - os: windows-latest
             rust_target: x86_64-pc-windows-msvc
             suffix: win32-x64-msvc
             binary: tnmsm.exe
-            archive: memory-sync-mcp-windows-x86_64.zip
+            archive: croessweave-mcp-windows-x86_64.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6

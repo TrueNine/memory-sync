@@ -3,9 +3,9 @@ import {withBasePath} from '@/lib/site'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'memory-sync 文档',
-    short_name: 'memory-sync',
-    description: 'Chinese-first manifesto-led docs for memory-sync.',
+    name: 'croessweave 文档',
+    short_name: 'croessweave',
+    description: 'Chinese-first manifesto-led docs for croessweave.',
     start_url: withBasePath('/'),
     display: 'standalone',
     background_color: '#090909',
