@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window of Memory Sync",
+  "description": "Capability for the main window of Croessweave",
   "windows": ["main"],
   "permissions": [
     "core:default",

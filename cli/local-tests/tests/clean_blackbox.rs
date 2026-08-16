@@ -12,7 +12,7 @@ struct IsolatedCleanFixture {
   runner: LocalTestRunner,
   temp_home: PathBuf,
   home_dir: PathBuf,
-  memory_sync_dir: PathBuf,
+  croessweave_dir: PathBuf,
   aindex_dir: PathBuf,
   knowladge_dir: PathBuf,
 }
@@ -29,16 +29,16 @@ impl IsolatedCleanFixture {
     ));
     let home_dir = temp_root.join("home");
     let workspace_dir = temp_root.join("workspace");
-    let memory_sync_dir = workspace_dir.join("memory-sync");
+    let croessweave_dir = workspace_dir.join("croessweave");
     let aindex_dir = workspace_dir.join("aindex");
     let knowladge_dir = workspace_dir.join("knowladge");
-    let aindex_project_dir = aindex_dir.join("app").join("memory-sync");
+    let aindex_project_dir = aindex_dir.join("app").join("croessweave");
 
     fs::create_dir_all(home_dir.join(".aindex")).unwrap();
-    fs::create_dir_all(memory_sync_dir.join(".github")).unwrap();
+    fs::create_dir_all(croessweave_dir.join(".github")).unwrap();
     fs::create_dir_all(&knowladge_dir).unwrap();
     fs::create_dir_all(aindex_project_dir.join(".github")).unwrap();
-    init_git_repo(&memory_sync_dir);
+    init_git_repo(&croessweave_dir);
     init_git_repo(&knowladge_dir);
 
     // issue local-tests-clean-isolation: clean black-box tests must own their
@@ -47,10 +47,10 @@ impl IsolatedCleanFixture {
     write_prompt_sources(&aindex_dir, &aindex_project_dir);
 
     Self {
-      runner: LocalTestRunner::with_cwd(&memory_sync_dir),
+      runner: LocalTestRunner::with_cwd(&croessweave_dir),
       temp_home: home_dir.clone(),
       home_dir,
-      memory_sync_dir,
+      croessweave_dir,
       aindex_dir,
       knowladge_dir,
     }
@@ -68,7 +68,7 @@ impl IsolatedCleanFixture {
   }
 
   fn install(&self) -> tnmsc_local_tests::CommandResult {
-    self.run_at(&self.memory_sync_dir, &["install"])
+    self.run_at(&self.croessweave_dir, &["install"])
   }
 
   fn clean_at(&self, cwd: &Path) -> tnmsc_local_tests::CommandResult {
@@ -80,11 +80,11 @@ impl IsolatedCleanFixture {
   }
 
   fn project_claude_path(&self) -> PathBuf {
-    self.memory_sync_dir.join("CLAUDE.md")
+    self.croessweave_dir.join("CLAUDE.md")
   }
 
   fn project_agents_path(&self) -> PathBuf {
-    self.memory_sync_dir.join("AGENTS.md")
+    self.croessweave_dir.join("AGENTS.md")
   }
 
   fn knowladge_agents_path(&self) -> PathBuf {
@@ -183,7 +183,7 @@ fn local_clean_removes_project_claude_md() {
   let fixture = IsolatedCleanFixture::new(true, false);
 
   fixture
-    .clean_at(&fixture.memory_sync_dir)
+    .clean_at(&fixture.croessweave_dir)
     .assert_success("isolated tnmsc clean before install");
 
   let install = fixture.install();
@@ -194,7 +194,7 @@ fn local_clean_removes_project_claude_md() {
   );
 
   fixture
-    .clean_at(&fixture.memory_sync_dir)
+    .clean_at(&fixture.croessweave_dir)
     .assert_success("isolated tnmsc clean");
 
   assert!(
@@ -209,7 +209,7 @@ fn local_clean_dry_run_does_not_remove_files() {
   let fixture = IsolatedCleanFixture::new(true, false);
 
   fixture
-    .clean_at(&fixture.memory_sync_dir)
+    .clean_at(&fixture.croessweave_dir)
     .assert_success("isolated tnmsc clean before install");
 
   let install = fixture.install();
@@ -217,7 +217,7 @@ fn local_clean_dry_run_does_not_remove_files() {
   assert!(fixture.project_claude_path().is_file());
 
   fixture
-    .dry_run_at(&fixture.memory_sync_dir)
+    .dry_run_at(&fixture.croessweave_dir)
     .assert_success("isolated tnmsc clean --dry-run");
 
   assert!(
@@ -226,9 +226,9 @@ fn local_clean_dry_run_does_not_remove_files() {
   );
 }
 
-/// Verify that running `tnmsc clean` inside memory-sync only cleans that project.
+/// Verify that running `tnmsc clean` inside croessweave only cleans that project.
 #[test]
-fn local_clean_from_memory_sync_does_not_clean_other_projects() {
+fn local_clean_from_croessweave_does_not_clean_other_projects() {
   let fixture = IsolatedCleanFixture::new(false, true);
 
   fixture
@@ -246,7 +246,7 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
 
   assert!(
     fixture.project_agents_path().is_file(),
-    "memory-sync/AGENTS.md should exist after install"
+    "croessweave/AGENTS.md should exist after install"
   );
   assert!(
     fixture.knowladge_agents_path().is_file(),
@@ -258,12 +258,12 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
   );
 
   fixture
-    .clean_at(&fixture.memory_sync_dir)
-    .assert_success("isolated tnmsc clean from memory-sync");
+    .clean_at(&fixture.croessweave_dir)
+    .assert_success("isolated tnmsc clean from croessweave");
 
   assert!(
     !fixture.project_agents_path().exists(),
-    "memory-sync/AGENTS.md should be removed after scoped clean"
+    "croessweave/AGENTS.md should be removed after scoped clean"
   );
   assert!(
     fixture.knowladge_agents_path().is_file(),
@@ -275,12 +275,12 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
   );
 }
 
-/// Verify the reverse: running clean inside aindex does not affect memory-sync outputs.
+/// Verify the reverse: running clean inside aindex does not affect croessweave outputs.
 ///
 /// The prompt-source root is reserved workspace state, so this scoped clean is a
 /// no-op for the manually created root-level `aindex/AGENTS.md`.
 #[test]
-fn local_clean_from_aindex_does_not_clean_memory_sync() {
+fn local_clean_from_aindex_does_not_clean_croessweave() {
   let fixture = IsolatedCleanFixture::new(false, true);
 
   fixture
@@ -307,7 +307,7 @@ fn local_clean_from_aindex_does_not_clean_memory_sync() {
   );
   assert!(
     fixture.project_agents_path().is_file(),
-    "memory-sync/AGENTS.md should still exist after scoped clean from aindex"
+    "croessweave/AGENTS.md should still exist after scoped clean from aindex"
   );
   assert!(
     fixture.knowladge_agents_path().is_file(),
@@ -340,7 +340,7 @@ fn local_clean_from_home_cleans_all_projects() {
 
   assert!(
     !fixture.project_agents_path().exists(),
-    "memory-sync/AGENTS.md should be removed after global clean"
+    "croessweave/AGENTS.md should be removed after global clean"
   );
   assert!(
     !fixture.knowladge_agents_path().exists(),

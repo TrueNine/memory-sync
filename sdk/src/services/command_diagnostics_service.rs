@@ -62,8 +62,8 @@ mod tests {
 
   #[test]
   fn workspace_mismatch_warning_is_none_for_workspace_root() {
-    let cwd = PathBuf::from("C:/workspace/memory-sync");
-    let workspace_dir = PathBuf::from("C:/workspace/memory-sync");
+    let cwd = PathBuf::from("C:/workspace/croessweave");
+    let workspace_dir = PathBuf::from("C:/workspace/croessweave");
 
     let warning = build_workspace_mismatch_warning(&cwd, &workspace_dir, &merged_config_result());
 
@@ -72,8 +72,8 @@ mod tests {
 
   #[test]
   fn workspace_mismatch_warning_is_none_for_workspace_child() {
-    let cwd = PathBuf::from("C:/workspace/memory-sync/cli");
-    let workspace_dir = PathBuf::from("C:/workspace/memory-sync");
+    let cwd = PathBuf::from("C:/workspace/croessweave/cli");
+    let workspace_dir = PathBuf::from("C:/workspace/croessweave");
 
     let warning = build_workspace_mismatch_warning(&cwd, &workspace_dir, &merged_config_result());
 
@@ -82,14 +82,14 @@ mod tests {
 
   #[test]
   fn workspace_mismatch_warning_includes_context_when_cwd_is_outside_workspace() {
-    let cwd = PathBuf::from("C:/workspace/memory-sync");
+    let cwd = PathBuf::from("C:/workspace/croessweave");
     let workspace_dir = PathBuf::from("C:/temp/demo");
 
     let warning =
       build_workspace_mismatch_warning(&cwd, &workspace_dir, &merged_config_result()).unwrap();
 
     assert_eq!(warning["type"], "workspace_mismatch");
-    assert_eq!(warning["currentDir"], json!("C:/workspace/memory-sync"));
+    assert_eq!(warning["currentDir"], json!("C:/workspace/croessweave"));
     assert_eq!(warning["workspaceDir"], json!("C:/temp/demo"));
     assert_eq!(
       warning["configSources"],

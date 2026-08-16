@@ -1,8 +1,10 @@
-# memory-sync
+# croessweave
 
-![rat](/.attachments/rat.svg)
+<p align="center">
+  <img src="doc/app/icon.svg" alt="croessweave icon" width="256">
+</p>
 
-A rat carries even its own memories when moving. `memory-sync` is that kind of tool-rat: expecting no platform charity, relying on no single IDE's privileged interface — it搬运-fetches, disassembles, and reassembles every config, prompt, and memory file it can read.
+A rat carries even its own memories when moving. `croessweave` is that kind of tool-rat: expecting no platform charity, relying on no single IDE's privileged interface — it搬运-fetches, disassembles, and reassembles every config, prompt, and memory file it can read.
 
 ## What It Does
 
@@ -11,27 +13,27 @@ A rat carries even its own memories when moving. `memory-sync` is that kind of t
 - Auto-write configs for each tool: AGENTS.md, Claude Code, Codex CLI, Cursor, Windsurf, Qoder, Trae, Warp, JetBrains AI, etc.
 - Manage derived artifacts: prompt outputs, skills exports organized as `skills/<skill-category>/<skill>/`, README-class outputs
 - Multiple entry points: `tnmsc` CLI, private SDK, MCP stdio server, Tauri GUI
-- Obsidian integration: TNMSO opens `.mdx` as native Markdown and safely previews static prompt syntax
+- Obsidian integration: TNMSOP opens `.mdx` as native Markdown and safely previews static prompt syntax
 - Fine-grained write-scope control (`outputScopes`, `cleanupProtection`)
 - Source and derivations are auditable — no silent source mutations, no hidden residuals
 - Memories follow the person, not the project — no leakage
 ## Install
 
 ```sh
-npm install -g @truenine/memory-sync-cli
+npm install -g @truenine/croessweave-cli
 ```
 
 MCP server:
 
 ```sh
-npm install -g @truenine/memory-sync-mcp
+npm install -g @truenine/croessweave-mcp
 ```
 
 ### TNMSOP for Obsidian
 
-TNMSOP is maintained in the [`obsidian-plugin/`](obsidian-plugin/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/tnmsop/releases). BRAT users should install `TrueNine/tnmsop`.
+TNMSOP is maintained in the [`croessweave-obsidian-plugin/`](croessweave-obsidian-plugin/README.md) submodule. Install it from the Obsidian community directory or download `main.js`, `manifest.json`, and `styles.css` from the matching [TNMSOP Release](https://github.com/TrueNine/croessweave-obsidian-plugin/releases). BRAT users should install `TrueNine/croessweave-obsidian-plugin`.
 
-TNMSOP shares the memory-sync CalVer version. The plugin is released first with the exact plain `<version>` tag, then memory-sync pins that release through the submodule and publishes its `v<version>` system release.
+TNMSOP shares the croessweave CalVer version. The plugin is released first with the exact plain `<version>` tag, then croessweave pins that release through the submodule and publishes its `v<version>` system release.
 
 ## Supported Tools
 
@@ -43,15 +45,15 @@ TNMSOP shares the memory-sync CalVer version. The plugin is released first with 
 
 ## Architecture
 
-- **SDK** (`tnmsd` crate / `@truenine/memory-sync-sdk`): private mixed core
-- **CLI** (`tnmsc` / `@truenine/memory-sync-cli`): public command entry
-- **MCP** (`tnmsm` / `@truenine/memory-sync-mcp`): stdio server
+- **SDK** (`tnmsd` crate / `@truenine/croessweave-sdk`): private mixed core
+- **CLI** (`tnmsc` / `@truenine/croessweave-cli`): public command entry
+- **MCP** (`tnmsm` / `@truenine/croessweave-mcp`): stdio server
 - **GUI** (Tauri): desktop entry
 ## FAQ
 
 **If AI tools adopt a unified standard, is this project still needed?** Then it has fulfilled its historical mission.
 
-**We already have AGENTS.md and MCP standards — why still need this?** Native targets differ; conditional prompts still need concrete landing points. `AGENTS.md` is a spec; `memory-sync` is the porter and assembler.
+**We already have AGENTS.md and MCP standards — why still need this?** Native targets differ; conditional prompts still need concrete landing points. `AGENTS.md` is a spec; `croessweave` is the porter and assembler.
 
 **Are there things in prompts you don't want to leave behind?** Yes. Hence the cleanup and protection boundaries.
 
@@ -59,7 +61,7 @@ TNMSOP shares the memory-sync CalVer version. The plugin is released first with 
 
 You need dev experience, Git fluency, and terminal comfort.
 
-If you're scraping by in a world of profoundly unequal resources — free tiers, trial quotas, third-party scripts — `memory-sync` is for you.
+If you're scraping by in a world of profoundly unequal resources — free tiers, trial quotas, third-party scripts — `croessweave` is for you.
 
 ## Who It's Not For
 

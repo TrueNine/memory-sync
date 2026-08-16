@@ -1,6 +1,6 @@
 {
-  "name": "@truenine/memory-sync-gui",
-  "version": "2026.10805.0",
+  "name": "@truenine/croessweave-gui",
+  "version": "2026.10806.0",
   "private": true,
   "engines": {
     "node": ">= 22"

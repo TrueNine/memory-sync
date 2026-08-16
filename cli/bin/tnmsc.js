@@ -5,7 +5,7 @@ const {spawnSync} = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PACKAGE_NAME = '@truenine/memory-sync-cli';
+const PACKAGE_NAME = '@truenine/croessweave-cli';
 const BINARY_NAME = 'tnmsc';
 const SUPPORTED_TARGETS = [
   'linux-x64-gnu',
@@ -17,15 +17,15 @@ const SUPPORTED_TARGETS = [
 
 const PLATFORM_PACKAGES = {
   darwin: {
-    arm64: '@truenine/memory-sync-cli-darwin-arm64',
-    x64: '@truenine/memory-sync-cli-darwin-x64',
+    arm64: '@truenine/croessweave-cli-darwin-arm64',
+    x64: '@truenine/croessweave-cli-darwin-x64',
   },
   linux: {
-    arm64: '@truenine/memory-sync-cli-linux-arm64-gnu',
-    x64: '@truenine/memory-sync-cli-linux-x64-gnu',
+    arm64: '@truenine/croessweave-cli-linux-arm64-gnu',
+    x64: '@truenine/croessweave-cli-linux-x64-gnu',
   },
   win32: {
-    x64: '@truenine/memory-sync-cli-win32-x64-msvc',
+    x64: '@truenine/croessweave-cli-win32-x64-msvc',
   },
 };
 

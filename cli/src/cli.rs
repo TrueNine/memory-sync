@@ -11,7 +11,7 @@ use clap::{Args, Parser, Subcommand};
 #[command(
     name = "tnmsc",
     version = env!("CARGO_PKG_VERSION"),
-    about = "Memory Sync CLI — Synchronize AI memory and configuration files across projects.",
+    about = "Croessweave CLI — Synchronize AI memory and configuration files across projects.",
     disable_help_subcommand = true,
 )]
 pub struct Cli {

@@ -1,6 +1,6 @@
-use super::{MemorySyncCommandOptions, MemorySyncCommandResult, SdkError};
+use super::{CroessweaveCommandOptions, CroessweaveCommandResult, SdkError};
 use crate::services::clean_service::clean as svc_clean;
 
-pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, SdkError> {
+pub fn clean(options: CroessweaveCommandOptions) -> Result<CroessweaveCommandResult, SdkError> {
   svc_clean(options)
 }

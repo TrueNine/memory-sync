@@ -1,5 +1,5 @@
 [package]
-name = "memory-sync"
+name = "croessweave"
 description = "Cross-AI-tool prompt synchronisation"
 version.workspace = true
 edition.workspace = true
@@ -9,7 +9,7 @@ authors.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "memory-sync"
+name = "croessweave"
 path = "src/main.rs"
 
 [dependencies]
@@ -27,12 +27,12 @@ members = [
 ]
 
 [workspace.package]
-version = "2026.10805.0"
+version = "2026.10806.0"
 edition = "2024"
 rust-version = "1.88"
 license = "AGPL-3.0-only"
 authors = ["TrueNine"]
-repository = "https://github.com/TrueNine/memory-sync"
+repository = "https://github.com/TrueNine/croessweave"
 
 [workspace.dependencies]
 # Internal crates

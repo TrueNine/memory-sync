@@ -1,6 +1,6 @@
 {
-  "name": "@truenine/memory-sync-cli-linux-arm64-gnu",
-  "version": "2026.10805.0",
+  "name": "@truenine/croessweave-cli-linux-arm64-gnu",
+  "version": "2026.10806.0",
   "description": "tnmsc native binary for Linux arm64 (glibc)",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",

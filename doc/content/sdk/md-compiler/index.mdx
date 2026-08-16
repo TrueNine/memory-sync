@@ -10,14 +10,14 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 # MDX-Compiler 编译器
 
 <Callout type="info">
-  **包标识**: `@truenine/memory-sync-sdk` (npm) / `tnmsd` (Rust crate)  
+  **包标识**: `@truenine/croessweave-sdk` (npm) / `tnmsd` (Rust crate)
   **源码位置**: `sdk/src/md-compiler/`
   **导出入口**: `src/index.ts`
 </Callout>
 
 ## 概述
 
-MDX-Compiler 是 memory-sync monorepo 中的 **Rust-first MDX/Markdown 编译与转换引擎**。它负责将 MDX 源码编译为纯 Markdown 文本，同时提供表达式求值、JSX 组件处理、导出元数据提取以及 TOML artifact 构建等核心能力。
+MDX-Compiler 是 croessweave monorepo 中的 **Rust-first MDX/Markdown 编译与转换引擎**。它负责将 MDX 源码编译为纯 Markdown 文本，同时提供表达式求值、JSX 组件处理、导出元数据提取以及 TOML artifact 构建等核心能力。
 
 ### 核心能力
 
@@ -39,7 +39,7 @@ MDX-Compiler 当前采用 **Native-first 入口 + TypeScript 参考实现** 的�
 运行时入口通过 `native-binding.ts` 中的 `getNapiMdCompilerBinding()` 接入 `sdk/src/core/native-binding-loader.ts`：
 
 - 优先加载平台匹配的 `.node` 二进制文件
-- 支持从 CLI binary package (`@truenine/memory-sync-cli-<suffix>`) 中提取 binding
+- 支持从 CLI binary package (`@truenine/croessweave-cli-<suffix>`) 中提取 binding
 - `TNMSC_DISABLE_NATIVE_BINDING=1` 会让公共入口快速失败，用于验证缺失 native binding 的错误路径
 
 <Tabs items={["支持的目标平台", "加载控制"]}>
@@ -421,7 +421,7 @@ interface MdxGlobalScope {
 库提供了三组工具名称预设，适配不同的 AI 工具环境：
 
 ```typescript
-import { ToolPresets } from '@truenine/memory-sync-sdk/globals'
+import { ToolPresets } from '@truenine/croessweave-sdk/globals'
 
 // 默认预设 (snake_case)
 ToolPresets.default
@@ -443,7 +443,7 @@ ToolPresets.kiro
 最简单的用法——传入 MDX 字符串，获取编译后的 Markdown：
 
 ```typescript
-import { mdxToMd } from '@truenine/memory-sync-sdk'
+import { mdxToMd } from '@truenine/croessweave-sdk'
 
 const mdxSource = `
 # Hello MDX
@@ -477,7 +477,7 @@ console.log(markdown)
 使用自定义作用域、全局作用域和文件路径进行编译：
 
 ```typescript
-import { mdxToMd, MdxToMdOptions } from '@truenine/memory-sync-sdk'
+import { mdxToMd, MdxToMdOptions } from '@truenine/croessweave-sdk'
 
 const mdxSource = `
 # Profile Page
@@ -526,7 +526,7 @@ console.log(result.metadata)
 构建用于 AI Prompt 的结构化 TOML 文档：
 
 ```typescript
-import { mdxToMd, buildPromptTomlArtifact } from '@truenine/memory-sync-sdk'
+import { mdxToMd, buildPromptTomlArtifact } from '@truenine/croessweave-sdk'
 
 const promptContent = `
 # System Prompt
@@ -587,7 +587,7 @@ console.log(tomlOutput)
 从 MDX 的 `export` 语句中提取结构化元数据：
 
 ```typescript
-import { mdxToMd } from '@truenine/memory-sync-sdk'
+import { mdxToMd } from '@truenine/croessweave-sdk'
 
 const mdxWithExports = `
 ---
@@ -649,7 +649,7 @@ import {
   type MdxJsxFlowElement,
   type ProcessingContext,
   type RootContent
-} from '@truenine/memory-sync-sdk'
+} from '@truenine/croessweave-sdk'
 
 // 定义一个 <Alert> 组件
 const alertHandler: ComponentHandler = async (
@@ -852,7 +852,7 @@ import {
   ExportParseError,
   MetadataValidationError,
   formatCompilerDiagnostic
-} from '@truenine/memory-sync-sdk'
+} from '@truenine/croessweave-sdk'
 
 try {
   const result = await mdxToMd(mdxSource, { filePath: '/path/to/file.mdx', extractMetadata: true })
@@ -878,7 +878,7 @@ try {
 
 ### 类型导出速查
 
-以下是 `@truenine/memory-sync-sdk` 的完整公共类型导出清单：
+以下是 `@truenine/croessweave-sdk` 的完整公共类型导出清单：
 
 ```typescript
 // ===== 核心类型 (来自 types.ts) =====

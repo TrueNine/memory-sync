@@ -78,7 +78,7 @@ pub struct LogEntry {
 #[tauri::command]
 pub fn install_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
   let command_name = if dry_run { "dry-run" } else { "install" };
-  let options = tnmsd::MemorySyncCommandOptions {
+  let options = tnmsd::CroessweaveCommandOptions {
     cwd: Some(cwd),
     ..Default::default()
   };
@@ -103,7 +103,7 @@ pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
   let command_name = if dry_run { "dry-run-clean" } else { "clean" };
-  let result = tnmsd::clean(tnmsd::MemorySyncCommandOptions {
+  let result = tnmsd::clean(tnmsd::CroessweaveCommandOptions {
     cwd: Some(cwd),
     dry_run: Some(dry_run),
     ..Default::default()
@@ -123,7 +123,7 @@ pub fn get_logs(_cwd: String, _command: String) -> Result<Vec<LogEntry>, String>
 }
 
 fn to_pipeline_result(
-  result: &tnmsd::MemorySyncCommandResult,
+  result: &tnmsd::CroessweaveCommandResult,
   command: &str,
   dry_run: bool,
 ) -> PipelineResult {
@@ -139,7 +139,7 @@ fn to_pipeline_result(
   }
 }
 
-fn collect_result_errors(result: &tnmsd::MemorySyncCommandResult) -> Vec<String> {
+fn collect_result_errors(result: &tnmsd::CroessweaveCommandResult) -> Vec<String> {
   let mut messages = Vec::new();
 
   if let Some(message) = result.message.as_ref()

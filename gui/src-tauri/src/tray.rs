@@ -1,4 +1,4 @@
-/// System tray integration for the Memory Sync desktop application.
+/// System tray integration for the Croessweave desktop application.
 ///
 /// Creates a tray icon with a context menu containing three actions:
 /// - **Install** (`install`): Triggers pipeline execution. Currently shows

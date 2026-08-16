@@ -1,13 +1,13 @@
 {
-  "name": "@truenine/memory-sync-cli",
-  "version": "2026.10805.0",
-  "description": "TrueNine Memory Synchronization CLI metadata package",
+  "name": "@truenine/croessweave-cli",
+  "version": "2026.10806.0",
+  "description": "TrueNine Croessweave CLI metadata package",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
-  "homepage": "https://github.com/TrueNine/memory-sync",
+  "homepage": "https://github.com/TrueNine/croessweave",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "url": "git+https://github.com/TrueNine/croessweave.git",
     "directory": "cli"
   },
   "bin": {
@@ -34,10 +34,10 @@
     "test": "cargo test --manifest-path Cargo.toml"
   },
   "optionalDependencies": {
-    "@truenine/memory-sync-cli-darwin-arm64": "2026.10805.0",
-    "@truenine/memory-sync-cli-darwin-x64": "2026.10805.0",
-    "@truenine/memory-sync-cli-linux-arm64-gnu": "2026.10805.0",
-    "@truenine/memory-sync-cli-linux-x64-gnu": "2026.10805.0",
-    "@truenine/memory-sync-cli-win32-x64-msvc": "2026.10805.0"
+    "@truenine/croessweave-cli-darwin-arm64": "2026.10806.0",
+    "@truenine/croessweave-cli-darwin-x64": "2026.10806.0",
+    "@truenine/croessweave-cli-linux-arm64-gnu": "2026.10806.0",
+    "@truenine/croessweave-cli-linux-x64-gnu": "2026.10806.0",
+    "@truenine/croessweave-cli-win32-x64-msvc": "2026.10806.0"
   }
 }

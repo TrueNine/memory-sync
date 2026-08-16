@@ -10,7 +10,7 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 # Script-Runtime
 
 <Callout type="info">
-**包名**: `@truenine/memory-sync-sdk` &nbsp;|&nbsp; **Rust Crate**: `tnmsc` &nbsp;|&nbsp; **Rust 源码位置**: `sdk/src/native_script_runtime.rs` &nbsp;|&nbsp; **TypeScript facade**: `sdk/src/libraries/script-runtime/`
+**包名**: `@truenine/croessweave-sdk` &nbsp;|&nbsp; **Rust Crate**: `tnmsc` &nbsp;|&nbsp; **Rust 源码位置**: `sdk/src/native_script_runtime.rs` &nbsp;|&nbsp; **TypeScript facade**: `sdk/src/libraries/script-runtime/`
 </Callout>
 
 Script-Runtime 是一个 **Rust 支持的 TypeScript 代理模块加载器和路径验证运行时**，为 `tnmsc` 核心系统提供安全的动态模块代理与公共路径解析能力。它通过 NAPI 将 Rust 原生的高性能路径验证逻辑暴露给 Node.js 层，同时利用 Jiti 运行时实现灵活的代理模块加载与执行。
@@ -89,7 +89,7 @@ import {
   resolvePublicPath,
   resolvePublicPathUnchecked,
   getProxyModuleConfig
-} from '@truenine/memory-sync-sdk'
+} from '@truenine/croessweave-sdk'
 ```
 
 ---
@@ -354,7 +354,7 @@ Script-Runtime 支持两种代理定义方式：
 <Tabs.Tab>
 ```typescript
 // proxy.ts - 函数式定义
-import {defineProxy} from '@truenine/memory-sync-sdk'
+import {defineProxy} from '@truenine/croessweave-sdk'
 import {join} from 'node:path'
 
 export default defineProxy((logicalPath: string, ctx: ProxyContext) => {
@@ -365,7 +365,7 @@ export default defineProxy((logicalPath: string, ctx: ProxyContext) => {
 <Tabs.Tab>
 ```typescript
 // proxy.ts - 对象式定义
-import {defineProxy, type ProxyDefinition} from '@truenine/memory-sync-sdk'
+import {defineProxy, type ProxyDefinition} from '@truenine/croessweave-sdk'
 import {join} from 'node:path'
 
 const proxy: ProxyDefinition = {
@@ -644,7 +644,7 @@ LR
 
 ```typescript
 // project/proxy.ts
-import {defineProxy, type ProxyRouteHandler} from '@truenine/memory-sync-sdk'
+import {defineProxy, type ProxyRouteHandler} from '@truenine/croessweave-sdk'
 
 const handler: ProxyRouteHandler = (logicalPath) => {
   // 简单的前缀映射
@@ -657,7 +657,7 @@ export default defineProxy(handler)
 ### 示例 2: 加载和使用外部代理
 
 ```typescript
-import {loadProxyModule, getProxyModuleConfig} from '@truenine/memory-sync-sdk'
+import {loadProxyModule, getProxyModuleConfig} from '@truenine/croessweave-sdk'
 
 async function useExternalProxy(proxyPath: string) {
   // 加载代理模块
@@ -686,7 +686,7 @@ useExternalProxy('./project/proxy.ts')
 ### 示例 3: 公共路径验证
 
 ```typescript
-import {validatePublicPath} from '@truenine/memory-sync-sdk'
+import {validatePublicPath} from '@truenine/croessweave-sdk'
 
 const options = {aindexPublicDir: '/workspace/.aindex/public'}
 
@@ -719,7 +719,7 @@ try {
 ### 示例 4: 带上下文的路径解析
 
 ```typescript
-import {resolvePublicPath} from '@truenine/memory-sync-sdk'
+import {resolvePublicPath} from '@truenine/croessweave-sdk'
 
 const ctx = {
   cwd: '/home/user/project',
@@ -757,7 +757,7 @@ import {
   type ProxyRouteHandler,
   type ProxyContext,
   type ProxyModuleConfig
-} from '@truenine/memory-sync-sdk'
+} from '@truenine/croessweave-sdk'
 import {join, extname} from 'node:path'
 
 /**
@@ -813,7 +813,7 @@ export const config: ProxyModuleConfig = {
 **消费端使用:**
 
 ```typescript
-import {resolvePublicPath, loadProxyModule, getProxyModuleConfig} from '@truenine/memory-sync-sdk'
+import {resolvePublicPath, loadProxyModule, getProxyModuleConfig} from '@truenine/croessweave-sdk'
 
 async function demonstrateFullProxy() {
   const ctx = {
@@ -864,7 +864,7 @@ project/
 ### 错误处理和超时配置
 
 ```typescript
-import {resolvePublicPath, loadProxyModule} from '@truenine/memory-sync-sdk'
+import {resolvePublicPath, loadProxyModule} from '@truenine/croessweave-sdk'
 
 class ProxyResolutionError extends Error {
   constructor(
@@ -933,13 +933,13 @@ async function safeResolve(
 ```typescript
 // ❌ 错误：直接使用 unchecked 结果访问文件系统
 import {readFile} from 'node:fs/promises'
-import {resolvePublicPathUnchecked} from '@truenine/memory-sync-sdk'
+import {resolvePublicPathUnchecked} from '@truenine/croessweave-sdk'
 
 const unsafePath = await resolvePublicPathUnchecked(proxyPath, ctx, userInput)
 const content = await readFile(unsafePath, 'utf8') // 危险！未经验证
 
 // ✅ 正确：始终经过验证
-import {resolvePublicPath} from '@truenine/memory-sync-sdk'
+import {resolvePublicPath} from '@truenine/croessweave-sdk'
 import {readFile} from 'node:fs/promises'
 
 const safePath = resolvePublicPath(proxyPath, ctx, userInput) // 含 Rust 验证
@@ -991,7 +991,7 @@ graph TB
         ProxyTS["proxy.ts<br/>(用户编写)"]
     end
 
-    subgraph ScriptRuntimeAPI["@truenine/memory-sync-sdk"]
+    subgraph ScriptRuntimeAPI["@truenine/croessweave-sdk"]
         direction TB
         PublicAPI["公开 API<br/>defineProxy / loadProxyModule<br/>validatePublicPath / resolvePublicPath"]
 
