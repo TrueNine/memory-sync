@@ -15,11 +15,11 @@ use crate::services::common::{
   resolve_workspace_dir,
 };
 use crate::services::output_plan::{PlannedOutputFile, build_output_files};
-use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
+use crate::{CliError, CroessweaveCommandOptions, CroessweaveCommandResult};
 
 pub(crate) fn install(
-  options: MemorySyncCommandOptions,
-) -> Result<MemorySyncCommandResult, CliError> {
+  options: CroessweaveCommandOptions,
+) -> Result<CroessweaveCommandResult, CliError> {
   let logger = create_logger(
     "install",
     options
@@ -119,7 +119,7 @@ pub(crate) fn install(
     })),
   );
 
-  Ok(MemorySyncCommandResult {
+  Ok(CroessweaveCommandResult {
     success: execution.errors.is_empty(),
     files_affected: execution.files_affected as i32,
     dirs_affected: execution.dirs_affected as i32,

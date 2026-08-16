@@ -1,6 +1,6 @@
 [package]
 name = "tnmsm"
-description = "MCP stdio server for managing memory-sync prompt sources and translation artifacts"
+description = "MCP stdio server for managing croessweave prompt sources and translation artifacts"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

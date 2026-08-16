@@ -2,9 +2,9 @@ use clap::{Parser, Subcommand};
 use std::process::{Command as ProcCommand, Stdio};
 
 #[derive(Parser)]
-#[command(name = "memory-sync-xtask")]
+#[command(name = "croessweave-xtask")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
-#[command(about = "Unified build entry for memory-sync workspace")]
+#[command(about = "Unified build entry for croessweave workspace")]
 struct Cli {
   #[command(subcommand)]
   command: Command,
@@ -111,7 +111,7 @@ fn run_hook_creation() -> Result<(), String> {
 
   let hooks_dir = format!("{}/hooks", git_dir_path);
   let hook_content = r#"#!/bin/sh
-# Version sync hook - auto-installed by memory-sync-xtask
+# Version sync hook - auto-installed by croessweave-xtask
 exec bun "$PWD/.githooks/sync-versions.ts" "$1"
 "#;
 

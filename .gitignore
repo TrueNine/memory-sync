@@ -29,3 +29,4 @@ libraries/**/dist/*.node
 !**/Cargo.lock
 output/
 .idea/
+.test_write

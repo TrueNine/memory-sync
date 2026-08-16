@@ -80,7 +80,7 @@ const nextConfig: NextConfig = {
     basePath: docsBasePath
   },
   env: {
-    NEXT_PUBLIC_MEMORY_SYNC_VERSION: docsVersion,
+    NEXT_PUBLIC_CROESSWEAVE_VERSION: docsVersion,
     NEXT_PUBLIC_DOCS_BASE_PATH: docsBasePath
   },
   reactStrictMode: true,

@@ -7,7 +7,7 @@ pub mod repositories;
 pub mod services;
 
 pub use endpoint::{
-  MemorySyncCommandOptions, MemorySyncCommandResult, SdkError, clean, dry_run, install,
+  CroessweaveCommandOptions, CroessweaveCommandResult, SdkError, clean, dry_run, install,
   load_config, version,
 };
 

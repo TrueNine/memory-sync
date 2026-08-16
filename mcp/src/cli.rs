@@ -6,7 +6,7 @@ use clap::{Args, Parser, Subcommand};
 #[command(
   name = "tnmsm",
   version = env!("CARGO_PKG_VERSION"),
-  about = "Memory Sync MCP stdio server",
+  about = "Croessweave MCP stdio server",
   disable_help_subcommand = true,
 )]
 pub struct Cli {

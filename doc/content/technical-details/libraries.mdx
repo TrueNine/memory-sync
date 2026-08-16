@@ -24,7 +24,7 @@ import { Callout, Cards } from 'nextra/components'
 - `sdk/src/sdk/logger.ts` 与 `sdk/src/sdk/src/sdk/script-runtime/` 已成为对应 TypeScript facade 的事实来源
 - `sdk/src/md-compiler/` 仍保留完整的 Rust + TypeScript 实现
 
-这三个 Rust-first / NAPI-first 基础能力继续作为 memory-sync 工具链的共享基础设施，被 `sdk/` 核心层编排后统一暴露给 `cli/`、`mcp/` 和 `gui/` 消费。
+这三个 Rust-first / NAPI-first 基础能力继续作为 croessweave 工具链的共享基础设施，被 `sdk/` 核心层编排后统一暴露给 `cli/`、`mcp/` 和 `gui/` 消费。
 
 最近的优化工作包括：统一 NAPI 加载器实现、将 Logger / Script-Runtime 的 TypeScript facade 内联回 `sdk/`、标准化配置接口，以及将分散的技术文档收敛到 [SDK 文档体系](/docs/sdk) 以提升可维护性。
 

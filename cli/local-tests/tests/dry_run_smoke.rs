@@ -17,8 +17,8 @@ fn local_dry_run_does_not_write_project_files() {
   ));
   let temp_home = temp_root.join("home");
   let workspace_dir = temp_root.join("workspace");
-  let project_dir = workspace_dir.join("memory-sync");
-  let prompt_dir = workspace_dir.join("aindex").join("app").join("memory-sync");
+  let project_dir = workspace_dir.join("croessweave");
+  let prompt_dir = workspace_dir.join("aindex").join("app").join("croessweave");
 
   fs::create_dir_all(temp_home.join(".aindex")).unwrap();
   fs::create_dir_all(&project_dir).unwrap();

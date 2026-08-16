@@ -1,5 +1,5 @@
 name: Setup Bun
-description: Setup the pinned Bun runtime and optionally install TNMSO dependencies
+description: Setup the pinned Bun runtime and optionally install TNMSOP dependencies
 
 inputs:
   bun-version:
@@ -13,7 +13,7 @@ inputs:
   working-directory:
     description: Directory containing bun.lock
     required: false
-    default: obsidian-plugin
+    default: croessweave-obsidian-plugin
 
 runs:
   using: composite

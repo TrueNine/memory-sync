@@ -5,7 +5,7 @@ const {spawnSync} = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PACKAGE_NAME = '@truenine/memory-sync-mcp';
+const PACKAGE_NAME = '@truenine/croessweave-mcp';
 const BINARY_NAME = 'tnmsm';
 const SUPPORTED_TARGETS = [
   'linux-x64-gnu',
@@ -17,15 +17,15 @@ const SUPPORTED_TARGETS = [
 
 const PLATFORM_PACKAGES = {
   darwin: {
-    arm64: '@truenine/memory-sync-mcp-darwin-arm64',
-    x64: '@truenine/memory-sync-mcp-darwin-x64',
+    arm64: '@truenine/croessweave-mcp-darwin-arm64',
+    x64: '@truenine/croessweave-mcp-darwin-x64',
   },
   linux: {
-    arm64: '@truenine/memory-sync-mcp-linux-arm64-gnu',
-    x64: '@truenine/memory-sync-mcp-linux-x64-gnu',
+    arm64: '@truenine/croessweave-mcp-linux-arm64-gnu',
+    x64: '@truenine/croessweave-mcp-linux-x64-gnu',
   },
   win32: {
-    x64: '@truenine/memory-sync-mcp-win32-x64-msvc',
+    x64: '@truenine/croessweave-mcp-win32-x64-msvc',
   },
 };
 

@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 pub fn execute() -> ExitCode {
-  println!("tnmsc — Memory Sync CLI");
+  println!("tnmsc — Croessweave CLI");
   println!();
   println!("USAGE:");
   println!("  tnmsc [OPTIONS] [COMMAND]");

@@ -1,3 +1,4 @@
-[submodule "obsidian-plugin"]
-	path = obsidian-plugin
-	url = https://github.com/TrueNine/tnmsop.git
+[submodule "croessweave-obsidian-plugin"]
+	path = croessweave-obsidian-plugin
+	branch = main
+	url = https://github.com/TrueNine/croessweave-obsidian-plugin.git

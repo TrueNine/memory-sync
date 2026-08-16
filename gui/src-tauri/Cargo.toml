@@ -1,7 +1,7 @@
 [package]
 name = "tnmsg"
-version = "2026.10805.0"
-description = "Memory Sync desktop GUI application"
+version = "2026.10806.0"
+description = "Croessweave desktop GUI application"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.93.1"

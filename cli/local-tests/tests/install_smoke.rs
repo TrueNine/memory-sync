@@ -27,8 +27,8 @@ impl IsolatedInstallFixture {
     ));
     let temp_home = temp_root.join("home");
     let workspace_dir = temp_root.join("workspace");
-    let project_dir = workspace_dir.join("memory-sync");
-    let aindex_project_dir = workspace_dir.join("aindex").join("app").join("memory-sync");
+    let project_dir = workspace_dir.join("croessweave");
+    let aindex_project_dir = workspace_dir.join("aindex").join("app").join("croessweave");
     let commands_dir = workspace_dir.join("aindex").join("commands");
     let subagents_dir = workspace_dir.join("aindex").join("subagents");
     let skills_dir = workspace_dir.join("aindex").join("skills");

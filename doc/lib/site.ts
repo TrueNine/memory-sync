@@ -1,14 +1,14 @@
 import process from 'node:process'
 
 export const siteConfig = {
-  productName: 'memory-sync',
-  shortName: 'memory-sync Docs',
-  title: 'memory-sync Docs',
+  productName: 'croessweave',
+  shortName: 'croessweave Docs',
+  title: 'croessweave Docs',
   description:
-    'Documentation for memory-sync: prompts, rules, skills, commands, and project memory sync across multiple AI tools.',
-  repoUrl: 'https://github.com/TrueNine/memory-sync',
-  docsRepositoryBase: 'https://github.com/TrueNine/memory-sync/blob/main/doc',
-  issueUrl: 'https://github.com/TrueNine/memory-sync/issues/new/choose'
+    'Documentation for croessweave: prompts, rules, skills, commands, and project croessweave across multiple AI tools.',
+  repoUrl: 'https://github.com/TrueNine/croessweave',
+  docsRepositoryBase: 'https://github.com/TrueNine/croessweave/blob/main/doc',
+  issueUrl: 'https://github.com/TrueNine/croessweave/issues/new/choose'
 } as const
 
 function normalizeBasePath(rawBasePath: string | undefined): string {

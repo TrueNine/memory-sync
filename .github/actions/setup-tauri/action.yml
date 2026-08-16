@@ -99,7 +99,7 @@ runs:
       id: cargo-deps-hash
       shell: bash
       run: |
-        HASH=$(awk '/^name = "memory-sync-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | openssl dgst -sha256 2>&1 | awk '{print $NF}')
+        HASH=$(awk '/^name = "croessweave-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | openssl dgst -sha256 2>&1 | awk '{print $NF}')
         echo "hash=$HASH" >> $GITHUB_OUTPUT
 
     - name: Cache cargo + tauri target
@@ -125,7 +125,7 @@ runs:
 
     - name: Generate route tree
       shell: bash
-      run: pnpm -F @truenine/memory-sync-gui run generate:routes
+      run: pnpm -F @truenine/croessweave-gui run generate:routes
 
     - name: Clean old bundle artifacts
       shell: bash

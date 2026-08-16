@@ -87,7 +87,7 @@ function resolveLinkTarget(currentRoute: string, href: string): string | null {
   if (href.startsWith('/')) return normalizeRoute(href)
 
   const base = currentRoute.endsWith('/') ? currentRoute : `${currentRoute}/`
-  return normalizeRoute(new URL(href, `https://memory-sync.local${base}`).pathname)
+  return normalizeRoute(new URL(href, `https://croessweave.local${base}`).pathname)
 }
 
 function extractYamlFrontMatter(content: string): Record<string, unknown> | null {
